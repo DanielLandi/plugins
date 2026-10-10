@@ -57,3 +57,15 @@ plugin system can use the self-contained
 
 Instructions are MIT licensed. Third-party reference imagery and model/rendered
 assets are not included and retain their own licenses.
+
+## Single source of truth
+
+Maintain the recipe only in this package's `skills/recreate-batatais-scene/SKILL.md`.
+The Blender project references this file; HAIK's old skill-download URLs redirect
+here instead of embedding another copy. Changes belong in this repository.
+Installed agent packages are distribution copies managed by their host CLI.
+
+`install.sh` preserves the older Bash-based skill installation flow for existing
+users on macOS/Linux (or a compatible Bash environment). HAIK's former installer
+URLs redirect to this file, which fetches the current skill from this repository.
+Prefer the native plugin commands above for Claude Code and Codex.

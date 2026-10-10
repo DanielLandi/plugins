@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "batatais",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Reconstruct Batatais in Blender from maps and photographic evidence using reproducible Python scripts.",
   "author": {
     "name": "Daniel Landi"
