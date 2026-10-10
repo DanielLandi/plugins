@@ -1,0 +1,16 @@
+{
+  "name": "batatais",
+  "version": "1.0.0",
+  "description": "Reconstruct Batatais in Blender from maps and photographic evidence using reproducible Python scripts.",
+  "author": {
+    "name": "Daniel Landi"
+  },
+  "homepage": "https://github.com/DanielLandi/plugins/tree/main/batatais",
+  "license": "MIT",
+  "keywords": [
+    "blender",
+    "architecture",
+    "batatais",
+    "reconstruction"
+  ]
+}
