@@ -11,3 +11,5 @@ export * from './series';
 export * from './SceneSeries';
 export * from './Excerpt';
 export * from './SongAudio';
+export * from './loop';
+export * from './web';

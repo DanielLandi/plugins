@@ -11,6 +11,7 @@
 import sys
 from pathlib import Path
 
+sys.dont_write_bytecode = True  # the plugin folder is replaced on update: never write into it
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from musicvideo.cli import main  # noqa: E402

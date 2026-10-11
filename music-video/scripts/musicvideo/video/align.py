@@ -1,5 +1,6 @@
 """music-video align: word timings for a filed song."""
 import json
+import os
 import subprocess
 from collections import Counter
 from collections.abc import Callable
@@ -8,7 +9,8 @@ from pathlib import Path
 
 import yaml
 
-from ..workspace import Workspace
+from ..spec import is_instrumental, lyrics as spec_lyrics
+from ..workspace import Workspace, install_dir
 from ..errors import MVError
 from .lyrics import Lyrics, parse_lyrics
 from .media import decode_mono, duration_s, rms_envelope
@@ -22,8 +24,15 @@ ENVELOPE_SR = 16000
 Runner = Callable[[list[str]], None]
 
 
+def worker_env() -> dict[str, str]:
+    """The worker's Python environment and its model weights live in the install folder, not scattered caches."""
+    base = install_dir()
+    return {**os.environ, "UV_CACHE_DIR": str(base / "uv"), "TORCH_HOME": str(base / "models" / "torch"),
+            "HF_HOME": str(base / "models" / "huggingface")}
+
+
 def run_worker(args: list[str]) -> None:
-    if subprocess.run(["uv", "run", "--script", str(WORKER), *args]).returncode:
+    if subprocess.run(["uv", "run", "--script", str(WORKER), *args], env=worker_env()).returncode:
         raise MVError(f"the ML worker failed during '{args[0]}'; its output is above")
 
 
@@ -40,14 +49,14 @@ class AlignResult:
 def _lyrics(song: VideoSong) -> tuple[Lyrics, str]:
     if song.paths.as_sung.is_file():
         return parse_lyrics(song.paths.as_sung.read_text(encoding="utf-8")), "as sung"
-    return parse_lyrics(song.spec["suno"].get("lyrics") or ""), "spec"
+    return parse_lyrics(spec_lyrics(song.spec)), "spec"
 
 
 def align(ws: Workspace, spec_id: str, lang: str = "en", force: bool = False,
           runner: Runner | None = None) -> AlignResult:
     runner = runner or run_worker
     song = video_song(ws, spec_id)
-    if song.spec["suno"].get("instrumental"):
+    if is_instrumental(song.spec):
         raise MVError(f"{spec_id} is instrumental: there are no words to time")
     lyrics, source = _lyrics(song)
     if not lyrics.lines:

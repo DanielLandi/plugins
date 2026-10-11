@@ -49,6 +49,7 @@ def test_align_writes_timing_and_subtitle_files(mv_ws, filed_song):
 def test_align_prefers_the_as_sung_lyrics(mv_ws, filed_song):
     spec_id, _ = filed_song()
     paths = video_song(load_workspace(), spec_id).paths
+    paths.as_sung.parent.mkdir(parents=True, exist_ok=True)  # the video's folder (new-video makes it)
     paths.as_sung.write_text("[Verse]\nHeadlights on tonight\n", encoding="utf-8")
     result = align(load_workspace(), spec_id, runner=fake_worker([]))
     assert result.lyrics_source == "as sung"
@@ -58,6 +59,7 @@ def test_align_prefers_the_as_sung_lyrics(mv_ws, filed_song):
 def test_align_applies_the_users_fixes(mv_ws, filed_song):
     spec_id, _ = filed_song()
     paths = video_song(load_workspace(), spec_id).paths
+    paths.fixes.parent.mkdir(parents=True, exist_ok=True)  # the video's folder (new-video makes it)
     paths.fixes.write_text(yaml.safe_dump([{"at": 0.2, "word": "Headlights", "shift": 0.1}]), encoding="utf-8")
     result = align(load_workspace(), spec_id, runner=fake_worker([]))
     first = result.timing["words"][0]
@@ -124,3 +126,14 @@ def test_cli_prints_a_summary(mv_ws, filed_song, monkeypatch, capsys):
     assert main(["align", spec_id, "--lang", "en"]) == 0
     out = capsys.readouterr().out
     assert "12 words, 2 lines" in out and "unsure words (0): none" in out
+
+
+def test_the_worker_keeps_its_environment_and_models_in_the_install_folder(tmp_path, monkeypatch):
+    from musicvideo.video import align as al
+    seen = {}
+    monkeypatch.setattr(al.subprocess, "run", lambda cmd, env=None, **k: seen.update(env=env) or type("R", (), {"returncode": 0})())
+    al.run_worker(["beats", "a", "b"])
+    install = tmp_path / "install"
+    assert seen["env"]["UV_CACHE_DIR"] == str(install / "uv")
+    assert seen["env"]["TORCH_HOME"] == str(install / "models" / "torch")
+    assert seen["env"]["HF_HOME"] == str(install / "models" / "huggingface")

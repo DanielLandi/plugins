@@ -63,16 +63,16 @@ def test_video_context(mv_ws):
     _tree(vdir, {"index.tsx": "", "video.yaml": "id: short\ngl: swangle\nsong: night-drive\n"})
     with pytest.raises(MVError, match="music-video align night-drive"):
         studio.video_context(mv_ws, "short")
-    pub = mv_ws.media_for("night-drive") / "public"
+    pub = mv_ws.work_for("night-drive") / "public"
     _tree(pub, {"timing.json": "{}", "analysis.json": "{}"})
     ctx = studio.video_context(mv_ws, "short")
-    assert (ctx.song, ctx.gl, ctx.public, ctx.media) == ("night-drive", "swangle", pub, mv_ws.media_for("short"))
+    assert (ctx.song, ctx.gl, ctx.public, ctx.work) == ("night-drive", "swangle", pub, mv_ws.work_for("short"))
 
 
 def test_tool_env(mv_ws, tmp_path):
     vdir = mv_ws.video_dir("night-drive")
     _tree(vdir, {"index.tsx": ""})
-    _tree(mv_ws.media_for("night-drive") / "public", {"timing.json": "{}", "analysis.json": "{}"})
+    _tree(mv_ws.work_for("night-drive") / "public", {"timing.json": "{}", "analysis.json": "{}"})
     ctx = studio.video_context(mv_ws, "night-drive")
     env = studio.tool_env(tmp_path / "rt", ctx, tmp_path / "rt/.entries/night-drive/index.ts")
     assert env["MV_STUDIO"] == str(tmp_path / "rt") and env["MV_GL"] == "angle"
@@ -99,7 +99,7 @@ def test_sync_never_deletes_what_it_did_not_copy(tmp_path):
 
 def test_video_context_names_the_missing_step(mv_ws, write_spec):
     _tree(mv_ws.video_dir("night-drive"), {"index.tsx": ""})
-    pub = mv_ws.media_for("night-drive") / "public"
+    pub = mv_ws.work_for("night-drive") / "public"
     _tree(pub, {"timing.json": "{}"})
     with pytest.raises(MVError, match=r"no analysis\.json .*: run music-video analyze night-drive$"):
         studio.video_context(mv_ws, "night-drive")
@@ -114,3 +114,17 @@ def test_video_context_names_the_missing_step(mv_ws, write_spec):
     data["suno"] = {"model": "v6", "styles": "instrumental", "instrumental": True, "lyrics": ""}
     spec.write_text(yaml.safe_dump(data), encoding="utf-8")
     assert studio.video_context(mv_ws, "night-drive").public == pub
+
+
+def test_the_engine_lives_in_the_install_folder(tmp_path):
+    assert studio.runtime_dir() == tmp_path / "install" / "engine"
+
+
+def test_an_old_engine_in_the_cache_is_moved_not_reinstalled(tmp_path):
+    old = tmp_path / "cache" / "studio"
+    _tree(old, {"node_modules/remotion/index.js": "x", studio.LOCK_STAMP: "h"})
+    assert studio.migrate_old_runtime() is True
+    assert (studio.runtime_dir() / "node_modules/remotion/index.js").is_file() and not old.exists()
+    _tree(old, {"node_modules/other.js": "y"})
+    assert studio.migrate_old_runtime() is False  # the new one exists: leave both alone
+    assert old.exists()

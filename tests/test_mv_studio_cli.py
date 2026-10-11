@@ -12,7 +12,7 @@ def test_new_video(mv_ws):
     assert dest == mv_ws.video_dir("night-drive")
     index = (dest / "index.tsx").read_text(encoding="utf-8")
     assert "__ID__" not in index and "night-drive" in index and "@mv/kit" in index
-    assert mv_ws.media_for("night-drive").is_dir()
+    assert mv_ws.work_for("night-drive").is_dir()
     with pytest.raises(Exception, match="already exists"):
         studio.new_video(mv_ws, "night-drive")
     with pytest.raises(Exception, match="lowercase"):
@@ -26,9 +26,9 @@ def test_cli_new_video(mv_ws, capsys):
 
 def test_typecheck_config_links_the_video_into_the_engine(mv_ws, tmp_path):
     studio.new_video(mv_ws, "night-drive")
-    (mv_ws.media_for("night-drive") / "public").mkdir(parents=True)
-    (mv_ws.media_for("night-drive") / "public" / "timing.json").write_text("{}", encoding="utf-8")
-    (mv_ws.media_for("night-drive") / "public" / "analysis.json").write_text("{}", encoding="utf-8")
+    (mv_ws.work_for("night-drive") / "public").mkdir(parents=True)
+    (mv_ws.work_for("night-drive") / "public" / "timing.json").write_text("{}", encoding="utf-8")
+    (mv_ws.work_for("night-drive") / "public" / "analysis.json").write_text("{}", encoding="utf-8")
     ctx = studio.video_context(mv_ws, "night-drive")
     rt = tmp_path / "rt"
     cfg_path = studio.typecheck_config(rt, ctx)
@@ -52,7 +52,7 @@ def fake_node(mv_ws, monkeypatch, tmp_path):
     monkeypatch.setattr(studio, "npx", lambda: "npx")
     monkeypatch.setattr(studio, "run_node", lambda cmd, cwd, env: calls.append((cmd, cwd, env)) or 0)
     studio.new_video(mv_ws, "night-drive")
-    pub = mv_ws.media_for("night-drive") / "public"
+    pub = mv_ws.work_for("night-drive") / "public"
     pub.mkdir(parents=True)
     (pub / "timing.json").write_text("{}", encoding="utf-8")
     (pub / "analysis.json").write_text("{}", encoding="utf-8")

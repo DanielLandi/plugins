@@ -11,6 +11,7 @@ from musicvideo.cli import main
 from musicvideo.errors import MVError
 from musicvideo.ingest import find_candidates, ingest, library_filename
 from musicvideo.spec import load_spec, save_spec
+from musicvideo.workspace import stored_path
 
 SPEC_ID = "night-drive"
 
@@ -29,9 +30,9 @@ def test_ingest_files_into_media_folder_with_space(mv_ws, write_spec, make_mp3):
     path = write_spec(status="generated")
     mp3 = make_mp3(mv_ws.downloads_dir / "Night Drive.mp3")
     dest = ingest(mv_ws, SPEC_ID)
-    assert dest == mv_ws.media_for(SPEC_ID) / "Test Artist - Night Drive.mp3"
+    assert dest == mv_ws.results_for(SPEC_ID) / "Test Artist - Night Drive.mp3"
     data = load_spec(path)
-    assert data["status"] == "filed" and data["kept"]["file"] == str(Path("media") / SPEC_ID / dest.name)
+    assert data["status"] == "filed" and data["kept"]["file"] == stored_path(mv_ws, dest)
     assert data["kept"]["filed_at"]
     assert not mp3.exists()
     assert ID3(dest)["TPE1"].text == ["Test Artist"]
@@ -83,7 +84,7 @@ def test_file_flag_without_download_record_uses_file_time(mv_ws, write_spec, mak
 def test_same_file_owned_by_other_spec(mv_ws, write_spec, make_mp3, tmp_path):
     other = valid_spec(id="other-song", status="filed",
                        kept={"downloaded_at": _minutes_ago(5),
-                             "file": str(Path("media") / SPEC_ID / "Test Artist - Night Drive.mp3")})
+                             "file": stored_path(mv_ws, mv_ws.results_for(SPEC_ID) / "Test Artist - Night Drive.mp3")})
     save_spec(mv_ws.specs_dir / "other-song.yaml", other)
     write_spec(status="generated")
     with pytest.raises(MVError, match="already belongs to spec 'other-song'"):

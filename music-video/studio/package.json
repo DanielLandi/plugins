@@ -11,7 +11,8 @@
     "board": "tsx tools/board.ts",
     "vendor-transitions": "bash tools/vendor-transitions.sh",
     "stills": "tsx tools/stills.ts",
-    "blur": "tsx tools/blur.ts"
+    "blur": "tsx tools/blur.ts",
+    "web": "tsx tools/web.ts"
   },
   "dependencies": {
     "@react-three/fiber": "9.8.1",

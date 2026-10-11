@@ -1,6 +1,6 @@
 # Writing original songs
 
-Every song is an original. Suno's filter blocks lyrics it recognises (even public-domain texts), and a famous line
+Every song is an original. Generators' filters block lyrics they recognise (even public-domain texts), and a famous line
 over new verses sounds uncanny anyway. The goal is a song listeners believe is a real record they have simply
 never heard.
 

@@ -13,12 +13,15 @@ KINDS = {"original"}
 MODELS = {"v6", "v6-wild"}
 STATUSES = ("drafted", "generated", "downloaded", "filed")
 VOCAL_GENDERS = {"male", "female"}
-# Suno's Variety slider labels for positions 0-4, lower-cased (see suno-ui-map.md).
+# Suno's Variety slider labels for positions 0-4, lower-cased (see skills/song/references/generators/suno/ui-map.md).
 VARIETY_VALUES = {"off", "normal", "high", "extra", "max"}
 TITLE_MAX = 80
 STYLES_MAX = 1000
 LYRICS_MAX = 5000
-REQUIRED = ("id", "title", "kind", "suno", "status")
+REQUIRED = ("id", "title", "kind", "status")
+# Song generators this plugin can drive; each keeps its own settings block named after it (`suno:`).
+GENERATORS = {"suno"}
+DEFAULT_GENERATOR = "suno"  # specs written before generators were named are Suno songs
 ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 
@@ -81,7 +84,25 @@ def _is_percent(value) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 100
 
 
-def validate(data: dict, private_names: list[str] = ()) -> list[str]:
+def generator(data: dict) -> str:
+    return str(data.get("generator") or DEFAULT_GENERATOR)
+
+
+def settings(data: dict) -> dict:
+    """The song generator's settings block (styles, lyrics, sliders…), whichever generator it is."""
+    block = data.get(generator(data))
+    return block if isinstance(block, dict) else {}
+
+
+def lyrics(data: dict) -> str:
+    return str(settings(data).get("lyrics") or "")
+
+
+def is_instrumental(data: dict) -> bool:
+    return settings(data).get("instrumental") is True
+
+
+def validate(data: dict, private_names: list[str] = (), album=None) -> list[str]:
     errors = [f"missing field: {field}" for field in REQUIRED if not data.get(field)]
     if errors:
         return errors
@@ -91,9 +112,39 @@ def validate(data: dict, private_names: list[str] = ()) -> list[str]:
         errors.append(f"title is {len(data['title'])} chars, max {TITLE_MAX}")
     if data["kind"] not in KINDS:
         errors.append("kind must be original (this plugin makes original songs only)")
-    suno = data["suno"]
-    if not isinstance(suno, dict):
-        return errors + ["suno must be a mapping"]
+    gen = generator(data)
+    if gen not in GENERATORS:
+        return errors + [f"unknown generator '{gen}' (known: {', '.join(sorted(GENERATORS))})"]
+    if not data.get(gen):
+        return errors + [f"missing field: {gen} (the {gen} generator's settings)"]
+    if not isinstance(data[gen], dict):
+        return errors + [f"{gen} must be a mapping"]
+    errors += _validate_suno(data["suno"])
+    if album is not None:
+        from .albums import album_errors
+        errors += album_errors(data, album)
+    errors += _validate_status(data)
+    text = f"{data['title']}\n{lyrics(data)}"
+    for name in private_names:
+        if re.search(rf"\b{re.escape(name)}\b", text, re.IGNORECASE):
+            errors.append(f"private name '{name}' appears in the song")
+    return errors
+
+
+def _validate_status(data: dict) -> list[str]:
+    errors = []
+    if data["status"] not in STATUSES:
+        errors.append(f"status must be one of {list(STATUSES)}")
+    kept = data.get("kept") or {}
+    if data["status"] in ("downloaded", "filed") and not kept.get("downloaded_at"):
+        errors.append(f"status {data['status']} needs kept.downloaded_at")
+    if data["status"] == "filed" and not kept.get("file"):
+        errors.append("status filed needs kept.file")
+    return errors
+
+
+def _validate_suno(suno: dict) -> list[str]:
+    errors = []
     if suno.get("model") not in MODELS:
         errors.append(f"suno.model must be one of {sorted(MODELS)}")
     instrumental = suno.get("instrumental", False)
@@ -121,15 +172,4 @@ def validate(data: dict, private_names: list[str] = ()) -> list[str]:
             errors.append(f"suno.{key} must be an integer 0-100")
     if "variety" in suno and suno["variety"] not in VARIETY_VALUES:
         errors.append(f"suno.variety must be one of {sorted(VARIETY_VALUES)}")
-    if data["status"] not in STATUSES:
-        errors.append(f"status must be one of {list(STATUSES)}")
-    kept = data.get("kept") or {}
-    if data["status"] in ("downloaded", "filed") and not kept.get("downloaded_at"):
-        errors.append(f"status {data['status']} needs kept.downloaded_at")
-    if data["status"] == "filed" and not kept.get("file"):
-        errors.append("status filed needs kept.file")
-    text = f"{data['title']}\n{suno.get('lyrics') or ''}"
-    for name in private_names:
-        if re.search(rf"\b{re.escape(name)}\b", text, re.IGNORECASE):
-            errors.append(f"private name '{name}' appears in the song")
     return errors

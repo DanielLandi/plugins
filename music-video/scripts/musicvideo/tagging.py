@@ -1,7 +1,9 @@
 import re
 from pathlib import Path
 
-from mutagen.id3 import APIC, ID3, ID3NoHeaderError, TALB, TDRC, TIT2, TPE1, TXXX, USLT
+from mutagen.id3 import APIC, ID3, ID3NoHeaderError, TALB, TCON, TDRC, TIT2, TPE1, TXXX, USLT
+
+from .spec import generator, is_instrumental, settings
 
 _SECTION_TAG = re.compile(r"^\s*\[[^\]]*\]\s*$")
 
@@ -15,7 +17,8 @@ def _is_c2pa(frame) -> bool:
     return frame.mime == "application/c2pa" or frame.desc.startswith("c2pa")
 
 
-def write_tags(mp3: Path, spec: dict, artist: str, year: int, cover: Path | None = None) -> None:
+def write_tags(mp3: Path, spec: dict, credit) -> None:
+    """Tags from a Credit (albums.credit): artist, album, genre, year and the cover when the file has none."""
     try:
         tags = ID3(mp3)
     except ID3NoHeaderError:
@@ -30,23 +33,26 @@ def write_tags(mp3: Path, spec: dict, artist: str, year: int, cover: Path | None
     if art:
         for frame in art:
             tags.add(frame)
-    elif cover is not None:
-        mime = "image/png" if cover.suffix.lower() == ".png" else "image/jpeg"
-        tags.add(APIC(encoding=3, mime=mime, type=3, desc="Cover", data=cover.read_bytes()))
+    elif credit.cover is not None and credit.cover.is_file():
+        mime = "image/png" if credit.cover.suffix.lower() == ".png" else "image/jpeg"
+        tags.add(APIC(encoding=3, mime=mime, type=3, desc="Cover", data=credit.cover.read_bytes()))
 
-    suno = spec["suno"]
+    gen = generator(spec)
+    block = settings(spec)
     tags.add(TIT2(encoding=3, text=spec["title"]))
-    tags.add(TPE1(encoding=3, text=artist))
-    tags.add(TALB(encoding=3, text=spec["title"]))  # each song is its own single
-    tags.add(TDRC(encoding=3, text=str(year)))
-    if not suno.get("instrumental"):
-        tags.add(USLT(encoding=3, lang="eng", desc="", text=display_lyrics(suno["lyrics"])))
+    tags.add(TPE1(encoding=3, text=credit.artist))
+    tags.add(TALB(encoding=3, text=credit.album))
+    if credit.genre:
+        tags.add(TCON(encoding=3, text=credit.genre))
+    tags.add(TDRC(encoding=3, text=str(credit.year)))
+    if not is_instrumental(spec):
+        tags.add(USLT(encoding=3, lang="eng", desc="", text=display_lyrics(block["lyrics"])))
 
     hidden = {
         "SPEC_ID": spec["id"],
-        "SUNO_URL": (spec.get("kept") or {}).get("take_url"),
+        "TAKE_URL": (spec.get("kept") or {}).get("take_url"),
         "KIND": spec["kind"],
-        "GENERATOR": f"Suno {suno['model']}",
+        "GENERATOR": f"{gen.capitalize()} {block.get('model', '')}".strip(),
     }
     for desc, value in hidden.items():
         if value:

@@ -108,7 +108,7 @@ def test_downloaded_needs_budget_settings(mv_ws, capsys):
     save_spec(mv_ws.specs_dir / f"{ID}.yaml", valid_spec(status="generated"))
     assert main(["downloaded", ID, "--take-url", "https://suno.com/song/x"]) == 2
     err = capsys.readouterr().err
-    assert "billing_day" in err and "config.yaml" in err and "Suno account" in err
+    assert "billing_day" in err and "config.yaml" in err and "account" in err
 
 
 def test_status_without_budget_settings(mv_ws, capsys):

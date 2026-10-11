@@ -13,7 +13,8 @@ from pathlib import Path
 import yaml
 
 from .errors import MVError
-from .workspace import Workspace, cache_dir
+from .spec import is_instrumental
+from .workspace import Workspace, cache_dir, install_dir
 
 PLUGIN_STUDIO = Path(__file__).resolve().parents[2] / "studio"
 KEEP = {"node_modules", ".entries"}  # runtime-only folders, never synced or pruned
@@ -23,7 +24,17 @@ ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 
 def runtime_dir() -> Path:
-    return cache_dir() / "studio"
+    return install_dir() / "engine"
+
+
+def migrate_old_runtime() -> bool:
+    """0.1.0 installed the engine in the cache folder; move it (with its packages) instead of reinstalling."""
+    old, new = cache_dir() / "studio", runtime_dir()
+    if not old.is_dir() or new.exists():
+        return False
+    new.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(old), str(new))
+    return True
 
 
 def sync_runtime(src: Path | None = None, dest: Path | None = None) -> Path:
@@ -111,7 +122,7 @@ class VideoContext:
     song: str
     gl: str
     public: Path
-    media: Path
+    work: Path
 
 
 def _instrumental(ws: Workspace, song: str) -> bool:
@@ -120,7 +131,7 @@ def _instrumental(ws: Workspace, song: str) -> bool:
     if not path.is_file():
         return False
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    return (data.get("suno") or {}).get("instrumental") is True
+    return is_instrumental(data)
 
 
 def video_context(ws: Workspace, video_id: str) -> VideoContext:
@@ -128,12 +139,12 @@ def video_context(ws: Workspace, video_id: str) -> VideoContext:
     meta_file = vdir / "video.yaml"
     meta = (yaml.safe_load(meta_file.read_text(encoding="utf-8")) or {}) if meta_file.is_file() else {}
     song = str(meta.get("song") or video_id)  # a test-bed video can borrow another video's song
-    public = ws.media_for(song) / "public"
+    public = ws.work_for(song) / "public"
     if not (public / "timing.json").is_file() and not _instrumental(ws, song):
         raise MVError(f"no timing.json in {public}: run music-video align {song}, then music-video analyze {song}")
     if not (public / "analysis.json").is_file():
         raise MVError(f"no analysis.json in {public}: run music-video analyze {song}")
-    return VideoContext(video_id, vdir, song, str(meta.get("gl") or "angle"), public, ws.media_for(video_id))
+    return VideoContext(video_id, vdir, song, str(meta.get("gl") or "angle"), public, ws.work_for(video_id))
 
 
 def tool_env(rt: Path, ctx: VideoContext, entry: Path) -> dict[str, str]:
@@ -142,7 +153,7 @@ def tool_env(rt: Path, ctx: VideoContext, entry: Path) -> dict[str, str]:
     `@mv/kit` (the engine's tsconfig paths, which tsx applies) resolve from the engine."""
     node_options = " ".join(filter(None, [os.environ.get("NODE_OPTIONS", ""), "--preserve-symlinks"]))
     return {**os.environ, "MV_STUDIO": str(rt), "MV_ENTRY": str(entry), "MV_PUBLIC": str(ctx.public),
-            "MV_MEDIA": str(ctx.media), "MV_VIDEO": ctx.id, "MV_VIDEO_DIR": str(linked_video(rt, ctx)),
+            "MV_WORK": str(ctx.work), "MV_VIDEO": ctx.id, "MV_VIDEO_DIR": str(linked_video(rt, ctx)),
             "MV_GL": ctx.gl, "NODE_OPTIONS": node_options, "INIT_CWD": os.getcwd()}
 
 
@@ -160,7 +171,7 @@ def new_video(ws: Workspace, video_id: str, template: Path | None = None) -> Pat
     for f in dest.rglob("*"):
         if f.is_file():
             f.write_text(f.read_text(encoding="utf-8").replace("__ID__", video_id), encoding="utf-8")
-    ws.media_for(video_id).mkdir(parents=True, exist_ok=True)
+    ws.work_for(video_id).mkdir(parents=True, exist_ok=True)
     return dest
 
 
@@ -204,3 +215,16 @@ def typecheck_config(rt: Path, ctx: VideoContext) -> Path:
     path = entry_dir / "tsconfig.json"
     path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     return path
+
+
+def web_entry(rt: Path, ctx: VideoContext) -> Path:
+    """The module the web page imports as `@mv/web-entry`: the video's own web.tsx, reached through its link."""
+    source = next((ctx.dir / n for n in ("web.tsx", "web.ts") if (ctx.dir / n).is_file()), None)
+    if source is None:
+        raise MVError(f"{ctx.dir} has no web.tsx: add one with `export const web: WebEntry = {{ Component, fps, "
+                      "frames }}` (the template's web.tsx is a starting point) to publish this video as a web page")
+    entry = rt / ".entries" / ctx.id / "web.ts"
+    entry.parent.mkdir(parents=True, exist_ok=True)
+    target = (linked_video(rt, ctx) / source.name).as_posix()  # with its extension: a web/ folder may sit beside it
+    entry.write_text(f"export {{ web }} from {json.dumps(target)};\n", encoding="utf-8")
+    return entry

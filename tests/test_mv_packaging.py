@@ -18,7 +18,7 @@ def test_versions_agree():
     market = json.loads((REPO / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
     entry = next(p for p in market["plugins"] if p["name"] == "music-video")
     assert plugin["name"] == "music-video"
-    assert plugin["version"] == entry["version"] == musicvideo.__version__ == "0.1.0"
+    assert plugin["version"] == entry["version"] == musicvideo.__version__ == "0.2.0"
     assert entry["source"] == "./music-video"
 
 
@@ -47,3 +47,15 @@ def test_error_is_one_line(capsys):
     parser = cli.build_parser()
     assert cli.main(["status"], parser=parser, handlers={"status": boom}) == 2
     assert capsys.readouterr().err.strip() == "error: nothing here"
+
+
+def test_the_cli_never_writes_bytecode_into_the_plugin():
+    # The installed plugin folder is replaced on update and must stay untouched: no __pycache__ there.
+    src = (MV / "scripts" / "music-video.py").read_text(encoding="utf-8")
+    assert src.index("sys.dont_write_bytecode = True") < src.index("from musicvideo")
+
+
+def test_every_command_has_a_handler():
+    from musicvideo import cli
+    sub = next(a for a in cli.build_parser()._actions if a.dest == "command")
+    assert set(sub.choices) - set(cli.HANDLERS) == set()

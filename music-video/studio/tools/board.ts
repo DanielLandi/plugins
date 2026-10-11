@@ -20,8 +20,8 @@ if (!id) {
   console.error('usage: music-video board <video-id>');
   process.exit(1);
 }
-// music-video passes the video's code folder, its media folder and the song's public folder.
-const root = process.env.MV_MEDIA ?? '.';
+// music-video passes the video's code folder, its work folder and the song's public folder.
+const root = process.env.MV_WORK ?? '.';
 const publicDir = process.env.MV_PUBLIC ?? join(root, 'public');
 const videoDir = process.env.MV_VIDEO_DIR ?? join(studio, 'fixture');
 // scenes.ts imports the scenes themselves; in Node only their ids and times are needed, so 3D model files (which only

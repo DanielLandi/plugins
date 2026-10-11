@@ -16,7 +16,7 @@ Songs for music videos: originals that sound like real records and give the vide
 - Banned clichés: fire/desire, heart/apart, neon lights, shadows, echoes, "dancing in the rain", "we're on fire",
   "tonight we fly", "lost in the moment", "break these chains", "a million stars". If a line could be in any song, rewrite it.
 
-## More human (Suno cues)
+## More human (cues the generator follows)
 - Performance tags on their own line or at a line start: [Whispered], [Spoken], [Harmonies], [Belted], [Breath],
   [Build], [Breakdown], [Instrumental Break], [Guitar Solo].
 - Backing vocals and call-and-response in parentheses: `Keep the engine running (keep it running)`.

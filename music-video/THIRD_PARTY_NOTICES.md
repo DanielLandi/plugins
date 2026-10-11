@@ -35,10 +35,12 @@ Downloaded from Poly Pizza. CC0 does not require credit; it is given anyway.
 - Fonts a video loads through `@remotion/google-fonts` are Google Fonts (OFL or Apache 2.0) and are fetched at render
   time, not shipped.
 
-## npm packages (installed by `doctor` into the cache, not shipped)
+## npm packages (installed by `doctor` into the install folder, not shipped)
 
-- **three.js** (MIT), **React** (MIT), **@react-three/fiber** (MIT), and their dependencies under their own licences.
-- **Remotion** (`remotion`, `@remotion/*`): Remotion's own licence. Remotion is free for individuals and companies
+- **three.js** (MIT), **React** (MIT), **@react-three/fiber** (MIT), **Vite** (MIT, builds the web page), and
+  their dependencies under their own licences.
+- **Remotion** (`remotion`, `@remotion/*`, including `@remotion/player`, which a built web page ships): Remotion's
+  own licence. Remotion is free for individuals and companies
   of up to 3 people; larger companies need a company licence from remotion.pro. The licence is between you and
   Remotion: see https://www.remotion.dev/license.
 

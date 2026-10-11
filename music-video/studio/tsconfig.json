@@ -11,7 +11,7 @@
     "noEmit": true,
     "types": ["node"],
     "baseUrl": ".",
-    "paths": { "@mv/kit": ["kit"], "@mv/kit/*": ["kit/*"], "@mv/assets/*": ["assets/*"] }
+    "paths": { "@mv/kit": ["kit"], "@mv/kit/*": ["kit/*"], "@mv/assets/*": ["assets/*"], "@mv/web-entry": ["web/default-entry.ts"], "@mv/web-styles": ["web/no-styles.css"] }
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

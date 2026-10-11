@@ -1,6 +1,6 @@
 ---
 name: make
-description: Use when the user wants a music video or a song with a video ("make a music video about…", "a song and a video for…"): theme → lyrics → Suno song → timings → look → storyboard → rendered video (16:9 full song + 9:16 cut), with the user approving every stage.
+description: Use when the user wants a music video or a song with a video ("make a music video about…", "a song and a video for…"): theme → lyrics → a song from their own song generator account (Suno today) → timings → look → storyboard → rendered video (16:9 full song + 9:16 cut, optionally a live web page), with the user approving every stage.
 ---
 
 # Make a music video
@@ -13,7 +13,8 @@ then wait for the completion notice): renders, the board and the first `align` c
 
 ## Setup (first run, and whenever a command says so)
 
-1. Check the tools and install the video engine (once, about 1.7 GB, into the OS cache folder):
+1. Check the tools and install the video engine (once, about 2 GB, into the install folder:
+   `~/Library/Application Support/music-video/` on macOS):
 
    ```bash
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" doctor
@@ -21,28 +22,29 @@ then wait for the completion notice): renders, the board and the first `align` c
 
    Missing tools are printed with how to install them; ask the user to install them, then run it again.
 2. If doctor says there is no workspace, ask the user three things, with defaults: the artist name their songs are
-   credited to; the day their Suno plan renews and how many downloads a billing cycle includes (both on their Suno
-   account page; offer to read it with Claude in Chrome); and where the workspace goes (default
+   credited to; the day their song generator plan renews and how many downloads a billing cycle includes (both on
+   their account page with the generator; offer to read it with Claude in Chrome); where the project folder goes (default
+   `~/Documents/Music Videos`: specs and video code, small) and where finished videos go (default
    `~/Movies/Music Videos`). Then:
 
    ```bash
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" init --artist "<name>" --billing-day <day> --download-budget <n>
    ```
 
-   Add `--path "<folder>"` for another workspace, and `--media-dir "<folder>"` to keep the large files
-   (audio, renders, deliverables) somewhere else than the video code.
+   Add `--path "<folder>"` for another project folder and `--results-dir "<folder>"` for another results folder.
+   Working files (timings, renders, checks) go to the OS cache folder; `work_dir` in `config.yaml` moves them.
 3. Tell the user once: the video engine is Remotion, free for individuals and companies of up to 3 people; larger
    companies need a Remotion company licence (see the plugin's README).
 
 Read once per session before step 1: `references/lyric-craft.md`, and the song skill's
-`../song/references/suno-controls.md`, `genre-recipes.md`, `originals.md` and `suno-ui-map.md`. Read
+`../song/references/originals.md` and the generator's references (`../song/references/generators/suno/`). Read
 `references/look.md` before step 5, `references/storyboard.md` before step 6, `references/studio.md` before any
 scene code, and `references/checks.md` and `references/taste.md` before showing any render.
 
 ## Hard rules
 
 1. The song skill's hard rules hold unchanged: download only a take the user named, run `downloaded` first, never
-   Create on an unverified form, captchas are the user's, originals only, no unofficial Suno APIs.
+   Create on an unverified form, captchas are the user's, originals only, no unofficial generator APIs.
 2. Stop at every ✋ and wait. Ask questions with a default, so the user can just approve.
 3. No production (step 7) before step 6 is approved. No final render before the draft is approved.
 4. Never show a render that failed `qc` or whose frame sheet you have not looked at.
@@ -53,12 +55,16 @@ scene code, and `references/checks.md` and `references/taste.md` before showing 
 ## Where a video lives
 
 `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" paths <id>` prints a video's folders as JSON. Below, `<video>`,
-`<media>`, `<renders>` and `<deliver>` mean those paths; always write them out in full in commands.
+`<work>`, `<public>`, `<renders>`, `<results>` and `<web>` mean those paths; always write them out in full in
+commands.
 
 - Code and documents, in `<video>`: `video.yaml` (step, checklist, gl, holds), `CONCEPT.md`, `lyrics.md`,
   `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`, `JOURNAL.md`, `SOURCES.md`, `README.md`, `look.ts`,
   `video.ts`, `scenes.ts`, `cuts.ts`, `scenes/*.tsx`.
-- Audio, timings, renders, deliverables, in `<media>` (outside the code folder: large files never go next to code).
+- Working files, in `<work>`: the song's copy, timings, vocals, previews, renders, checks. All regenerable; `clean`
+  deletes them once the video is delivered. (Your hand-written timing corrections, `timing-fixes.yaml` and
+  `lyrics-as-sung.txt`, are not working files: they live in `<video>`.)
+- Finals, in `<results>`: the videos, thumbnail, subtitles, the song, and `<web>` (the live page).
 - `<id>` is the song spec's id (the workspace's `specs/<id>.yaml`).
 
 **Resuming:** read `video.yaml` (`step:`), `JOURNAL.md` and `NOTES.md`; continue at that step. At every ✋, add a
@@ -82,7 +88,7 @@ chorus → bridge → final chorus). Wait for approval. Nothing is written to di
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" new-video <id>
    ```
 
-   - Put the lyrics into the spec's `suno.lyrics` and run `validate <id>`:
+   - Put the lyrics into the spec's settings block (`lyrics` in the `suno:` block) and run `validate <id>`:
 
      ```bash
      uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" validate <id>
@@ -94,9 +100,8 @@ chorus → bridge → final chorus). Wait for approval. Nothing is written to di
 
 ## 3. Song ✋
 
-1. Write 2–3 musical directions into `<video>/directions.yaml`, each a complete `suno:` block (model, styles,
-   exclude_styles, vocal_gender, weirdness, style_influence, variety) built from the genre recipes, with a
-   one-line `name` and `why`. Show them as a short table; on the user's OK they are created.
+1. Write 2–3 musical directions into `<video>/directions.yaml`, each a complete settings block for the generator
+   (the `suno:` block, as its `workflow.md` says) built from the genre recipes, with a one-line `name` and `why`. Show them as a short table; on the user's OK they are created.
 2. For each direction: copy its block (with the lyrics) into the spec's `suno:`, run `validate <id>`, then run the
    song skill's steps 2 (Fill), 3 (Verify) and 4 (Create), recording the round with
    `--changes "direction <n>: <name>"`.
@@ -119,12 +124,12 @@ chorus → bridge → final chorus). Wait for approval. Nothing is written to di
 
 2. Show the user: the align summary (repairs, unsure words with times, possibly missing lines), the tempo and the
    sections, and ask them to watch the preview.
-   - Bad words → write `<media>/timing-fixes.yaml` entries (`- at: "1:13"` / `word: thunder` / `shift: 0.2`, or
+   - Bad words → write `<video>/timing-fixes.yaml` entries (`- at: "1:13"` / `word: thunder` / `shift: 0.2`, or
      `start:`/`end:`), re-run align and preview.
    - A word sung one way but written another (a number sung as words: "nine-to-five" shown as "9-to-5") → a
      `timing-fixes.yaml` entry `- word: Nine-to-five` / `show: "9-to-5"` (every occurrence; add `at:` for one).
      Only the text in timing.json and the subtitles changes; the times stay. Re-run align and preview.
-   - A line Suno did not sing (or sang differently) → write `<media>/lyrics-as-sung.txt` with the lyrics as sung
+   - A line the generator did not sing (or sang differently) → write `<video>/lyrics-as-sung.txt` with the lyrics as sung
      (same tags), re-run align, analyze and preview.
    - More than 10% unsure words → offer: fix words, use as-sung lyrics, or pick another take.
 3. On approval: `step: look`.
@@ -204,23 +209,47 @@ Follow `references/storyboard.md`:
 
 ## 8. Delivery
 
-Create `<deliver>`, then render, add the song, check, and render the thumbnail:
+Render, add the song, check, and render the thumbnail into `<results>`:
 
 ```bash
 uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" render <id> <id>-full "<renders>/final-silent.mp4" --muted --crf=18
-uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" mux "<renders>/final-silent.mp4" --spec <id> --out "<deliver>/<Title>.mp4"
-uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" qc "<deliver>/<Title>.mp4" --spec <id> --size 1920x1080
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" mux "<renders>/final-silent.mp4" --spec <id> --out "<results>/<Title>.mp4"
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" qc "<results>/<Title>.mp4" --spec <id> --size 1920x1080
 uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" render <id> <id>-vertical "<renders>/vertical-silent.mp4" --muted --crf=18
-uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" mux "<renders>/vertical-silent.mp4" --spec <id> --excerpt <from>-<to> --out "<deliver>/<Title> (vertical).mp4"
-uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" qc "<deliver>/<Title> (vertical).mp4" --spec <id> --excerpt <from>-<to> --size 1080x1920
-uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" still <id> <id>-thumb "<deliver>/thumbnail.png" --frame=<the strongest frame>
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" mux "<renders>/vertical-silent.mp4" --spec <id> --excerpt <from>-<to> --out "<results>/<Title> (vertical).mp4"
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" qc "<results>/<Title> (vertical).mp4" --spec <id> --excerpt <from>-<to> --size 1080x1920
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" still <id> <id>-thumb "<results>/thumbnail.png" --frame=<the strongest frame>
 ```
 
 (Use `final-blur-silent.mp4` from step 7 in place of the plain render when the final is motion-blurred.) Add the
-same `--hold a-b` flags as the draft to the qc commands. Copy `<media>/lyrics.lrc`, `.srt` and `.vtt` to
-`<deliver>/<Title>.lrc`, `.srt` and `.vtt` (players load them next to `<Title>.mp4`) and `<video>/README.md` to
-`<deliver>/README.md`.
+same `--hold a-b` flags as the draft to the qc commands. Copy `<work>/lyrics.lrc`, `.srt` and `.vtt` to
+`<results>/<Title>.lrc`, `.srt` and `.vtt` (players load them next to `<Title>.mp4`) and `<video>/README.md` to
+`<results>/README.md`.
 
 Look at both sheets and the thumbnail. Finish `README.md` and `SOURCES.md`. Open the deliverables for the user.
-If the workspace is a git repository, commit the spec and `<video>` (never the media). `step: done`. Uploading
+If the project folder is a git repository, commit the spec and `<video>` (never media). `step: done`. Uploading
 is the user's.
+
+## 9. Web page (optional) ✋
+
+A live web page that draws the video in the browser, on a loop, from `<video>/web.tsx` (the template's plays the
+whole video with its subtitles; a video can loop a stretch instead with the kit's `loopLayout` and keep only some
+sung words with `words`). For sound, make a seamless loop of a song first (check the seam preview it prints):
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" loop <song id>
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" web <id> --audio-loop <song id> --title "<Title>" --description "<one sentence>" --label "<what it shows>" --background "#<page colour>"
+```
+
+The page lands in `<web>`, ready to copy to a website. Open `<web>/index.html` through a local web server (for
+example `uv run python -m http.server -d "<web>"`) and check it in Chrome with the user: the loop wraps without a
+jump, the sound button works. Copying it to a site is the user's call.
+
+## 10. Clean up
+
+Last, once the user is happy with the finals (and the web page, if any), offer to free the working files: renders
+can be gigabytes. The timing corrections stay in `<video>`; a later re-render re-runs `align` and `analyze` first.
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" clean <id>
+```

@@ -63,7 +63,7 @@ rendering motion.
 > <paste the section's STORYBOARD.md entry>
 >
 > **Timing:** this scene runs <start>–<end> s of the song (section `<section-id>`); the lyrics in it:
-> <paste the lines with their times from timing.json>. Beats and big moments: `<media>/public/analysis.json`.
+> <paste the lines with their times from timing.json>. Beats and big moments: `<public>/analysis.json`.
 >
 > **Deliver:** a named export (no default export) `export const <Pascal>: React.FC` in that file, and stop there:
 > do not edit `scenes.ts`. Render three stills at the scene's start, middle and peak, and look at each:

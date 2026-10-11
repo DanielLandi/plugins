@@ -1,6 +1,6 @@
 # Suno v6 controls — what they do
 
-How to *operate* each control in the page lives in `suno-ui-map.md`. This file is what each control *means*, so
+How to *operate* each control in the page lives in `ui-map.md`. This file is what each control *means*, so
 specs choose good values.
 
 ## Models

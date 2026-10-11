@@ -44,16 +44,14 @@ downloads per cycle), then starts at the concept.
 
 ## Where things go
 
-```
-~/Movies/Music Videos/      your workspace (init --path to choose another)
-  config.yaml               artist, billing_day, download_budget, downloads_dir, videos_dir, media_dir
-  specs/<id>.yaml           one song spec per song: Suno settings, rounds, the kept take
-  videos/<id>/              the video's code and documents (look, storyboard, notes, journal, scenes)
-  media/<id>/               song, timings, renders, deliverables (media_dir can point anywhere else)
-```
+| Folder | Default (macOS) | What's in it |
+|---|---|---|
+| **Project** | `~/Documents/Music Videos/` (`init --path` for another) | `config.yaml`, `specs/<id>.yaml` (one per song), `albums/<album>.yaml`, `videos/<id>/` (each video's documents and scene code). Small: keep it in git if you like. |
+| **Install** | `~/Library/Application Support/music-video/` | the engine (Remotion, its browser, compilers, three.js) and the alignment models, installed once by `doctor` |
+| **Work** | `~/Library/Caches/music-video/work/<id>/` | everything regenerable: timings, vocals, previews, renders, checks. `clean <id>` frees it. |
+| **Results** | `~/Movies/Music Videos/` (`results_dir`) | `<id>/`: the final videos, thumbnail, subtitles, the song and `web/` (the live page); `albums/<album>/`: tagged MP3s and `manifest.json` |
 
-Nothing personal is stored in the plugin folder, which is replaced on every update. Keep `videos/` and `specs/`
-in git if you like; keep `media/` out of it (or point `media_dir` elsewhere so large files never sit next to code).
+Nothing is stored in the plugin folder, which is replaced on every update.
 
 ## How the Suno steps work
 
@@ -68,14 +66,28 @@ The skills run these for you; each is `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/mus
 
 | Command | What it does |
 |---|---|
-| `doctor` | check uv, Node, ffmpeg; install the video engine into the cache |
+| `doctor` | check uv, Node, ffmpeg; install the video engine into the install folder |
 | `init` | create or point at your workspace |
 | `new`, `validate`, `round`, `downloaded`, `status` | song specs, Create rounds, the download budget |
-| `ingest` | file a downloaded MP3 into the song's media folder, tagged |
+| `ingest`, `album` | file a downloaded MP3, tagged, into its results or album folder; rebuild an album's `manifest.json` |
 | `align`, `analyze`, `preview` | word timings, the song map, a karaoke preview |
-| `new-video`, `typecheck`, `paths` | start a video from the template, check its code, print its folders |
+| `new-video`, `typecheck`, `paths`, `clean` | start a video from the template, check its code, print its folders, free its working files |
+| `loop`, `web` | a seamless audio loop of a song; a live web page of a video (looping, optional sound) |
 | `studio`, `still`, `stills`, `render`, `blur`, `board` | Remotion Studio, stills, renders, motion blur, the transition board |
 | `mux`, `qc` | add the song to a silent render; check a render |
+
+## Song generators and albums
+
+A song spec names its generator (`generator: suno`), with that generator's settings in its own block; Suno is the
+first, and everything specific to it lives in `skills/song/references/generators/suno/`. Songs can belong to an
+album: `albums/<album>.yaml` gives the title, year and cover, and can credit a different artist and album name per
+style; the album's folder in results holds the tagged MP3s and a `manifest.json` for a site or player.
+
+## The live web page
+
+`web <id>` builds a static page that draws the video's `web.tsx` live in the browser with Remotion Player, on a
+loop, with an optional seamless audio loop (`loop <song>`) behind a sound button. Copy `results/<id>/web/` to any
+static host.
 
 ## The 3D kit and motion blur
 

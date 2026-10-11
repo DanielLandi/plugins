@@ -4,6 +4,7 @@ import unicodedata
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from .albums import credit, load_album, write_manifest
 from .errors import MVError
 from .spec import find_spec, iter_specs, load_spec, now_iso, parse_dt, save_spec, validate
 from .tagging import write_tags
@@ -38,7 +39,7 @@ def find_candidates(downloads_dir: Path, title: str, since: datetime | None) -> 
 
 
 def ingest(ws: Workspace, spec_id: str, file: Path | None = None) -> Path:
-    """File a downloaded MP3 into <media>/<spec id>/, tagged, and mark the spec filed."""
+    """File a downloaded MP3, tagged, into the song's results folder (or its album's), and mark the spec filed."""
     spec_path = find_spec(ws, spec_id)
     data = load_spec(spec_path)
     kept = data.get("kept") or {}
@@ -65,13 +66,15 @@ def ingest(ws: Workspace, spec_id: str, file: Path | None = None) -> Path:
     data["kept"] = kept
     if data.get("status") in ("drafted", "generated"):
         data["status"] = "downloaded"
-    errors = validate(data, load_private_names(ws))
+    album = load_album(ws, data["album"]) if data.get("album") else None
+    errors = validate(data, load_private_names(ws), album)
     if errors:
         raise MVError("spec invalid:\n" + "\n".join(f"  - {e}" for e in errors))
 
-    dest_dir = ws.media_for(spec_id)
+    who = credit(ws, data)
+    dest_dir = ws.album_dir(album.id) if album else ws.results_for(spec_id)
     dest_dir.mkdir(parents=True, exist_ok=True)
-    dest = dest_dir / library_filename(ws.artist, data["title"])
+    dest = dest_dir / library_filename(who.artist, data["title"])
     rel = stored_path(ws, dest)
     for other_path, other in iter_specs(ws):
         if other_path != spec_path and (other.get("kept") or {}).get("file") == rel:
@@ -80,7 +83,7 @@ def ingest(ws: Workspace, spec_id: str, file: Path | None = None) -> Path:
     tmp = dest.with_name(dest.name + ".part")
     shutil.copy2(file, tmp)
     try:
-        write_tags(tmp, data, ws.artist, datetime.now().year)
+        write_tags(tmp, data, who)
     except Exception:
         tmp.unlink(missing_ok=True)
         raise
@@ -92,4 +95,6 @@ def ingest(ws: Workspace, spec_id: str, file: Path | None = None) -> Path:
     kept["filed_at"] = now_iso()
     data["status"] = "filed"
     save_spec(spec_path, data)
+    if album:
+        write_manifest(ws, album.id)
     return dest

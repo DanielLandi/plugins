@@ -29,6 +29,7 @@ def mv_isolated(tmp_path, monkeypatch):
     monkeypatch.delenv("MUSIC_VIDEO_HOME", raising=False)
     monkeypatch.setenv("MV_SETTINGS", str(tmp_path / "settings.json"))
     monkeypatch.setenv("MV_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("MV_INSTALL_DIR", str(tmp_path / "install"))
 
 
 @pytest.fixture
@@ -39,9 +40,11 @@ def mv_ws(tmp_path, monkeypatch):
     monkeypatch.setenv("MV_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setenv("MV_SETTINGS", str(tmp_path / "settings.json"))
     (tmp_path / "Downloads").mkdir()
-    init_workspace(home, artist="Test Artist", billing_day=15, download_budget=20)
+    init_workspace(home, artist="Test Artist", billing_day=15, download_budget=20,
+                   results_dir=tmp_path / "My Results é")
     cfg = home / "config.yaml"
-    cfg.write_text(cfg.read_text(encoding="utf-8").replace("~/Downloads", str(tmp_path / "Downloads")), encoding="utf-8")
+    text = cfg.read_text(encoding="utf-8").replace("~/Downloads", str(tmp_path / "Downloads"))
+    cfg.write_text(text + f"work_dir: {tmp_path / 'My Work é'}\n", encoding="utf-8")
     return load_workspace()
 
 
@@ -95,8 +98,8 @@ def filed_song(mv_ws, write_spec):
         pytest.skip("ffmpeg not installed")
 
     def _make(seconds: float = 4.0, freq: int = 220, **overrides):
-        rel = str(Path("media") / "night-drive" / "Test Artist - Night Drive.mp3")
-        mp3 = mv_ws.home / rel
+        mp3 = mv_ws.results_for("night-drive") / "Test Artist - Night Drive.mp3"
+        rel = str(mp3)
         mp3.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i",
                         f"sine=frequency={freq}:sample_rate=44100:duration={seconds}",

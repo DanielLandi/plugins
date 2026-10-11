@@ -5,7 +5,7 @@ import numpy as np
 
 from ..workspace import Workspace
 from ..errors import MVError
-from ..spec import slugify
+from ..spec import is_instrumental, slugify
 from .align import Runner, run_worker
 from .media import decode_mono, duration_s
 from .paths import video_song
@@ -104,7 +104,7 @@ def analyze(ws: Workspace, spec_id: str, runner: Runner | None = None) -> dict:
     runner = runner or run_worker
     song = video_song(ws, spec_id)
     p = song.paths
-    instrumental = bool(song.spec["suno"].get("instrumental"))
+    instrumental = is_instrumental(song.spec)
     if not instrumental and not p.timing.is_file():
         raise MVError(f"no timing for {spec_id}: run music-video align {spec_id} first")
     runner(["beats", str(p.song), str(p.beats)])

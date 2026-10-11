@@ -1,5 +1,6 @@
 """Where a user's songs and videos live. The plugin folder is replaced on every update, so nothing personal is kept
-there: specs and video code go in the workspace, media wherever config.yaml says (default <workspace>/media)."""
+there: specs, albums and video code go in the project folder, finals in results_dir, working files in work_dir (the
+OS cache by default), the engine in the install folder."""
 import json
 import os
 import sys
@@ -10,7 +11,8 @@ import yaml
 
 from .errors import MVError
 
-DEFAULT_HOME = Path.home() / "Movies" / "Music Videos"
+DEFAULT_HOME = Path.home() / "Documents" / "Music Videos"  # the project: specs, albums, video code (small)
+DEFAULT_RESULTS = Path.home() / "Movies" / "Music Videos"  # finals, web pages, albums: what gets shared
 CONFIG = "config.yaml"
 
 
@@ -22,6 +24,24 @@ def cache_dir() -> Path:
     if sys.platform == "win32":
         return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "music-video" / "Cache"
     return Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "music-video"
+
+
+def install_dir() -> Path:
+    """Where the engine (Remotion, compilers, its browser) and the alignment models are installed, per machine."""
+    if value := os.environ.get("MV_INSTALL_DIR"):
+        return Path(value).expanduser()
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "music-video"
+    if sys.platform == "win32":
+        return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "music-video"
+    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "music-video"
+
+
+def _read_json(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8")) or {}
+    except json.JSONDecodeError as e:
+        raise MVError(f"{path}: not valid JSON ({e.msg}); fix or delete it") from e
 
 
 def settings_file() -> Path:
@@ -41,7 +61,7 @@ def workspace_home() -> Path:
         return Path(value).expanduser()
     f = settings_file()
     if f.is_file():
-        saved = (json.loads(f.read_text(encoding="utf-8")) or {}).get("workspace")
+        saved = _read_json(f).get("workspace")
         if saved:
             return Path(saved).expanduser()
     return DEFAULT_HOME
@@ -58,7 +78,8 @@ class Workspace:
     home: Path
     artist: str
     videos_dir: Path
-    media_dir: Path
+    results_dir: Path
+    work_dir: Path
     downloads_dir: Path
     billing_day: int | None
     download_budget: int | None
@@ -70,8 +91,16 @@ class Workspace:
     def video_dir(self, video_id: str) -> Path:
         return self.videos_dir / video_id
 
-    def media_for(self, video_id: str) -> Path:
-        return self.media_dir / video_id
+    def results_for(self, video_id: str) -> Path:
+        """Finals: what gets shared or published (videos, the song, the web page)."""
+        return self.results_dir / video_id
+
+    def work_for(self, video_id: str) -> Path:
+        """Everything regenerable while working on a video (timings, renders, checks): `clean` deletes it."""
+        return self.work_dir / video_id
+
+    def album_dir(self, album: str) -> Path:
+        return self.results_dir / "albums" / album
 
 
 def _absolute(home: Path, value) -> Path:
@@ -96,7 +125,10 @@ def load_workspace(home: Path | None = None) -> Workspace:
     path = home / CONFIG
     if not path.is_file():
         raise MVError(f"no workspace at {home} (no {CONFIG}): run music-video init")
-    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as e:
+        raise MVError(f"{path}: not valid YAML ({str(e).splitlines()[0]})") from e
     artist = str(raw.get("artist") or "").strip()
     if not artist:
         raise MVError(f"{path}: artist is empty; set the name your songs are credited to")
@@ -104,7 +136,9 @@ def load_workspace(home: Path | None = None) -> Workspace:
         home=home,
         artist=artist,
         videos_dir=_absolute(home, raw.get("videos_dir", "videos")),
-        media_dir=_absolute(home, raw.get("media_dir", "media")),
+        # 0.1.0 called the results folder media_dir.
+        results_dir=_absolute(home, raw.get("results_dir") or raw.get("media_dir") or DEFAULT_RESULTS),
+        work_dir=_absolute(home, raw.get("work_dir") or cache_dir() / "work"),
         downloads_dir=_absolute(home, raw.get("downloads_dir", "~/Downloads")),
         billing_day=_optional_int(raw, "billing_day", 1, 31, path),
         download_budget=_optional_int(raw, "download_budget", 0, 10_000, path),
@@ -112,8 +146,12 @@ def load_workspace(home: Path | None = None) -> Workspace:
 
 
 def init_workspace(home: Path, artist: str, billing_day: int | None = None, download_budget: int | None = None,
-                   media_dir: Path | None = None) -> tuple[Path, bool]:
+                   results_dir: Path | None = None) -> tuple[Path, bool]:
     home = Path(home).expanduser()
+    if billing_day is not None and not 1 <= billing_day <= 31:
+        raise MVError(f"--billing-day must be 1-31, got {billing_day}")
+    if download_budget is not None and download_budget < 0:
+        raise MVError(f"--download-budget must be 0 or more, got {download_budget}")
     created = not (home / CONFIG).is_file()
     if created:
         for sub in ("specs", "videos"):
@@ -125,10 +163,10 @@ def init_workspace(home: Path, artist: str, billing_day: int | None = None, down
             "download_budget": download_budget,
             "downloads_dir": "~/Downloads",
             "videos_dir": "videos",
-            "media_dir": str(media_dir) if media_dir else "media",
+            # Finals go here; working files (renders, timings) go to the OS cache unless work_dir is set.
+            "results_dir": str(results_dir) if results_dir else "~/Movies/Music Videos",
         }
         (home / CONFIG).write_text(yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
-        _absolute(home, config["media_dir"]).mkdir(parents=True, exist_ok=True)
     remember_home(home)
     return home, created
 

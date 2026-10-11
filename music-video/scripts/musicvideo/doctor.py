@@ -1,4 +1,4 @@
-"""Check the tools the plugin needs and install the video engine's packages into the cache."""
+"""Check the tools the plugin needs and install the video engine's packages into the install folder."""
 import re
 import shutil
 import subprocess
@@ -29,12 +29,17 @@ def run_doctor(install: bool = True) -> int:
         print(line)
     try:
         ws = load_workspace()
-        print(f"ok   workspace {ws.home} (media in {ws.media_dir})")
-    except MVError:
-        print(f"todo workspace: none at {workspace_home()}; run music-video init --artist \"<name>\"")
+        print(f"ok   workspace {ws.home} (results in {ws.results_dir}, work in {ws.work_dir})")
+    except MVError as e:
+        if (workspace_home() / "config.yaml").is_file():
+            print(f"fix  workspace: {e}")
+        else:
+            print(f"todo workspace: none at {workspace_home()}; run music-video init --artist \"<name>\"")
     print("note the song steps need Chrome with the Claude in Chrome extension, signed in to your Suno account")
     if missing:
         return 1
+    if studio.migrate_old_runtime():
+        print(f"ok   moved the engine from the cache to {studio.runtime_dir()}")
     rt = studio.sync_runtime()
     if studio.is_installed(rt):
         print(f"ok   video engine installed in {rt}")

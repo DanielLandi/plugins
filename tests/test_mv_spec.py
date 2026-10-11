@@ -9,7 +9,7 @@ def test_valid_spec_passes():
     assert validate(valid_spec()) == []
 
 
-@pytest.mark.parametrize("field", ["id", "title", "kind", "suno", "status"])
+@pytest.mark.parametrize("field", ["id", "title", "kind", "status"])
 def test_required(field):
     data = valid_spec()
     del data[field]
@@ -52,3 +52,27 @@ def test_cli_new_and_validate(mv_ws, capsys):
 
 def test_slugify_accents():
     assert slugify("Café Noir à Minuit") == "cafe-noir-a-minuit"
+
+
+def test_a_spec_without_a_generator_is_a_suno_song():
+    from musicvideo.spec import generator
+    assert generator(valid_spec()) == "suno"
+    assert validate(valid_spec(generator="suno")) == []
+
+
+def test_an_unknown_generator_is_named():
+    errors = validate(valid_spec(generator="other"))
+    assert "unknown generator 'other' (known: suno)" in errors
+
+
+def test_the_generator_needs_its_settings_block():
+    data = valid_spec(generator="suno")
+    del data["suno"]
+    assert "missing field: suno (the suno generator's settings)" in validate(data)
+
+
+def test_new_names_the_generator(mv_ws):
+    from musicvideo.cli import main
+    assert main(["new", "--title", "Night Drive"]) == 0
+    data = yaml.safe_load((mv_ws.specs_dir / "night-drive.yaml").read_text(encoding="utf-8"))
+    assert data["generator"] == "suno" and "suno" in data

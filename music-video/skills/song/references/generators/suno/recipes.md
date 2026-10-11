@@ -1,6 +1,6 @@
 # Genre recipes
 
-Starting points for a spec's `suno:` block; tune per song. Every song is an original: follow `originals.md`.
+Starting points for a spec's `suno:` block; tune per song. Every song is an original: follow the song skill's `originals.md`.
 Each recipe: model · vocal · weirdness · style_influence · variety, then styles, exclude, a structure and the idiom
 (what the lyrics sound like in that genre).
 

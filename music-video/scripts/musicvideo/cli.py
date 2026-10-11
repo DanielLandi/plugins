@@ -1,25 +1,30 @@
 import argparse
 import json
+import shutil
 import sys
 from collections import Counter
 from datetime import date
 from pathlib import Path
 
+import yaml
+
 from . import __version__
 from . import studio
 from .doctor import run_doctor
+from .albums import load_album, write_manifest
 from .errors import MVError
 from .ingest import ingest
 from .budget import cycle_start, downloads_in_cycle
 from .spec import STATUSES, find_spec, iter_specs, load_spec, now_iso, save_spec, slugify, validate
 from .video.align import align
 from .video.analyze import analyze
+from .video.loop import make_loop
 from .video.mux import mux
 from .video.paths import VideoPaths, open_file, video_song
 from .video.preview import preview
 from .video.qc import run_qc
 from .video.timing import clock
-from .workspace import init_workspace, load_private_names, load_workspace, workspace_home
+from .workspace import init_workspace, install_dir, load_private_names, load_workspace, workspace_home
 
 
 
@@ -28,7 +33,7 @@ def cmd_init(args) -> int:
     if not (home / "config.yaml").is_file() and not args.artist:
         raise MVError("a new workspace needs --artist (the name your songs are credited to)")
     home, created = init_workspace(home, args.artist or "", args.billing_day, args.download_budget,
-                                   Path(args.media_dir).expanduser() if args.media_dir else None)
+                                   Path(args.results_dir).expanduser() if args.results_dir else None)
     print(f"{'created' if created else 'using existing'} workspace {home}")
     return 0
 
@@ -36,7 +41,7 @@ def cmd_init(args) -> int:
 def _budget(ws):
     if ws.billing_day is None or ws.download_budget is None:
         raise MVError(f"set billing_day and download_budget in {ws.home / 'config.yaml'} "
-                      "(read them from your Suno account's billing page) before recording a download")
+                      "(read them from your song generator account's billing page) before recording a download")
     return ws.billing_day, ws.download_budget
 
 
@@ -46,7 +51,7 @@ def cmd_new(args) -> int:
     path = ws.specs_dir / f"{spec_id}.yaml"
     if path.exists():
         raise MVError(f"{path} already exists: pick another title or pass --id")
-    save_spec(path, {"id": spec_id, "title": args.title, "kind": "original",
+    save_spec(path, {"id": spec_id, "title": args.title, "kind": "original", "generator": "suno",
                      "suno": {"model": "v6", "styles": "", "exclude_styles": "", "lyrics": ""}, "status": "drafted"})
     print(path)
     return 0
@@ -60,7 +65,14 @@ def cmd_validate(args) -> int:
     paths = [p for p, _ in iter_specs(ws)] if args.all else [find_spec(ws, args.id)]
     failed = 0
     for path in paths:
-        errors = validate(load_spec(path), names)
+        data = load_spec(path)
+        try:
+            album = load_album(ws, data["album"]) if data.get("album") else None
+        except MVError as e:
+            album, data_errors = None, [str(e)]
+        else:
+            data_errors = []
+        errors = data_errors + validate(data, names, album)
         if errors:
             failed += 1
             print(f"{path.stem}: FAIL")
@@ -195,6 +207,20 @@ def cmd_mux(args) -> int:
     return 0
 
 
+def cmd_loop(args) -> int:
+    song = video_song(load_workspace(), args.id)
+    analysis = song.paths.analysis
+    downbeats = json.loads(analysis.read_text(encoding="utf-8"))["downbeats"] if analysis.is_file() else None
+    out = song.paths.root / "loop"
+    meta = make_loop(song.paths.song, out, downbeats, args.end)
+    print(f"loop {meta['start_s']:.2f}–{meta['end_s']:.2f} s ({meta['loopSamples'] / meta['rate']:.1f} s"
+          f"{', on downbeats' if meta['onDownbeats'] else ', no beat grid'}) → {out}")
+    if meta["clipped"]:
+        print(f"warning: the crossfade clipped {meta['clipped']} samples; try another --end, or a quieter take")
+    print(f"listen to the seam: {out / 'seam-preview.m4a'}")
+    return 0
+
+
 def cmd_qc(args) -> int:
     song = video_song(load_workspace(), args.spec)
     report = run_qc(Path(args.video), song.paths.song, song.paths.qc,
@@ -209,9 +235,45 @@ def cmd_qc(args) -> int:
 
 def cmd_paths(args) -> int:
     ws = load_workspace()
-    p = VideoPaths(ws.media_for(args.id))
-    print(json.dumps({"video": str(ws.video_dir(args.id)), "media": str(p.root), "public": str(p.public),
-                      "renders": str(p.renders), "deliver": str(p.deliver), "qc": str(p.qc)}, indent=2))
+    meta_file = ws.video_dir(args.id) / "video.yaml"
+    meta = (yaml.safe_load(meta_file.read_text(encoding="utf-8")) or {}) if meta_file.is_file() else {}
+    song = str(meta.get("song") or args.id)  # a video can borrow another song's timings
+    p = VideoPaths(ws.work_for(args.id), ws.results_for(args.id))
+    print(json.dumps({"video": str(ws.video_dir(args.id)), "work": str(p.root),
+                      "public": str(ws.work_for(song) / "public"), "renders": str(p.renders), "qc": str(p.qc),
+                      "results": str(p.deliver), "web": str(p.deliver / "web")}, indent=2))
+    return 0
+
+
+def _overlaps(a: Path, b: Path) -> bool:
+    return a == b or a.is_relative_to(b) or b.is_relative_to(a)
+
+
+def cmd_clean(args) -> int:
+    """Delete one video's work folder, and nothing else: it asks nothing, so the target is checked first."""
+    if not studio.ID_RE.match(args.id or ""):
+        raise MVError(f"'{args.id}' is not a video id (lowercase words joined by hyphens): nothing was deleted")
+    ws = load_workspace()
+    work_dir = ws.work_dir.expanduser().resolve()
+    work = (work_dir / args.id).resolve()
+    if work.parent != work_dir:
+        raise MVError(f"{work} is not inside the work folder {work_dir}: nothing was deleted")
+    for name, other in (("results", ws.results_dir), ("project", ws.home), ("install", install_dir())):
+        if _overlaps(work, other.expanduser().resolve()):
+            raise MVError(f"work_dir {work_dir} overlaps the {name} folder {other}: set its own work_dir in "
+                          "config.yaml (default: the OS cache); nothing was deleted")
+    if not work.exists():
+        print(f"nothing to clean: {work} does not exist")
+        return 0
+    size = sum(f.stat().st_size for f in work.rglob("*") if f.is_file())
+    shutil.rmtree(work)
+    print(f"freed {size / 1e6:.0f} MB: removed {work} (finals are untouched)")
+    return 0
+
+
+def cmd_album(args) -> int:
+    path, count = write_manifest(load_workspace(), args.album)
+    print(f"{path} ({count} song{'' if count == 1 else 's'})")
     return 0
 
 
@@ -261,6 +323,23 @@ def _tool(script, output_index=None):
     return run
 
 
+def cmd_web(args) -> int:
+    rt, ctx, entry, env = _prepare(args.id)
+    ws = load_workspace()
+    env["MV_WEB_ENTRY"] = str(studio.web_entry(rt, ctx))
+    out = Path(args.out).expanduser().resolve() if args.out else ws.results_for(args.id) / "web"
+    cmd = [studio.npx(), "tsx", "tools/web.ts", args.id, "--out", str(out)]
+    if args.audio_loop:
+        loop = ws.work_for(args.audio_loop) / "loop"
+        if not (loop / "loop.m4a").is_file() or not (loop / "loop.json").is_file():
+            raise MVError(f"no audio loop in {loop}: run music-video loop {args.audio_loop} first")
+        cmd += ["--audio", str(loop)]
+    for flag in ("title", "description", "label", "background"):
+        if getattr(args, flag):
+            cmd += [f"--{flag}", getattr(args, flag)]
+    return studio.run_node(cmd, rt, env)
+
+
 def cmd_new_video(args) -> int:
     print(studio.new_video(load_workspace(), args.id))
     return 0
@@ -271,7 +350,7 @@ def cmd_typecheck(args) -> int:
     return studio.run_node([studio.npx(), "tsc", "-p", str(studio.typecheck_config(rt, ctx))], rt, env)
 
 
-HANDLERS: dict = {"new-video": cmd_new_video, "typecheck": cmd_typecheck, "studio": _remotion("studio"),
+HANDLERS: dict = {"web": cmd_web, "album": cmd_album, "loop": cmd_loop, "clean": cmd_clean, "new-video": cmd_new_video, "typecheck": cmd_typecheck, "studio": _remotion("studio"),
                   "render": _remotion("render"), "still": _remotion("still"), "stills": _tool("stills.ts", 1),
                   "blur": _tool("blur.ts", 1), "board": _tool("board.ts"), "doctor": cmd_doctor, "align": cmd_align, "analyze": cmd_analyze, "preview": cmd_preview, "mux": cmd_mux,
                   "qc": cmd_qc, "paths": cmd_paths, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
@@ -279,7 +358,7 @@ HANDLERS: dict = {"new-video": cmd_new_video, "typecheck": cmd_typecheck, "studi
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="music-video", description="Songs and music videos from your own Suno account.")
+    parser = argparse.ArgumentParser(prog="music-video", description="Songs (from your own song generator account) and the music videos made from them.")
     parser.add_argument("--version", action="version", version=f"music-video {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("doctor", help="check the tools and install the video engine (once, about 1.7 GB)")
@@ -287,26 +366,28 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("init", help="create (or point at) your workspace")
     p.add_argument("--path", help="workspace folder (default: ~/Movies/Music Videos)")
     p.add_argument("--artist", help="the name your songs are credited to")
-    p.add_argument("--billing-day", type=int, help="the day your Suno plan renews (from your account page)")
+    p.add_argument("--billing-day", type=int, help="the day your song generator plan renews (from your account page)")
     p.add_argument("--download-budget", type=int, help="downloads included per billing cycle")
-    p.add_argument("--media-dir", help="where audio, renders and deliverables go (default: <workspace>/media)")
+    p.add_argument("--results-dir", help="where finals go (default: ~/Movies/Music Videos)")
     p = sub.add_parser("new", help="create a song spec skeleton in the workspace")
     p.add_argument("--title", required=True)
     p.add_argument("--id", help="spec id (default: the title, slugified)")
     p = sub.add_parser("validate", help="check a spec (or --all) against the schema and private names")
     p.add_argument("id", nargs="?")
     p.add_argument("--all", action="store_true")
-    p = sub.add_parser("round", help="record one Create round in Suno")
+    p = sub.add_parser("round", help="record one create round with the song generator")
     p.add_argument("id")
     p.add_argument("--changes", required=True, help="what changed this round, or why it was rejected")
-    p.add_argument("--url", action="append", help="a take's Suno URL (repeat for each take)")
+    p.add_argument("--url", action="append", help="a take's URL (repeat for each take)")
     p = sub.add_parser("downloaded", help="record a download before clicking Download (counts against the budget)")
     p.add_argument("id")
     p.add_argument("--take-url")
     p.add_argument("--paid-extra", action="store_true", help="the user confirmed buying an extra download")
     p.add_argument("--undo", action="store_true")
     sub.add_parser("status", help="downloads used this cycle and songs by status")
-    p = sub.add_parser("ingest", help="file a downloaded MP3 into the song's media folder, tagged")
+    p = sub.add_parser("album", help="rewrite an album's manifest.json from its filed songs")
+    p.add_argument("album")
+    p = sub.add_parser("ingest", help="file a downloaded MP3, tagged, into its results or album folder")
     p.add_argument("id")
     p.add_argument("--file", help="the MP3 (default: find it in the downloads folder by title)")
     p = sub.add_parser("align", help="word timings for a filed song")
@@ -343,7 +424,20 @@ def build_parser() -> argparse.ArgumentParser:
         p = sub.add_parser(name, help=text)
         p.add_argument("id")
         p.add_argument("rest", nargs=argparse.REMAINDER)
-    p = sub.add_parser("paths", help="a video's folders (code, media, public, renders, deliver, qc) as JSON")
+    p = sub.add_parser("loop", help="a seamless audio loop of a song (for a web page), with a seam preview")
+    p.add_argument("id")
+    p.add_argument("--end", type=float, help="where the loop ends, in song seconds (default: a downbeat before the ending)")
+    p = sub.add_parser("web", help="a live web page of the video (its web.tsx), looping, into results/<id>/web")
+    p.add_argument("id")
+    p.add_argument("--audio-loop", metavar="SONG_ID", help="play this song's audio loop (music-video loop) under it")
+    p.add_argument("--title", help="the page title (default: the video id)")
+    p.add_argument("--description", help="the page's meta description")
+    p.add_argument("--label", help="what the animation shows, for screen readers")
+    p.add_argument("--background", help="the page colour behind the animation, e.g. #c9d3e6")
+    p.add_argument("--out", help="output folder (default: results/<id>/web)")
+    p = sub.add_parser("paths", help="a video's folders (code, work, public, renders, qc, results, web) as JSON")
+    p.add_argument("id")
+    p = sub.add_parser("clean", help="delete a video's work folder (renders, timings, checks); finals stay")
     p.add_argument("id")
     return parser
 
@@ -351,9 +445,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None, parser: argparse.ArgumentParser | None = None,
          handlers: dict | None = None) -> int:
     args = (parser or build_parser()).parse_args(argv)
-    handler = (handlers or HANDLERS).get(args.command)
+    handler = (handlers or HANDLERS)[args.command]
     try:
-        return handler(args) if handler else 0
+        return handler(args)
     except MVError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2

@@ -44,3 +44,11 @@ def test_root_docs_list_the_plugin():
     agents = (REPO / "AGENTS.md").read_text(encoding="utf-8")
     assert "music-video" in agents and ".private-terms.txt" in agents
     assert "Suno" in (REPO / "SERVICES.md").read_text(encoding="utf-8")
+
+
+def test_docs_name_the_install_folder_not_the_cache():
+    for name in ("README.md", "THIRD_PARTY_NOTICES.md"):
+        text = _read(name)
+        assert "into the cache" not in text, name
+    assert "Application Support" in _read("README.md")
+    assert "upgrad" in _read("CHANGELOG.md").lower()  # 0.1.0 users are told what moved
