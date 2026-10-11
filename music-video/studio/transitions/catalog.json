@@ -1,0 +1,4174 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/GTKottman/remotion-transitions",
+  "mediaBase": "https://github.com/GTKottman/remotion-transitions/releases/download/media",
+  "families": [
+    {
+      "slug": "01-cut",
+      "name": "Cut",
+      "definition": "A changes to B between two consecutive frames, with no in-between frames.",
+      "subfamilies": [
+        {
+          "slug": "match-cut",
+          "name": "Match Cut",
+          "definition": "A and B share a form, motion, colour or composition, so the eye carries across."
+        },
+        {
+          "slug": "smash-cut",
+          "name": "Smash Cut",
+          "definition": "An abrupt jump in tone, volume or energy, for contrast or comedy."
+        },
+        {
+          "slug": "jump-cut",
+          "name": "Jump Cut",
+          "definition": "The same subject with a jump in time."
+        },
+        {
+          "slug": "audio-led",
+          "name": "Audio-Led",
+          "definition": "Sound leads or trails the picture (J/L cuts), or a sound hit drives the cut."
+        }
+      ]
+    },
+    {
+      "slug": "02-blend",
+      "name": "Blend",
+      "definition": "A and B mix by opacity. Nothing moves and no edge travels across the frame.",
+      "subfamilies": [
+        {
+          "slug": "crossfade",
+          "name": "Crossfade",
+          "definition": "A fades out while B fades in."
+        },
+        {
+          "slug": "dip-to-colour",
+          "name": "Dip to Colour",
+          "definition": "A fades to a flat colour, then B fades in from it."
+        },
+        {
+          "slug": "luma-dissolve",
+          "name": "Luma Dissolve",
+          "definition": "The image's own brightness decides which pixels change first."
+        },
+        {
+          "slug": "blend-mode",
+          "name": "Blend Mode",
+          "definition": "The mix uses a blend mode instead of normal opacity."
+        }
+      ]
+    },
+    {
+      "slug": "03-wipe",
+      "name": "Wipe",
+      "definition": "A moving, designed boundary separates A from B until B fills the frame.",
+      "subfamilies": [
+        {
+          "slug": "linear",
+          "name": "Linear",
+          "definition": "A straight edge sweeps across."
+        },
+        {
+          "slug": "iris",
+          "name": "Iris",
+          "definition": "A circle or shape grows from, or shrinks to, a point."
+        },
+        {
+          "slug": "clock",
+          "name": "Clock",
+          "definition": "An edge rotates around a centre."
+        },
+        {
+          "slug": "shape-mask",
+          "name": "Shape Mask",
+          "definition": "B appears through a growing designed shape."
+        },
+        {
+          "slug": "pattern",
+          "name": "Pattern",
+          "definition": "Many small edges at once, in a grid or repeat."
+        },
+        {
+          "slug": "organic",
+          "name": "Organic",
+          "definition": "An irregular, noise-driven edge, with no full cover."
+        }
+      ]
+    },
+    {
+      "slug": "04-cover",
+      "name": "Cover",
+      "definition": "A third layer (neither A nor B) covers the frame, hides the change, then uncovers B.",
+      "subfamilies": [
+        {
+          "slug": "organic",
+          "name": "Organic",
+          "definition": "The cover is a fluid, natural or noise-driven substance."
+        },
+        {
+          "slug": "geometric",
+          "name": "Geometric",
+          "definition": "The cover is built from clean shapes."
+        },
+        {
+          "slug": "stroke",
+          "name": "Stroke",
+          "definition": "Drawn strokes sweep across and fill the frame."
+        },
+        {
+          "slug": "panel",
+          "name": "Panel",
+          "definition": "Solid slabs slide or unfold across, then off."
+        },
+        {
+          "slug": "stinger",
+          "name": "Stinger",
+          "definition": "A branded or character graphic covers the cut."
+        }
+      ]
+    },
+    {
+      "slug": "05-motion",
+      "name": "Motion",
+      "definition": "The picture moves rigidly: A and B translate, rotate, scale or flip, whole or in rigid slices.",
+      "subfamilies": [
+        {
+          "slug": "push-slide",
+          "name": "Push Slide",
+          "definition": "B pushes A out, or slides over it."
+        },
+        {
+          "slug": "whip",
+          "name": "Whip",
+          "definition": "A very fast move with motion blur hiding the seam."
+        },
+        {
+          "slug": "zoom",
+          "name": "Zoom",
+          "definition": "Scale through the frame."
+        },
+        {
+          "slug": "spin",
+          "name": "Spin",
+          "definition": "Rotation in the picture plane."
+        },
+        {
+          "slug": "3d-space",
+          "name": "3D Space",
+          "definition": "Rigid 3D moves of the frame."
+        },
+        {
+          "slug": "split",
+          "name": "Split",
+          "definition": "The frame divides into rigid slices that move apart or together."
+        }
+      ]
+    },
+    {
+      "slug": "06-distortion",
+      "name": "Distortion",
+      "definition": "The image deforms, degrades or breaks apart, and B emerges from the damage.",
+      "subfamilies": [
+        {
+          "slug": "glitch",
+          "name": "Glitch",
+          "definition": "Digital corruption."
+        },
+        {
+          "slug": "warp",
+          "name": "Warp",
+          "definition": "Smooth non-rigid deformation."
+        },
+        {
+          "slug": "blur",
+          "name": "Blur",
+          "definition": "Focus or directional blur peaks at the cut."
+        },
+        {
+          "slug": "pixel",
+          "name": "Pixel",
+          "definition": "The image breaks into pixels or sorted pixels."
+        },
+        {
+          "slug": "break",
+          "name": "Break",
+          "definition": "The image fractures into pieces or particles."
+        }
+      ]
+    },
+    {
+      "slug": "07-morph",
+      "name": "Morph",
+      "definition": "An element in A changes, through in-between frames, into a different element in B.",
+      "subfamilies": [
+        {
+          "slug": "shape",
+          "name": "Shape",
+          "definition": "One vector shape interpolates into another."
+        },
+        {
+          "slug": "type",
+          "name": "Type",
+          "definition": "Letters or words change into other letters, words or shapes."
+        },
+        {
+          "slug": "object",
+          "name": "Object",
+          "definition": "A depicted object becomes another object."
+        },
+        {
+          "slug": "image-morph",
+          "name": "Image Morph",
+          "definition": "Whole images warp into each other via corresponding points."
+        }
+      ]
+    },
+    {
+      "slug": "08-carry",
+      "name": "Carry",
+      "definition": "A specific element keeps its identity and leads the viewer from A into B.",
+      "subfamilies": [
+        {
+          "slug": "object-led",
+          "name": "Object-Led",
+          "definition": "An object travels across and becomes part of B's layout."
+        },
+        {
+          "slug": "line-led",
+          "name": "Line-Led",
+          "definition": "A drawn line or path becomes B's structure."
+        },
+        {
+          "slug": "type-led",
+          "name": "Type-Led",
+          "definition": "A word or title stays while the scene rebuilds around it."
+        },
+        {
+          "slug": "portal",
+          "name": "Portal",
+          "definition": "The camera moves into an element that contains B."
+        }
+      ]
+    },
+    {
+      "slug": "09-light",
+      "name": "Light",
+      "definition": "Light washes over the cut: the in-between is luminance, glow or optical artefact.",
+      "subfamilies": [
+        {
+          "slug": "flash",
+          "name": "Flash",
+          "definition": "A short burst of bright exposure with bloom."
+        },
+        {
+          "slug": "leak",
+          "name": "Leak",
+          "definition": "Soft coloured light drifts across."
+        },
+        {
+          "slug": "burn",
+          "name": "Burn",
+          "definition": "Film or paper burns through."
+        },
+        {
+          "slug": "flare",
+          "name": "Flare",
+          "definition": "A lens flare or light streak sweeps across."
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "id": "match-cut-anchor",
+      "name": "Anchored Match Cut",
+      "version": "1.0.0",
+      "summary": "A hard cut that lines up a point in the next scene with a point in the old one, then eases the new scene back to its own framing.",
+      "uses": [
+        "Match cuts on shape or position",
+        "Object continuity between shots",
+        "Graphic match cuts"
+      ],
+      "family": "01-cut",
+      "subfamily": "match-cut",
+      "path": "transitions/01-cut/match-cut/match-cut-anchor",
+      "facets": {
+        "structure": "instant",
+        "origin": "point",
+        "edge": "none",
+        "layers": "B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "clean"
+        ],
+        "function": [
+          "continuity"
+        ],
+        "also": [
+          "05-motion/zoom"
+        ]
+      },
+      "duration": {
+        "default": 30,
+        "min": 10,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "fromX",
+          "type": "number",
+          "default": 0.79,
+          "min": 0,
+          "max": 1,
+          "description": "Anchor in scene A, x (0..1)."
+        },
+        {
+          "name": "fromY",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Anchor in scene A, y (0..1)."
+        },
+        {
+          "name": "toX",
+          "type": "number",
+          "default": 0.19,
+          "min": 0,
+          "max": 1,
+          "description": "Anchor in scene B, x (0..1)."
+        },
+        {
+          "name": "toY",
+          "type": "number",
+          "default": 0.45,
+          "min": 0,
+          "max": 1,
+          "description": "Anchor in scene B, y (0..1)."
+        },
+        {
+          "name": "scale",
+          "type": "number",
+          "default": 1,
+          "min": 0.25,
+          "max": 4,
+          "description": "Scale of scene B at the cut."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/match-cut-anchor@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/match-cut-anchor@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/match-cut-anchor@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/01-cut/match-cut/match-cut-anchor"
+    },
+    {
+      "id": "smash-cut-shake",
+      "name": "Smash Cut with Shake",
+      "version": "1.0.0",
+      "summary": "A hard cut to the next scene, which lands with a short, decaying camera shake.",
+      "uses": [
+        "Comedic or dramatic contrast",
+        "Beat drops",
+        "Impacts"
+      ],
+      "family": "01-cut",
+      "subfamily": "smash-cut",
+      "path": "transitions/01-cut/smash-cut/smash-cut-shake",
+      "facets": {
+        "structure": "instant",
+        "origin": "whole-frame",
+        "edge": "none",
+        "layers": "B",
+        "space": "2d",
+        "timing": "snap",
+        "tone": [
+          "bold"
+        ],
+        "function": [
+          "contrast",
+          "energy"
+        ],
+        "also": [
+          "05-motion/whip"
+        ]
+      },
+      "duration": {
+        "default": 16,
+        "min": 8,
+        "max": 30
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "cutAt",
+          "type": "number",
+          "default": 0.25,
+          "min": 0,
+          "max": 0.9,
+          "description": "Where in the transition the cut happens (0..1)."
+        },
+        {
+          "name": "strength",
+          "type": "number",
+          "default": 28,
+          "min": 0,
+          "max": 80,
+          "description": "Shake distance in pixels."
+        },
+        {
+          "name": "seed",
+          "type": "integer",
+          "default": 1,
+          "min": 0,
+          "max": 9999,
+          "description": "Changes the random layout."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/smash-cut-shake@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/smash-cut-shake@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/smash-cut-shake@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/01-cut/smash-cut/smash-cut-shake"
+    },
+    {
+      "id": "strobe-cut",
+      "name": "Strobe Cut",
+      "version": "1.0.0",
+      "summary": "Cuts back and forth between the two scenes faster and faster, then lands on the new one.",
+      "uses": [
+        "Music videos and beat drops",
+        "Hype edits",
+        "Glitchy energy without effects"
+      ],
+      "family": "01-cut",
+      "subfamily": "smash-cut",
+      "path": "transitions/01-cut/smash-cut/strobe-cut",
+      "facets": {
+        "structure": "instant",
+        "origin": "whole-frame",
+        "edge": "none",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "beat-synced",
+        "tone": [
+          "bold",
+          "gritty"
+        ],
+        "function": [
+          "energy",
+          "contrast"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 18,
+        "min": 8,
+        "max": 40
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "flips",
+          "type": "integer",
+          "default": 6,
+          "min": 2,
+          "max": 16,
+          "description": "How many times the picture swaps."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/strobe-cut@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/strobe-cut@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/strobe-cut@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/01-cut/smash-cut/strobe-cut"
+    },
+    {
+      "id": "jump-cut-punch",
+      "name": "Punch-in Jump Cut",
+      "version": "1.0.0",
+      "summary": "Cuts to the next shot framed tighter, then cuts again to the normal framing: the vlog punch-in for emphasis.",
+      "uses": [
+        "Vlogs and talking heads",
+        "Emphasising a line",
+        "Tightening a long take"
+      ],
+      "family": "01-cut",
+      "subfamily": "jump-cut",
+      "path": "transitions/01-cut/jump-cut/jump-cut-punch",
+      "facets": {
+        "structure": "instant",
+        "origin": "whole-frame",
+        "edge": "none",
+        "layers": "B",
+        "space": "2d",
+        "timing": "snap",
+        "tone": [
+          "bold",
+          "playful"
+        ],
+        "function": [
+          "energy",
+          "continuity"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 24,
+        "min": 8,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "scale",
+          "type": "number",
+          "default": 1.18,
+          "min": 1.02,
+          "max": 1.6,
+          "description": "How far the punch-in zooms."
+        },
+        {
+          "name": "originX",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Zoom centre, x (0..1)."
+        },
+        {
+          "name": "originY",
+          "type": "number",
+          "default": 0.4,
+          "min": 0,
+          "max": 1,
+          "description": "Zoom centre, y (0..1)."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/jump-cut-punch@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/jump-cut-punch@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/jump-cut-punch@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/01-cut/jump-cut/jump-cut-punch"
+    },
+    {
+      "id": "crossfade",
+      "name": "Crossfade",
+      "version": "1.0.0",
+      "summary": "Scene A fades out while scene B fades in. The classic dissolve.",
+      "uses": [
+        "Time passing",
+        "Soft scene changes",
+        "Montages"
+      ],
+      "family": "02-blend",
+      "subfamily": "crossfade",
+      "path": "transitions/02-blend/crossfade/crossfade",
+      "facets": {
+        "structure": "direct",
+        "origin": "whole-frame",
+        "edge": "none",
+        "layers": "B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "clean",
+          "dreamy"
+        ],
+        "function": [
+          "progression",
+          "continuity"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 24,
+        "min": 6,
+        "max": 90
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "curve",
+          "type": "enum",
+          "default": "smooth",
+          "options": [
+            "linear",
+            "smooth"
+          ],
+          "description": "Opacity curve."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/crossfade@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/crossfade@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/crossfade@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/02-blend/crossfade/crossfade"
+    },
+    {
+      "id": "dip-to-colour",
+      "name": "Dip to Colour",
+      "version": "1.0.0",
+      "summary": "Fades to a flat colour, holds, then fades up on the next scene.",
+      "uses": [
+        "Chapter breaks",
+        "Endings and beginnings",
+        "Dip to black or white"
+      ],
+      "family": "02-blend",
+      "subfamily": "dip-to-colour",
+      "path": "transitions/02-blend/dip-to-colour/dip-to-colour",
+      "facets": {
+        "structure": "bridged",
+        "origin": "whole-frame",
+        "edge": "none",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "clean"
+        ],
+        "function": [
+          "section-break",
+          "progression"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 36,
+        "min": 12,
+        "max": 90
+      },
+      "overlay": true,
+      "requires": [],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "The incoming scene's background colour; the transition brings it in."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0.1,
+          "min": 0,
+          "max": 0.4,
+          "description": "Share of the transition spent fully covered."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/dip-to-colour@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/dip-to-colour@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/dip-to-colour@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/dip-to-colour@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/02-blend/dip-to-colour/dip-to-colour"
+    },
+    {
+      "id": "luma-dissolve",
+      "name": "Luma Dissolve",
+      "version": "1.0.0",
+      "summary": "Scene A dissolves by its own brightness: its highlights vanish first and its shadows last, showing scene B behind.",
+      "uses": [
+        "Dreamy or filmic scene changes",
+        "Silhouettes and high-contrast shots",
+        "Light-to-dark changes"
+      ],
+      "family": "02-blend",
+      "subfamily": "luma-dissolve",
+      "path": "transitions/02-blend/luma-dissolve/luma-dissolve",
+      "facets": {
+        "structure": "direct",
+        "origin": "distributed",
+        "edge": "soft",
+        "layers": "A",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "dreamy",
+          "luxe"
+        ],
+        "function": [
+          "progression"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 30,
+        "min": 12,
+        "max": 90
+      },
+      "overlay": false,
+      "requires": [
+        "svg-filters"
+      ],
+      "params": [
+        {
+          "name": "softness",
+          "type": "number",
+          "default": 0.25,
+          "min": 0.02,
+          "max": 1,
+          "description": "Width of the dissolve band in brightness."
+        },
+        {
+          "name": "darkFirst",
+          "type": "boolean",
+          "default": false,
+          "description": "Dissolve the shadows first instead."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/luma-dissolve@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/luma-dissolve@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/luma-dissolve@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/02-blend/luma-dissolve/luma-dissolve"
+    },
+    {
+      "id": "film-dissolve",
+      "name": "Film Dissolve",
+      "version": "1.0.0",
+      "summary": "An additive dissolve: both scenes add together, so the midpoint glows like a film dissolve.",
+      "uses": [
+        "Warm, nostalgic scene changes",
+        "Music videos",
+        "Bright footage"
+      ],
+      "family": "02-blend",
+      "subfamily": "blend-mode",
+      "path": "transitions/02-blend/blend-mode/film-dissolve",
+      "facets": {
+        "structure": "direct",
+        "origin": "whole-frame",
+        "edge": "none",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "dreamy",
+          "retro"
+        ],
+        "function": [
+          "progression"
+        ],
+        "also": [
+          "09-light/flash"
+        ]
+      },
+      "duration": {
+        "default": 24,
+        "min": 8,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/film-dissolve@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/film-dissolve@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/film-dissolve@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/02-blend/blend-mode/film-dissolve"
+    },
+    {
+      "id": "linear-wipe",
+      "name": "Linear Wipe",
+      "version": "1.0.0",
+      "summary": "A straight edge sweeps across the frame at any angle, hard or soft. Split mode opens from the middle like barn doors.",
+      "uses": [
+        "Changes of place",
+        "Before/after reveals",
+        "Slide-like presentations"
+      ],
+      "family": "03-wipe",
+      "subfamily": "linear",
+      "path": "transitions/03-wipe/linear/linear-wipe",
+      "facets": {
+        "structure": "direct",
+        "origin": "edge-left",
+        "edge": "hard",
+        "layers": "B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "clean"
+        ],
+        "function": [
+          "progression",
+          "reveal"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 24,
+        "min": 8,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "angle",
+          "type": "number",
+          "default": 90,
+          "min": 0,
+          "max": 360,
+          "description": "Direction the edge travels, in degrees (90 = left to right)."
+        },
+        {
+          "name": "softness",
+          "type": "number",
+          "default": 0,
+          "min": 0,
+          "max": 40,
+          "description": "Edge softness, as a percentage of the frame."
+        },
+        {
+          "name": "mode",
+          "type": "enum",
+          "default": "single",
+          "options": [
+            "single",
+            "split"
+          ],
+          "description": "single: one edge. split: two edges open from the centre."
+        }
+      ],
+      "presets": [
+        {
+          "id": "soft",
+          "name": "Soft edge",
+          "params": {
+            "softness": 18
+          }
+        },
+        {
+          "id": "barn-door",
+          "name": "Barn door",
+          "params": {
+            "mode": "split"
+          }
+        },
+        {
+          "id": "diagonal",
+          "name": "Diagonal",
+          "params": {
+            "angle": 135
+          }
+        }
+      ],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/linear-wipe@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/linear-wipe@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/linear-wipe@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/03-wipe/linear/linear-wipe"
+    },
+    {
+      "id": "iris",
+      "name": "Iris",
+      "version": "1.0.0",
+      "summary": "A circle opens from a point and grows until the new scene fills the frame.",
+      "uses": [
+        "Reveals",
+        "Retro and cartoon looks",
+        "Focusing on a subject"
+      ],
+      "family": "03-wipe",
+      "subfamily": "iris",
+      "path": "transitions/03-wipe/iris/iris",
+      "facets": {
+        "structure": "direct",
+        "origin": "point",
+        "edge": "hard",
+        "layers": "B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "retro",
+          "playful",
+          "clean"
+        ],
+        "function": [
+          "reveal"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 24,
+        "min": 10,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "x",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Centre x (0..1)."
+        },
+        {
+          "name": "y",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Centre y (0..1)."
+        },
+        {
+          "name": "softness",
+          "type": "number",
+          "default": 0,
+          "min": 0,
+          "max": 200,
+          "description": "Edge softness in pixels."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/iris@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/iris@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/iris@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/03-wipe/iris/iris"
+    },
+    {
+      "id": "rounded-reveal",
+      "name": "Rounded Reveal",
+      "version": "1.0.0",
+      "summary": "The new scene opens in a rounded window that grows from the centre to full frame, settling from a slight zoom inside.",
+      "uses": [
+        "App and product demos",
+        "Clean corporate edits",
+        "Revealing a screen recording"
+      ],
+      "family": "03-wipe",
+      "subfamily": "shape-mask",
+      "path": "transitions/03-wipe/shape-mask/rounded-reveal",
+      "facets": {
+        "structure": "direct",
+        "origin": "point",
+        "edge": "geometric",
+        "layers": "B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "clean",
+          "luxe"
+        ],
+        "function": [
+          "reveal"
+        ],
+        "also": [
+          "03-wipe/iris"
+        ]
+      },
+      "duration": {
+        "default": 30,
+        "min": 14,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "x",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Window centre x."
+        },
+        {
+          "name": "y",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Window centre y."
+        },
+        {
+          "name": "corner",
+          "type": "number",
+          "default": 0.08,
+          "min": 0,
+          "max": 0.3,
+          "description": "Corner radius as a share of frame height (it eases to square at the end)."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/rounded-reveal@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/rounded-reveal@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/rounded-reveal@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/03-wipe/shape-mask/rounded-reveal"
+    },
+    {
+      "id": "text-mask",
+      "name": "Text Mask Zoom",
+      "version": "1.0.0",
+      "summary": "A word appears with the new scene inside its letters, then zooms through one letter until the new scene fills the frame.",
+      "uses": [
+        "Title reveals",
+        "Branded openers",
+        "Chapter titles"
+      ],
+      "family": "03-wipe",
+      "subfamily": "shape-mask",
+      "path": "transitions/03-wipe/shape-mask/text-mask",
+      "facets": {
+        "structure": "direct",
+        "origin": "point",
+        "edge": "geometric",
+        "layers": "B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "bold",
+          "luxe"
+        ],
+        "function": [
+          "reveal",
+          "brand",
+          "section-break"
+        ],
+        "also": [
+          "08-carry/portal"
+        ]
+      },
+      "duration": {
+        "default": 48,
+        "min": 24,
+        "max": 90
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "default": "NEXT",
+          "description": "The word that reveals the new scene."
+        },
+        {
+          "name": "focus",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Point of the word the zoom heads into, across its width (0..1)."
+        },
+        {
+          "name": "background",
+          "type": "color",
+          "default": "#111111",
+          "description": "Colour around the word before it fills the frame."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/text-mask@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/text-mask@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/text-mask@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/03-wipe/shape-mask/text-mask"
+    },
+    {
+      "id": "halftone-wipe",
+      "name": "Halftone Wipe",
+      "version": "1.0.0",
+      "summary": "A wave of dots grows across the frame, from tiny to touching, with the new scene inside them.",
+      "uses": [
+        "Print, comic and pop-art looks",
+        "Graphic reveals",
+        "Editorial content"
+      ],
+      "family": "03-wipe",
+      "subfamily": "pattern",
+      "path": "transitions/03-wipe/pattern/halftone-wipe",
+      "facets": {
+        "structure": "direct",
+        "origin": "edge-left",
+        "edge": "geometric",
+        "layers": "B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "retro",
+          "bold"
+        ],
+        "function": [
+          "progression",
+          "reveal"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 36,
+        "min": 16,
+        "max": 72
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "columns",
+          "type": "integer",
+          "default": 28,
+          "min": 8,
+          "max": 60,
+          "description": "Dots across the frame."
+        },
+        {
+          "name": "angle",
+          "type": "number",
+          "default": 30,
+          "min": 0,
+          "max": 360,
+          "description": "Direction the wave travels, in degrees."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/halftone-wipe@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/halftone-wipe@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/halftone-wipe@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/03-wipe/pattern/halftone-wipe"
+    },
+    {
+      "id": "stripe-wipe",
+      "name": "Stripe Wipe",
+      "version": "1.0.0",
+      "summary": "Diagonal stripes of the new scene open one after another and widen until they join.",
+      "uses": [
+        "Sports and broadcast graphics",
+        "Energetic topic changes",
+        "Lower-thirds into full screen"
+      ],
+      "family": "03-wipe",
+      "subfamily": "pattern",
+      "path": "transitions/03-wipe/pattern/stripe-wipe",
+      "facets": {
+        "structure": "direct",
+        "origin": "edge-diagonal",
+        "edge": "hard",
+        "layers": "B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "bold",
+          "clean"
+        ],
+        "function": [
+          "energy",
+          "progression"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 30,
+        "min": 12,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "count",
+          "type": "integer",
+          "default": 7,
+          "min": 2,
+          "max": 24,
+          "description": "Number of stripes."
+        },
+        {
+          "name": "angle",
+          "type": "number",
+          "default": 60,
+          "min": 0,
+          "max": 180,
+          "description": "Stripe angle in degrees."
+        },
+        {
+          "name": "stagger",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 0.9,
+          "description": "How much the stripes open one after another."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/stripe-wipe@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/stripe-wipe@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/stripe-wipe@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/03-wipe/pattern/stripe-wipe"
+    },
+    {
+      "id": "noise-wipe",
+      "name": "Noise Wipe",
+      "version": "1.0.0",
+      "summary": "A ragged, noise-driven edge sweeps across the frame, like a torn or eroded border.",
+      "uses": [
+        "Organic, handmade looks",
+        "Documentary and nature edits",
+        "Softer alternative to a linear wipe"
+      ],
+      "family": "03-wipe",
+      "subfamily": "organic",
+      "path": "transitions/03-wipe/organic/noise-wipe",
+      "facets": {
+        "structure": "direct",
+        "origin": "edge-left",
+        "edge": "organic",
+        "layers": "B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "gritty",
+          "playful"
+        ],
+        "function": [
+          "progression"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 30,
+        "min": 12,
+        "max": 72
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "direction",
+          "type": "enum",
+          "default": "left",
+          "options": [
+            "left",
+            "right",
+            "up",
+            "down"
+          ],
+          "description": "Direction the motion travels."
+        },
+        {
+          "name": "roughness",
+          "type": "number",
+          "default": 0.12,
+          "min": 0,
+          "max": 0.4,
+          "description": "How far the edge wanders, as a fraction of the frame."
+        },
+        {
+          "name": "seed",
+          "type": "integer",
+          "default": 1,
+          "min": 0,
+          "max": 9999,
+          "description": "Changes the random layout."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/noise-wipe@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/noise-wipe@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/noise-wipe@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/03-wipe/organic/noise-wipe"
+    },
+    {
+      "id": "ink-bleed",
+      "name": "Ink Bleed",
+      "version": "1.0.0",
+      "summary": "Drops of ink land and spread with fibrous edges until the frame is solid, then the next scene bleeds back through.",
+      "uses": [
+        "Editorial and artistic edits",
+        "Section breaks",
+        "Calligraphic or handmade brands"
+      ],
+      "family": "04-cover",
+      "subfamily": "organic",
+      "path": "transitions/04-cover/organic/ink-bleed",
+      "facets": {
+        "structure": "bridged",
+        "origin": "point",
+        "edge": "textured",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "luxe",
+          "gritty"
+        ],
+        "function": [
+          "section-break",
+          "brand"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 90,
+        "min": 48,
+        "max": 150
+      },
+      "overlay": true,
+      "requires": [
+        "webgl2"
+      ],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "The incoming scene's background colour; the transition brings it in."
+        },
+        {
+          "name": "drops",
+          "type": "integer",
+          "default": 4,
+          "min": 1,
+          "max": 9,
+          "description": "Number of ink drops."
+        },
+        {
+          "name": "seed",
+          "type": "integer",
+          "default": 1,
+          "min": 0,
+          "max": 9999,
+          "description": "Changes the random layout."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0.1,
+          "min": 0,
+          "max": 0.4,
+          "description": "Share of the transition spent fully covered."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/ink-bleed@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/ink-bleed@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/ink-bleed@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/ink-bleed@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/04-cover/organic/ink-bleed"
+    },
+    {
+      "id": "liquid-fill",
+      "name": "Liquid Fill",
+      "version": "1.0.0",
+      "summary": "Blobs of liquid grow into cells with thin veins, the veins pinch away until the frame is one colour, then the next scene floods back in the same way.",
+      "uses": [
+        "Scene changes",
+        "Section breaks",
+        "Intros and outros",
+        "Hiding a jump cut"
+      ],
+      "family": "04-cover",
+      "subfamily": "organic",
+      "path": "transitions/04-cover/organic/liquid-fill",
+      "facets": {
+        "structure": "bridged",
+        "origin": "distributed",
+        "edge": "organic",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "clean",
+          "bold"
+        ],
+        "function": [
+          "section-break",
+          "reveal",
+          "brand"
+        ],
+        "also": [
+          "03-wipe/organic"
+        ]
+      },
+      "duration": {
+        "default": 96,
+        "min": 48,
+        "max": 150
+      },
+      "overlay": true,
+      "requires": [
+        "webgl2"
+      ],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "The incoming scene's background colour; the transition brings it in."
+        },
+        {
+          "name": "seed",
+          "type": "integer",
+          "default": 3,
+          "min": 0,
+          "max": 9999,
+          "description": "Blob layout. The reveal uses seed + 1."
+        },
+        {
+          "name": "rows",
+          "type": "integer",
+          "default": 5,
+          "min": 2,
+          "max": 9,
+          "description": "Blobs across the frame height; more means smaller cells."
+        },
+        {
+          "name": "from",
+          "type": "enum",
+          "default": "random",
+          "options": [
+            "random",
+            "center",
+            "left",
+            "right",
+            "top",
+            "bottom"
+          ],
+          "description": "Where the first blobs appear."
+        },
+        {
+          "name": "gap",
+          "type": "number",
+          "default": 0.0085,
+          "min": 0.002,
+          "max": 0.03,
+          "description": "Half the vein width, as a fraction of frame height."
+        },
+        {
+          "name": "wobble",
+          "type": "number",
+          "default": 0.012,
+          "min": 0,
+          "max": 0.04,
+          "description": "How much the liquid edge wobbles."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0.1,
+          "min": 0,
+          "max": 0.4,
+          "description": "Share of the transition spent fully covered."
+        }
+      ],
+      "presets": [
+        {
+          "id": "ink",
+          "name": "Black liquid",
+          "params": {
+            "color": "#111111"
+          }
+        },
+        {
+          "id": "white",
+          "name": "White liquid",
+          "params": {
+            "color": "#ffffff"
+          }
+        },
+        {
+          "id": "fine-cells",
+          "name": "Fine cells",
+          "params": {
+            "rows": 8,
+            "gap": 0.005
+          }
+        },
+        {
+          "id": "from-center",
+          "name": "From the centre",
+          "params": {
+            "from": "center"
+          }
+        }
+      ],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/liquid-fill@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/liquid-fill@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/liquid-fill@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/liquid-fill@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/04-cover/organic/liquid-fill"
+    },
+    {
+      "id": "paint-drip",
+      "name": "Paint Drip",
+      "version": "1.0.0",
+      "summary": "Paint pours down from the top in uneven drips that join into a solid frame, then drains away to show the next scene.",
+      "uses": [
+        "Bold, messy, street-art looks",
+        "Music and fashion edits",
+        "Halloween and horror (in red)"
+      ],
+      "family": "04-cover",
+      "subfamily": "organic",
+      "path": "transitions/04-cover/organic/paint-drip",
+      "facets": {
+        "structure": "bridged",
+        "origin": "edge-top",
+        "edge": "organic",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "bold",
+          "gritty",
+          "playful"
+        ],
+        "function": [
+          "section-break",
+          "energy"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 72,
+        "min": 40,
+        "max": 120
+      },
+      "overlay": true,
+      "requires": [
+        "webgl2"
+      ],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "The incoming scene's background colour; the transition brings it in."
+        },
+        {
+          "name": "drips",
+          "type": "integer",
+          "default": 14,
+          "min": 4,
+          "max": 40,
+          "description": "Number of drips."
+        },
+        {
+          "name": "seed",
+          "type": "integer",
+          "default": 1,
+          "min": 0,
+          "max": 9999,
+          "description": "Changes the random layout."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0.1,
+          "min": 0,
+          "max": 0.4,
+          "description": "Share of the transition spent fully covered."
+        }
+      ],
+      "presets": [
+        {
+          "id": "blood",
+          "name": "Blood",
+          "params": {
+            "color": "#8a0303"
+          }
+        },
+        {
+          "id": "ink",
+          "name": "Black paint",
+          "params": {
+            "color": "#111111"
+          }
+        }
+      ],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/paint-drip@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/paint-drip@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/paint-drip@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/paint-drip@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/04-cover/organic/paint-drip"
+    },
+    {
+      "id": "shape-burst",
+      "name": "Shape Burst",
+      "version": "1.0.0",
+      "summary": "Rings of colour burst out from a point one after another until the last one covers the frame, then a hole bursts open the same way.",
+      "uses": [
+        "Energetic reveals",
+        "Social and kids content",
+        "Logo moments"
+      ],
+      "family": "04-cover",
+      "subfamily": "geometric",
+      "path": "transitions/04-cover/geometric/shape-burst",
+      "facets": {
+        "structure": "bridged",
+        "origin": "point",
+        "edge": "geometric",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "playful",
+          "bold"
+        ],
+        "function": [
+          "energy",
+          "section-break"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 48,
+        "min": 24,
+        "max": 90
+      },
+      "overlay": true,
+      "requires": [],
+      "params": [
+        {
+          "name": "colors",
+          "type": "colors",
+          "default": [
+            "#111111",
+            "#F1EFEA",
+            "#FF4F1A"
+          ],
+          "description": "Ring colours in order; the last one covers the frame, so make it the incoming scene's background colour."
+        },
+        {
+          "name": "x",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Burst centre x."
+        },
+        {
+          "name": "y",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Burst centre y."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0.1,
+          "min": 0,
+          "max": 0.4,
+          "description": "Share of the transition spent fully covered."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/shape-burst@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/shape-burst@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/shape-burst@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/shape-burst@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/04-cover/geometric/shape-burst"
+    },
+    {
+      "id": "shape-grid",
+      "name": "Shape Grid",
+      "version": "1.0.0",
+      "summary": "A grid of shapes scales up in a wave until they cover the frame, then shrinks away in the same direction to show the next scene.",
+      "uses": [
+        "Clean corporate and tech edits",
+        "Explainers",
+        "Section breaks"
+      ],
+      "family": "04-cover",
+      "subfamily": "geometric",
+      "path": "transitions/04-cover/geometric/shape-grid",
+      "facets": {
+        "structure": "bridged",
+        "origin": "edge-diagonal",
+        "edge": "geometric",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "clean",
+          "technical"
+        ],
+        "function": [
+          "section-break"
+        ],
+        "also": [
+          "03-wipe/pattern"
+        ]
+      },
+      "duration": {
+        "default": 48,
+        "min": 24,
+        "max": 90
+      },
+      "overlay": true,
+      "requires": [],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "The incoming scene's background colour; the transition brings it in."
+        },
+        {
+          "name": "shape",
+          "type": "enum",
+          "default": "square",
+          "options": [
+            "square",
+            "circle",
+            "diamond"
+          ],
+          "description": "Shape of each cell."
+        },
+        {
+          "name": "columns",
+          "type": "integer",
+          "default": 12,
+          "min": 4,
+          "max": 32,
+          "description": "Cells across the frame."
+        },
+        {
+          "name": "from",
+          "type": "enum",
+          "default": "top-left",
+          "options": [
+            "top-left",
+            "center",
+            "left",
+            "top",
+            "random"
+          ],
+          "description": "Where the wave starts."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0.1,
+          "min": 0,
+          "max": 0.4,
+          "description": "Share of the transition spent fully covered."
+        }
+      ],
+      "presets": [
+        {
+          "id": "dots",
+          "name": "Dots from centre",
+          "params": {
+            "shape": "circle",
+            "from": "center"
+          }
+        },
+        {
+          "id": "diamonds",
+          "name": "Diamonds",
+          "params": {
+            "shape": "diamond",
+            "columns": 10
+          }
+        }
+      ],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/shape-grid@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/shape-grid@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/shape-grid@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/shape-grid@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/04-cover/geometric/shape-grid"
+    },
+    {
+      "id": "brush-stroke",
+      "name": "Brush Stroke",
+      "version": "1.0.0",
+      "summary": "A thick, rough brush paints across the frame in a few passes until it is covered, then the stroke wipes away to show the next scene.",
+      "uses": [
+        "Handmade and artistic edits",
+        "Travel and lifestyle",
+        "Titles over paint"
+      ],
+      "family": "04-cover",
+      "subfamily": "stroke",
+      "path": "transitions/04-cover/stroke/brush-stroke",
+      "facets": {
+        "structure": "bridged",
+        "origin": "edge-left",
+        "edge": "textured",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "playful",
+          "gritty"
+        ],
+        "function": [
+          "section-break",
+          "brand"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 60,
+        "min": 30,
+        "max": 100
+      },
+      "overlay": true,
+      "requires": [
+        "svg-filters"
+      ],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "The incoming scene's background colour; the transition brings it in."
+        },
+        {
+          "name": "passes",
+          "type": "integer",
+          "default": 4,
+          "min": 2,
+          "max": 7,
+          "description": "How many back-and-forth strokes cover the frame."
+        },
+        {
+          "name": "seed",
+          "type": "integer",
+          "default": 1,
+          "min": 0,
+          "max": 9999,
+          "description": "Changes the random layout."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0.1,
+          "min": 0,
+          "max": 0.4,
+          "description": "Share of the transition spent fully covered."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/brush-stroke@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/brush-stroke@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/brush-stroke@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/brush-stroke@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/04-cover/stroke/brush-stroke"
+    },
+    {
+      "id": "swoosh-lines",
+      "name": "Swoosh Lines",
+      "version": "1.0.0",
+      "summary": "Waves of rounded diagonal ribbons sweep across, the last wave in the new background colour, then sweep on out to show the new scene.",
+      "uses": [
+        "Energetic social and promo edits",
+        "Sports and music",
+        "Brand moments"
+      ],
+      "family": "04-cover",
+      "subfamily": "stroke",
+      "path": "transitions/04-cover/stroke/swoosh-lines",
+      "facets": {
+        "structure": "bridged",
+        "origin": "edge-diagonal",
+        "edge": "geometric",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "bold",
+          "playful"
+        ],
+        "function": [
+          "energy",
+          "section-break",
+          "brand"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 48,
+        "min": 24,
+        "max": 90
+      },
+      "overlay": true,
+      "requires": [],
+      "params": [
+        {
+          "name": "colors",
+          "type": "colors",
+          "default": [
+            "#111111",
+            "#FF4F1A"
+          ],
+          "description": "One colour per wave; the last wave covers the frame (use the incoming background colour)."
+        },
+        {
+          "name": "ribbons",
+          "type": "integer",
+          "default": 7,
+          "min": 3,
+          "max": 16,
+          "description": "Ribbons per wave."
+        },
+        {
+          "name": "angle",
+          "type": "number",
+          "default": -28,
+          "min": -60,
+          "max": 60,
+          "description": "Ribbon angle in degrees."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0.1,
+          "min": 0,
+          "max": 0.4,
+          "description": "Share of the transition spent fully covered."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/swoosh-lines@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/swoosh-lines@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/swoosh-lines@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/swoosh-lines@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/04-cover/stroke/swoosh-lines"
+    },
+    {
+      "id": "panel-slide",
+      "name": "Panel Slide",
+      "version": "1.0.0",
+      "summary": "Solid bars slide in one after another to cover the frame, then carry on out the other side to show the next scene.",
+      "uses": [
+        "Corporate and broadcast looks",
+        "Lower-energy section breaks",
+        "Slide decks"
+      ],
+      "family": "04-cover",
+      "subfamily": "panel",
+      "path": "transitions/04-cover/panel/panel-slide",
+      "facets": {
+        "structure": "bridged",
+        "origin": "edge-left",
+        "edge": "hard",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "clean",
+          "bold"
+        ],
+        "function": [
+          "section-break",
+          "brand"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 40,
+        "min": 20,
+        "max": 80
+      },
+      "overlay": true,
+      "requires": [],
+      "params": [
+        {
+          "name": "colors",
+          "type": "colors",
+          "default": [
+            "#111111",
+            "#F1EFEA",
+            "#FF4F1A"
+          ],
+          "description": "Panel colours in order; the last one ends on top, so make it the incoming scene's background colour."
+        },
+        {
+          "name": "direction",
+          "type": "enum",
+          "default": "left",
+          "options": [
+            "left",
+            "right",
+            "up",
+            "down"
+          ],
+          "description": "Direction the motion travels."
+        },
+        {
+          "name": "stagger",
+          "type": "number",
+          "default": 0.12,
+          "min": 0,
+          "max": 0.3,
+          "description": "Delay between bars, as a share of each phase."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0.1,
+          "min": 0,
+          "max": 0.4,
+          "description": "Share of the transition spent fully covered."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/panel-slide@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/panel-slide@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/panel-slide@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/panel-slide@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/04-cover/panel/panel-slide"
+    },
+    {
+      "id": "stinger",
+      "name": "Logo Stinger",
+      "version": "1.0.0",
+      "summary": "A badge pops in, spins and grows to fill the frame with a word on it, then shrinks back and pops away to show the next scene.",
+      "uses": [
+        "Branded scene changes",
+        "Streams and esports",
+        "YouTube segment breaks"
+      ],
+      "family": "04-cover",
+      "subfamily": "stinger",
+      "path": "transitions/04-cover/stinger/stinger",
+      "facets": {
+        "structure": "bridged",
+        "origin": "point",
+        "edge": "geometric",
+        "layers": "third",
+        "space": "2d",
+        "timing": "elastic",
+        "tone": [
+          "playful",
+          "bold"
+        ],
+        "function": [
+          "brand",
+          "section-break"
+        ],
+        "also": [
+          "05-motion/spin"
+        ]
+      },
+      "duration": {
+        "default": 60,
+        "min": 36,
+        "max": 100
+      },
+      "overlay": true,
+      "requires": [],
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "default": "NEXT",
+          "description": "Word on the badge."
+        },
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "Badge colour; use the incoming scene's background colour."
+        },
+        {
+          "name": "textColor",
+          "type": "color",
+          "default": "#111111",
+          "description": "Word colour."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0.25,
+          "min": 0,
+          "max": 0.5,
+          "description": "Share of the transition spent fully covered (the word is readable here)."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/stinger@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/stinger@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/stinger@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/stinger@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/04-cover/stinger/stinger"
+    },
+    {
+      "id": "push",
+      "name": "Push",
+      "version": "1.0.0",
+      "summary": "The new scene pushes the old one out of frame.",
+      "uses": [
+        "Next item in a sequence",
+        "Changing place or topic",
+        "Carousels and lists"
+      ],
+      "family": "05-motion",
+      "subfamily": "push-slide",
+      "path": "transitions/05-motion/push-slide/push",
+      "facets": {
+        "structure": "direct",
+        "origin": "edge-right",
+        "edge": "hard",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "clean"
+        ],
+        "function": [
+          "continuity",
+          "progression"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 24,
+        "min": 8,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "direction",
+          "type": "enum",
+          "default": "left",
+          "options": [
+            "left",
+            "right",
+            "up",
+            "down"
+          ],
+          "description": "Direction the motion travels."
+        },
+        {
+          "name": "curve",
+          "type": "enum",
+          "default": "quint",
+          "options": [
+            "cubic",
+            "quint",
+            "expo"
+          ],
+          "description": "Ease curve; expo is the snappiest."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/push@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/push@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/push@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/05-motion/push-slide/push"
+    },
+    {
+      "id": "slide-over",
+      "name": "Slide Over",
+      "version": "1.0.0",
+      "summary": "The new scene slides in over the old one like a card, with a soft shadow, while the old one drifts back and dims.",
+      "uses": [
+        "Next item or chapter",
+        "App-style navigation",
+        "Stacked story beats"
+      ],
+      "family": "05-motion",
+      "subfamily": "push-slide",
+      "path": "transitions/05-motion/push-slide/slide-over",
+      "facets": {
+        "structure": "direct",
+        "origin": "edge-right",
+        "edge": "hard",
+        "layers": "A+B",
+        "space": "2.5d",
+        "timing": "eased",
+        "tone": [
+          "clean",
+          "luxe"
+        ],
+        "function": [
+          "progression",
+          "continuity"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 28,
+        "min": 12,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "direction",
+          "type": "enum",
+          "default": "left",
+          "options": [
+            "left",
+            "right",
+            "up",
+            "down"
+          ],
+          "description": "Direction the motion travels."
+        },
+        {
+          "name": "dim",
+          "type": "number",
+          "default": 0.45,
+          "min": 0,
+          "max": 1,
+          "description": "How dark the old scene gets."
+        },
+        {
+          "name": "drift",
+          "type": "number",
+          "default": 0.3,
+          "min": 0,
+          "max": 1,
+          "description": "How far the old scene moves along, as a share of the new one's travel."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/slide-over@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/slide-over@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/slide-over@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/05-motion/push-slide/slide-over"
+    },
+    {
+      "id": "whip-pan",
+      "name": "Whip Pan",
+      "version": "1.0.0",
+      "summary": "A very fast pan with heavy motion blur that hides the cut, as if the camera whipped to the next scene.",
+      "uses": [
+        "Energetic scene changes",
+        "Travel and action edits",
+        "Joining two handheld shots"
+      ],
+      "family": "05-motion",
+      "subfamily": "whip",
+      "path": "transitions/05-motion/whip/whip-pan",
+      "facets": {
+        "structure": "direct",
+        "origin": "edge-right",
+        "edge": "soft",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "snap",
+        "tone": [
+          "bold"
+        ],
+        "function": [
+          "energy",
+          "continuity"
+        ],
+        "also": [
+          "06-distortion/blur"
+        ]
+      },
+      "duration": {
+        "default": 16,
+        "min": 8,
+        "max": 30
+      },
+      "overlay": false,
+      "requires": [
+        "svg-filters"
+      ],
+      "params": [
+        {
+          "name": "direction",
+          "type": "enum",
+          "default": "left",
+          "options": [
+            "left",
+            "right",
+            "up",
+            "down"
+          ],
+          "description": "Direction the motion travels."
+        },
+        {
+          "name": "blur",
+          "type": "number",
+          "default": 90,
+          "min": 0,
+          "max": 200,
+          "description": "Peak motion blur in pixels."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/whip-pan@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/whip-pan@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/whip-pan@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/05-motion/whip/whip-pan"
+    },
+    {
+      "id": "grid-zoom",
+      "name": "Grid Zoom",
+      "version": "1.0.0",
+      "summary": "The camera pulls back until the old scene is one tile in a grid of tiles in the new colour, glides to the next tile and dives into it, which becomes the new scene.",
+      "uses": [
+        "Changing topic within a series",
+        "Galleries and portfolios",
+        "Explainers with many sections"
+      ],
+      "family": "05-motion",
+      "subfamily": "zoom",
+      "path": "transitions/05-motion/zoom/grid-zoom",
+      "facets": {
+        "structure": "continuous",
+        "origin": "whole-frame",
+        "edge": "hard",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "clean",
+          "technical"
+        ],
+        "function": [
+          "continuity",
+          "progression"
+        ],
+        "also": [
+          "08-carry/portal"
+        ]
+      },
+      "duration": {
+        "default": 54,
+        "min": 30,
+        "max": 100
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "Colour of the other tiles; use the incoming scene's background colour."
+        },
+        {
+          "name": "background",
+          "type": "color",
+          "default": "#111111",
+          "description": "Colour between the tiles."
+        },
+        {
+          "name": "zoom",
+          "type": "number",
+          "default": 0.3,
+          "min": 0.15,
+          "max": 0.6,
+          "description": "Tile size when pulled back, as a share of the frame."
+        },
+        {
+          "name": "direction",
+          "type": "enum",
+          "default": "left",
+          "options": [
+            "left",
+            "right",
+            "up",
+            "down"
+          ],
+          "description": "Direction the motion travels."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/grid-zoom@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/grid-zoom@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/grid-zoom@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/05-motion/zoom/grid-zoom"
+    },
+    {
+      "id": "zoom-through",
+      "name": "Zoom Through",
+      "version": "1.0.0",
+      "summary": "A circle in the new background colour opens on the old scene and the camera rushes into it; it fills the frame and the new scene lands.",
+      "uses": [
+        "Diving into a detail",
+        "Energetic intros",
+        "Music videos"
+      ],
+      "family": "05-motion",
+      "subfamily": "zoom",
+      "path": "transitions/05-motion/zoom/zoom-through",
+      "facets": {
+        "structure": "direct",
+        "origin": "point",
+        "edge": "soft",
+        "layers": "third",
+        "space": "2d",
+        "timing": "snap",
+        "tone": [
+          "bold"
+        ],
+        "function": [
+          "energy",
+          "continuity"
+        ],
+        "also": [
+          "08-carry/portal",
+          "06-distortion/blur"
+        ]
+      },
+      "duration": {
+        "default": 30,
+        "min": 14,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "The incoming scene's background colour; the transition brings it in."
+        },
+        {
+          "name": "x",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Where the circle opens, x (0..1)."
+        },
+        {
+          "name": "y",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Where the circle opens, y (0..1)."
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "default": 3,
+          "min": 1.5,
+          "max": 8,
+          "description": "How far the old scene zooms in."
+        },
+        {
+          "name": "blur",
+          "type": "number",
+          "default": 14,
+          "min": 0,
+          "max": 40,
+          "description": "Peak blur in pixels."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/zoom-through@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/zoom-through@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/zoom-through@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/05-motion/zoom/zoom-through"
+    },
+    {
+      "id": "spin",
+      "name": "Spin",
+      "version": "1.0.0",
+      "summary": "A shape in the new background colour spins in at the centre and grows while the camera rolls with it, until it fills the frame; the new scene then spins into place.",
+      "uses": [
+        "Playful scene changes",
+        "Social and music content",
+        "Retro TV looks"
+      ],
+      "family": "05-motion",
+      "subfamily": "spin",
+      "path": "transitions/05-motion/spin/spin",
+      "facets": {
+        "structure": "direct",
+        "origin": "point",
+        "edge": "soft",
+        "layers": "third",
+        "space": "2d",
+        "timing": "snap",
+        "tone": [
+          "playful",
+          "bold"
+        ],
+        "function": [
+          "energy"
+        ],
+        "also": [
+          "04-cover/geometric"
+        ]
+      },
+      "duration": {
+        "default": 36,
+        "min": 18,
+        "max": 72
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "The incoming scene's background colour; the transition brings it in."
+        },
+        {
+          "name": "shape",
+          "type": "enum",
+          "default": "square",
+          "options": [
+            "square",
+            "circle"
+          ],
+          "description": "Shape that spins in."
+        },
+        {
+          "name": "turns",
+          "type": "number",
+          "default": 0.5,
+          "min": 0.1,
+          "max": 2,
+          "description": "Turns the shape makes while it grows."
+        },
+        {
+          "name": "roll",
+          "type": "number",
+          "default": 18,
+          "min": 0,
+          "max": 90,
+          "description": "Degrees the camera rolls along with it."
+        },
+        {
+          "name": "counterClockwise",
+          "type": "boolean",
+          "default": false,
+          "description": "Spin the other way."
+        },
+        {
+          "name": "blur",
+          "type": "number",
+          "default": 8,
+          "min": 0,
+          "max": 30,
+          "description": "Peak motion blur in pixels."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/spin@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/spin@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/spin@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/05-motion/spin/spin"
+    },
+    {
+      "id": "shutter",
+      "name": "Shutter",
+      "version": "1.0.0",
+      "summary": "The old scene splits into two halves that slide apart like doors, with the new scene behind them.",
+      "uses": [
+        "Grand reveals",
+        "Product launches",
+        "Openers"
+      ],
+      "family": "05-motion",
+      "subfamily": "split",
+      "path": "transitions/05-motion/split/shutter",
+      "facets": {
+        "structure": "direct",
+        "origin": "edges-inward",
+        "edge": "hard",
+        "layers": "A",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "bold",
+          "luxe"
+        ],
+        "function": [
+          "reveal"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 30,
+        "min": 12,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "orientation",
+          "type": "enum",
+          "default": "vertical",
+          "options": [
+            "vertical",
+            "horizontal"
+          ],
+          "description": "vertical: halves part left and right. horizontal: up and down."
+        },
+        {
+          "name": "scaleIn",
+          "type": "number",
+          "default": 0.08,
+          "min": 0,
+          "max": 0.3,
+          "description": "How much the new scene settles from a zoom as it is revealed."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/shutter@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/shutter@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/shutter@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/05-motion/split/shutter"
+    },
+    {
+      "id": "slice-in",
+      "name": "Slice In",
+      "version": "1.0.0",
+      "summary": "The new scene arrives in vertical slices that slide up into place one after another.",
+      "uses": [
+        "Title sequences",
+        "Fashion and editorial",
+        "Energetic section changes"
+      ],
+      "family": "05-motion",
+      "subfamily": "split",
+      "path": "transitions/05-motion/split/slice-in",
+      "facets": {
+        "structure": "direct",
+        "origin": "edge-bottom",
+        "edge": "hard",
+        "layers": "B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "bold",
+          "luxe"
+        ],
+        "function": [
+          "energy",
+          "reveal"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 30,
+        "min": 14,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "slices",
+          "type": "integer",
+          "default": 5,
+          "min": 2,
+          "max": 16,
+          "description": "Number of slices."
+        },
+        {
+          "name": "stagger",
+          "type": "number",
+          "default": 0.45,
+          "min": 0,
+          "max": 0.8,
+          "description": "How much the slices arrive one after another."
+        },
+        {
+          "name": "from",
+          "type": "enum",
+          "default": "bottom",
+          "options": [
+            "bottom",
+            "top",
+            "alternate"
+          ],
+          "description": "Where the slices come from."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/slice-in@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/slice-in@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/slice-in@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/05-motion/split/slice-in"
+    },
+    {
+      "id": "split-slices",
+      "name": "Split Slices",
+      "version": "1.0.0",
+      "summary": "The old scene breaks into horizontal slices that slide off alternately left and right, showing the new scene behind.",
+      "uses": [
+        "Tech and sports edits",
+        "Energetic section changes",
+        "Title sequences"
+      ],
+      "family": "05-motion",
+      "subfamily": "split",
+      "path": "transitions/05-motion/split/split-slices",
+      "facets": {
+        "structure": "direct",
+        "origin": "distributed",
+        "edge": "hard",
+        "layers": "A",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "bold",
+          "technical"
+        ],
+        "function": [
+          "energy",
+          "progression"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 30,
+        "min": 12,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "slices",
+          "type": "integer",
+          "default": 7,
+          "min": 2,
+          "max": 24,
+          "description": "Number of slices."
+        },
+        {
+          "name": "orientation",
+          "type": "enum",
+          "default": "horizontal",
+          "options": [
+            "horizontal",
+            "vertical"
+          ],
+          "description": "Slice direction."
+        },
+        {
+          "name": "stagger",
+          "type": "number",
+          "default": 0.35,
+          "min": 0,
+          "max": 0.8,
+          "description": "How much the slices move one after another."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/split-slices@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/split-slices@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/split-slices@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/05-motion/split/split-slices"
+    },
+    {
+      "id": "rgb-glitch",
+      "name": "RGB Glitch",
+      "version": "1.0.0",
+      "summary": "The picture tears into shifted colour channels and displaced blocks, and the new scene glitches in.",
+      "uses": [
+        "Tech, gaming and cyber looks",
+        "Beat drops",
+        "Something going wrong"
+      ],
+      "family": "06-distortion",
+      "subfamily": "glitch",
+      "path": "transitions/06-distortion/glitch/rgb-glitch",
+      "facets": {
+        "structure": "direct",
+        "origin": "whole-frame",
+        "edge": "textured",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "snap",
+        "tone": [
+          "gritty",
+          "technical"
+        ],
+        "function": [
+          "energy",
+          "contrast"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 16,
+        "min": 6,
+        "max": 36
+      },
+      "overlay": false,
+      "requires": [
+        "svg-filters"
+      ],
+      "params": [
+        {
+          "name": "strength",
+          "type": "number",
+          "default": 1,
+          "min": 0,
+          "max": 3,
+          "description": "Overall glitch strength."
+        },
+        {
+          "name": "seed",
+          "type": "integer",
+          "default": 1,
+          "min": 0,
+          "max": 9999,
+          "description": "Changes the random layout."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/rgb-glitch@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/rgb-glitch@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/rgb-glitch@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/06-distortion/glitch/rgb-glitch"
+    },
+    {
+      "id": "liquid-warp",
+      "name": "Liquid Warp",
+      "version": "1.0.0",
+      "summary": "The picture ripples and melts like a reflection in water, and the new scene ripples back into focus.",
+      "uses": [
+        "Dreams and flashbacks",
+        "Psychedelic and music edits",
+        "Water and heat themes"
+      ],
+      "family": "06-distortion",
+      "subfamily": "warp",
+      "path": "transitions/06-distortion/warp/liquid-warp",
+      "facets": {
+        "structure": "direct",
+        "origin": "whole-frame",
+        "edge": "soft",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "dreamy"
+        ],
+        "function": [
+          "progression"
+        ],
+        "also": [
+          "02-blend/crossfade"
+        ]
+      },
+      "duration": {
+        "default": 40,
+        "min": 16,
+        "max": 90
+      },
+      "overlay": false,
+      "requires": [
+        "svg-filters"
+      ],
+      "params": [
+        {
+          "name": "strength",
+          "type": "number",
+          "default": 120,
+          "min": 0,
+          "max": 400,
+          "description": "Peak displacement in pixels."
+        },
+        {
+          "name": "scale",
+          "type": "number",
+          "default": 0.006,
+          "min": 0.001,
+          "max": 0.03,
+          "description": "Ripple size (smaller = bigger ripples)."
+        },
+        {
+          "name": "seed",
+          "type": "integer",
+          "default": 1,
+          "min": 0,
+          "max": 9999,
+          "description": "Changes the random layout."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/liquid-warp@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/liquid-warp@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/liquid-warp@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/06-distortion/warp/liquid-warp"
+    },
+    {
+      "id": "pixel-stretch",
+      "name": "Pixel Stretch",
+      "version": "1.0.0",
+      "summary": "The new scene sweeps in with its leading edge smeared into long streaks, like pixels stretched by speed.",
+      "uses": [
+        "Music videos and fast edits",
+        "Tech and gaming",
+        "A sharper alternative to a whip pan"
+      ],
+      "family": "06-distortion",
+      "subfamily": "warp",
+      "path": "transitions/06-distortion/warp/pixel-stretch",
+      "facets": {
+        "structure": "direct",
+        "origin": "edge-right",
+        "edge": "textured",
+        "layers": "B",
+        "space": "2d",
+        "timing": "snap",
+        "tone": [
+          "bold",
+          "technical"
+        ],
+        "function": [
+          "energy"
+        ],
+        "also": [
+          "03-wipe/linear"
+        ]
+      },
+      "duration": {
+        "default": 24,
+        "min": 10,
+        "max": 50
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "streak",
+          "type": "number",
+          "default": 0.4,
+          "min": 0.05,
+          "max": 0.9,
+          "description": "Longest streak, as a share of the frame width."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/pixel-stretch@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/pixel-stretch@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/pixel-stretch@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/06-distortion/warp/pixel-stretch"
+    },
+    {
+      "id": "defocus",
+      "name": "Defocus",
+      "version": "1.0.0",
+      "summary": "The old scene drifts out of focus, and the new one comes into focus.",
+      "uses": [
+        "Gentle scene changes",
+        "Memories and dreams",
+        "Interviews and B-roll"
+      ],
+      "family": "06-distortion",
+      "subfamily": "blur",
+      "path": "transitions/06-distortion/blur/defocus",
+      "facets": {
+        "structure": "direct",
+        "origin": "whole-frame",
+        "edge": "soft",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "dreamy",
+          "luxe"
+        ],
+        "function": [
+          "progression"
+        ],
+        "also": [
+          "02-blend/crossfade"
+        ]
+      },
+      "duration": {
+        "default": 30,
+        "min": 12,
+        "max": 72
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "blur",
+          "type": "number",
+          "default": 40,
+          "min": 4,
+          "max": 120,
+          "description": "Peak blur in pixels."
+        },
+        {
+          "name": "zoom",
+          "type": "number",
+          "default": 0.06,
+          "min": 0,
+          "max": 0.3,
+          "description": "Slight zoom while out of focus."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/defocus@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/defocus@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/defocus@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/06-distortion/blur/defocus"
+    },
+    {
+      "id": "pixelate",
+      "name": "Pixelate",
+      "version": "1.0.0",
+      "summary": "The picture breaks into growing blocks of pixels, swaps at the coarsest point, then sharpens into the new scene.",
+      "uses": [
+        "Game and retro edits",
+        "Censor-style jokes",
+        "Digital themes"
+      ],
+      "family": "06-distortion",
+      "subfamily": "pixel",
+      "path": "transitions/06-distortion/pixel/pixelate",
+      "facets": {
+        "structure": "direct",
+        "origin": "whole-frame",
+        "edge": "geometric",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "snap",
+        "tone": [
+          "retro",
+          "playful",
+          "technical"
+        ],
+        "function": [
+          "energy"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 24,
+        "min": 10,
+        "max": 60
+      },
+      "overlay": false,
+      "requires": [
+        "svg-filters"
+      ],
+      "params": [
+        {
+          "name": "maxBlock",
+          "type": "integer",
+          "default": 96,
+          "min": 8,
+          "max": 240,
+          "description": "Largest block size in pixels."
+        },
+        {
+          "name": "steps",
+          "type": "integer",
+          "default": 7,
+          "min": 2,
+          "max": 16,
+          "description": "Number of block sizes on the way up."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/pixelate@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/pixelate@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/pixelate@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/06-distortion/pixel/pixelate"
+    },
+    {
+      "id": "paper-tear",
+      "name": "Paper Tear",
+      "version": "1.0.0",
+      "summary": "The old scene rips down the middle along a ragged edge, and the two pieces pull apart to show the new scene.",
+      "uses": [
+        "Collage and scrapbook styles",
+        "Editorial and punk looks",
+        "Before/after reveals"
+      ],
+      "family": "06-distortion",
+      "subfamily": "break",
+      "path": "transitions/06-distortion/break/paper-tear",
+      "facets": {
+        "structure": "direct",
+        "origin": "edges-inward",
+        "edge": "textured",
+        "layers": "A",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "gritty",
+          "playful"
+        ],
+        "function": [
+          "reveal",
+          "contrast"
+        ],
+        "also": [
+          "03-wipe/organic"
+        ]
+      },
+      "duration": {
+        "default": 36,
+        "min": 18,
+        "max": 72
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "paper",
+          "type": "color",
+          "default": "#F7F5F0",
+          "description": "Colour of the torn paper edge."
+        },
+        {
+          "name": "roughness",
+          "type": "number",
+          "default": 0.06,
+          "min": 0,
+          "max": 0.15,
+          "description": "How jagged the tear is."
+        },
+        {
+          "name": "seed",
+          "type": "integer",
+          "default": 1,
+          "min": 0,
+          "max": 9999,
+          "description": "Changes the random layout."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/paper-tear@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/paper-tear@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/paper-tear@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/06-distortion/break/paper-tear"
+    },
+    {
+      "id": "frame-morph",
+      "name": "Frame Morph",
+      "version": "1.0.0",
+      "summary": "The whole frame rounds and shrinks into a circle, the picture inside becomes the new scene, and the circle grows back into the full frame.",
+      "uses": [
+        "Changing topic with one continuous object",
+        "App and UI demos",
+        "Playful explainers"
+      ],
+      "family": "07-morph",
+      "subfamily": "shape",
+      "path": "transitions/07-morph/shape/frame-morph",
+      "facets": {
+        "structure": "continuous",
+        "origin": "point",
+        "edge": "geometric",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "playful",
+          "clean"
+        ],
+        "function": [
+          "continuity"
+        ],
+        "also": [
+          "03-wipe/iris"
+        ]
+      },
+      "duration": {
+        "default": 40,
+        "min": 20,
+        "max": 80
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "background",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "Colour that closes in around the shrinking frame; use the incoming scene's background colour."
+        },
+        {
+          "name": "size",
+          "type": "number",
+          "default": 0.42,
+          "min": 0.15,
+          "max": 0.8,
+          "description": "Circle size at the middle, as a share of frame height."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/frame-morph@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/frame-morph@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/frame-morph@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/07-morph/shape/frame-morph"
+    },
+    {
+      "id": "type-morph",
+      "name": "Type Morph",
+      "version": "1.0.0",
+      "summary": "A word melts into another word with a gooey liquid morph while the scene behind changes.",
+      "uses": [
+        "Title and keyword swaps",
+        "Explainers (\"this becomes that\")",
+        "Kinetic typography"
+      ],
+      "family": "07-morph",
+      "subfamily": "type",
+      "path": "transitions/07-morph/type/type-morph",
+      "facets": {
+        "structure": "continuous",
+        "origin": "whole-frame",
+        "edge": "organic",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "playful",
+          "clean"
+        ],
+        "function": [
+          "continuity"
+        ],
+        "also": [
+          "02-blend/crossfade"
+        ]
+      },
+      "duration": {
+        "default": 40,
+        "min": 20,
+        "max": 90
+      },
+      "overlay": false,
+      "requires": [
+        "svg-filters"
+      ],
+      "params": [
+        {
+          "name": "from",
+          "type": "string",
+          "default": "BEFORE",
+          "description": "Word on scene A."
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "default": "AFTER",
+          "description": "Word on scene B."
+        },
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#111111",
+          "description": "Word colour."
+        },
+        {
+          "name": "panel",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "Colour of the band behind the word; use the incoming scene's background colour."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/type-morph@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/type-morph@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/type-morph@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/07-morph/type/type-morph"
+    },
+    {
+      "id": "blob-morph",
+      "name": "Blob Morph",
+      "version": "1.0.0",
+      "summary": "The frame collapses into a wobbling liquid blob, which turns into the new scene and swells back to fill the frame.",
+      "uses": [
+        "Organic, playful brands",
+        "Kids and lifestyle content",
+        "Liquid themes"
+      ],
+      "family": "07-morph",
+      "subfamily": "object",
+      "path": "transitions/07-morph/object/blob-morph",
+      "facets": {
+        "structure": "continuous",
+        "origin": "point",
+        "edge": "organic",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "elastic",
+        "tone": [
+          "playful"
+        ],
+        "function": [
+          "continuity"
+        ],
+        "also": [
+          "07-morph/shape"
+        ]
+      },
+      "duration": {
+        "default": 48,
+        "min": 24,
+        "max": 90
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "background",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "Colour that closes in around the shrinking frame; use the incoming scene's background colour."
+        },
+        {
+          "name": "wobble",
+          "type": "number",
+          "default": 0.18,
+          "min": 0,
+          "max": 0.4,
+          "description": "How much the blob wobbles."
+        },
+        {
+          "name": "seed",
+          "type": "integer",
+          "default": 1,
+          "min": 0,
+          "max": 9999,
+          "description": "Changes the random layout."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/blob-morph@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/blob-morph@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/blob-morph@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/07-morph/object/blob-morph"
+    },
+    {
+      "id": "dot-led",
+      "name": "Dot Led",
+      "version": "1.0.0",
+      "summary": "A dot bounces across the old scene and lands, then the new scene grows out of it.",
+      "uses": [
+        "Playful explainers",
+        "Pointing at the next thing",
+        "Kids content"
+      ],
+      "family": "08-carry",
+      "subfamily": "object-led",
+      "path": "transitions/08-carry/object-led/dot-led",
+      "facets": {
+        "structure": "continuous",
+        "origin": "path",
+        "edge": "geometric",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "elastic",
+        "tone": [
+          "playful"
+        ],
+        "function": [
+          "continuity",
+          "reveal"
+        ],
+        "also": [
+          "03-wipe/iris"
+        ]
+      },
+      "duration": {
+        "default": 48,
+        "min": 24,
+        "max": 90
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "Colour of the leading element; use the incoming scene's background colour so it becomes the new background."
+        },
+        {
+          "name": "size",
+          "type": "number",
+          "default": 0.06,
+          "min": 0.02,
+          "max": 0.2,
+          "description": "Dot size, as a share of frame height."
+        },
+        {
+          "name": "toX",
+          "type": "number",
+          "default": 0.62,
+          "min": 0,
+          "max": 1,
+          "description": "Where the dot lands, x."
+        },
+        {
+          "name": "toY",
+          "type": "number",
+          "default": 0.55,
+          "min": 0,
+          "max": 1,
+          "description": "Where the dot lands, y."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/dot-led@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/dot-led@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/dot-led@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/08-carry/object-led/dot-led"
+    },
+    {
+      "id": "line-led",
+      "name": "Line Led",
+      "version": "1.0.0",
+      "summary": "A line draws across the frame, then opens into a band that becomes the new scene as its edges travel out of frame.",
+      "uses": [
+        "Explainers and infographics",
+        "Clean corporate edits",
+        "Connecting two ideas"
+      ],
+      "family": "08-carry",
+      "subfamily": "line-led",
+      "path": "transitions/08-carry/line-led/line-led",
+      "facets": {
+        "structure": "continuous",
+        "origin": "path",
+        "edge": "hard",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "clean",
+          "technical"
+        ],
+        "function": [
+          "continuity",
+          "reveal"
+        ],
+        "also": [
+          "03-wipe/linear"
+        ]
+      },
+      "duration": {
+        "default": 42,
+        "min": 20,
+        "max": 80
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FF4F1A",
+          "description": "Colour of the leading element; use the incoming scene's background colour so it becomes the new background."
+        },
+        {
+          "name": "thickness",
+          "type": "number",
+          "default": 10,
+          "min": 2,
+          "max": 30,
+          "description": "Line thickness in pixels."
+        },
+        {
+          "name": "orientation",
+          "type": "enum",
+          "default": "horizontal",
+          "options": [
+            "horizontal",
+            "vertical"
+          ],
+          "description": "Direction the line draws."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/line-led@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/line-led@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/line-led@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/08-carry/line-led/line-led"
+    },
+    {
+      "id": "type-led",
+      "name": "Type Led",
+      "version": "1.0.0",
+      "summary": "A word lands on the old scene and stays put while the scene changes behind it, then flies away.",
+      "uses": [
+        "Title cards",
+        "Chapter names",
+        "Keyword-driven edits"
+      ],
+      "family": "08-carry",
+      "subfamily": "type-led",
+      "path": "transitions/08-carry/type-led/type-led",
+      "facets": {
+        "structure": "continuous",
+        "origin": "whole-frame",
+        "edge": "hard",
+        "layers": "A+B",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "bold",
+          "clean"
+        ],
+        "function": [
+          "continuity",
+          "section-break"
+        ],
+        "also": [
+          "03-wipe/linear"
+        ]
+      },
+      "duration": {
+        "default": 54,
+        "min": 30,
+        "max": 100
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "default": "MEANWHILE",
+          "description": "The word that carries the change."
+        },
+        {
+          "name": "direction",
+          "type": "enum",
+          "default": "left",
+          "options": [
+            "left",
+            "right",
+            "up",
+            "down"
+          ],
+          "description": "Direction the motion travels."
+        },
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#111111",
+          "description": "Word colour."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/type-led@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/type-led@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/type-led@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/08-carry/type-led/type-led"
+    },
+    {
+      "id": "portal-zoom",
+      "name": "Portal Zoom",
+      "version": "1.0.0",
+      "summary": "A round window opens in the old scene showing the new one, and the camera flies into it.",
+      "uses": [
+        "Diving into a screen, window or detail",
+        "Worlds within worlds",
+        "Openers"
+      ],
+      "family": "08-carry",
+      "subfamily": "portal",
+      "path": "transitions/08-carry/portal/portal-zoom",
+      "facets": {
+        "structure": "continuous",
+        "origin": "point",
+        "edge": "hard",
+        "layers": "A+B",
+        "space": "2.5d",
+        "timing": "eased",
+        "tone": [
+          "bold",
+          "playful"
+        ],
+        "function": [
+          "continuity",
+          "reveal"
+        ],
+        "also": [
+          "05-motion/zoom",
+          "03-wipe/iris"
+        ]
+      },
+      "duration": {
+        "default": 42,
+        "min": 20,
+        "max": 80
+      },
+      "overlay": false,
+      "requires": [],
+      "params": [
+        {
+          "name": "x",
+          "type": "number",
+          "default": 0.79,
+          "min": 0,
+          "max": 1,
+          "description": "Portal centre x."
+        },
+        {
+          "name": "y",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Portal centre y."
+        },
+        {
+          "name": "radius",
+          "type": "number",
+          "default": 0.17,
+          "min": 0.05,
+          "max": 0.4,
+          "description": "Opening size of the portal, as a share of frame height."
+        },
+        {
+          "name": "ring",
+          "type": "color",
+          "default": "#F1EFEA",
+          "description": "Colour of the portal rim."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/portal-zoom@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/portal-zoom@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/portal-zoom@1.0.0.jpg"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/08-carry/portal/portal-zoom"
+    },
+    {
+      "id": "flash",
+      "name": "Flash",
+      "version": "1.0.0",
+      "summary": "A burst of overexposed light blows out the old scene and settles on the new one.",
+      "uses": [
+        "Beat drops and impacts",
+        "Camera-flash moments",
+        "Flashbacks"
+      ],
+      "family": "09-light",
+      "subfamily": "flash",
+      "path": "transitions/09-light/flash/flash",
+      "facets": {
+        "structure": "bridged",
+        "origin": "whole-frame",
+        "edge": "soft",
+        "layers": "third",
+        "space": "2d",
+        "timing": "snap",
+        "tone": [
+          "bold"
+        ],
+        "function": [
+          "energy",
+          "contrast"
+        ],
+        "also": [
+          "02-blend/dip-to-colour"
+        ]
+      },
+      "duration": {
+        "default": 16,
+        "min": 6,
+        "max": 40
+      },
+      "overlay": true,
+      "requires": [],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#FFFFFF",
+          "description": "Flash colour."
+        },
+        {
+          "name": "bloom",
+          "type": "number",
+          "default": 2.5,
+          "min": 1,
+          "max": 6,
+          "description": "How much the scenes overexpose around the flash."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/flash@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/flash@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/flash@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/flash@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/09-light/flash/flash"
+    },
+    {
+      "id": "light-leak",
+      "name": "Light Leak",
+      "version": "1.0.0",
+      "summary": "Soft, warm light drifts across the frame and floods it, hiding the change, then fades off the new scene.",
+      "uses": [
+        "Weddings and lifestyle",
+        "Nostalgic and film looks",
+        "Music videos"
+      ],
+      "family": "09-light",
+      "subfamily": "leak",
+      "path": "transitions/09-light/leak/light-leak",
+      "facets": {
+        "structure": "bridged",
+        "origin": "edge-left",
+        "edge": "soft",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "dreamy",
+          "retro",
+          "luxe"
+        ],
+        "function": [
+          "progression"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 48,
+        "min": 24,
+        "max": 120
+      },
+      "overlay": true,
+      "requires": [
+        "webgl2"
+      ],
+      "params": [
+        {
+          "name": "colors",
+          "type": "colors",
+          "default": [
+            "#FF5A1F",
+            "#FFB13B",
+            "#FFF1D0"
+          ],
+          "description": "Leak colours, from edge to core."
+        },
+        {
+          "name": "seed",
+          "type": "integer",
+          "default": 1,
+          "min": 0,
+          "max": 9999,
+          "description": "Changes the random layout."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0.06,
+          "min": 0,
+          "max": 0.3,
+          "description": "Share of the transition at full brightness."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/light-leak@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/light-leak@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/light-leak@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/light-leak@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/09-light/leak/light-leak"
+    },
+    {
+      "id": "film-burn",
+      "name": "Film Burn",
+      "version": "1.0.0",
+      "summary": "Holes burn through the old scene with glowing edges until the frame is white-hot, then it cools to reveal the new scene.",
+      "uses": [
+        "Vintage and film looks",
+        "Endings",
+        "Music videos"
+      ],
+      "family": "09-light",
+      "subfamily": "burn",
+      "path": "transitions/09-light/burn/film-burn",
+      "facets": {
+        "structure": "bridged",
+        "origin": "distributed",
+        "edge": "textured",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "retro",
+          "gritty"
+        ],
+        "function": [
+          "section-break",
+          "energy"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 48,
+        "min": 24,
+        "max": 100
+      },
+      "overlay": true,
+      "requires": [
+        "webgl2"
+      ],
+      "params": [
+        {
+          "name": "glow",
+          "type": "color",
+          "default": "#FF6A00",
+          "description": "Colour of the burning edge."
+        },
+        {
+          "name": "core",
+          "type": "color",
+          "default": "#FFF4E0",
+          "description": "Colour of the burnt-through centre."
+        },
+        {
+          "name": "seed",
+          "type": "integer",
+          "default": 1,
+          "min": 0,
+          "max": 9999,
+          "description": "Changes the random layout."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0.04,
+          "min": 0,
+          "max": 0.3,
+          "description": "Share of the transition at full burn."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/film-burn@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/film-burn@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/film-burn@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/film-burn@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/09-light/burn/film-burn"
+    },
+    {
+      "id": "flare-sweep",
+      "name": "Flare Sweep",
+      "version": "1.0.0",
+      "summary": "An anamorphic lens flare streaks across the frame and blooms over the cut.",
+      "uses": [
+        "Sci-fi and trailer looks",
+        "Tech launches",
+        "Night and city footage"
+      ],
+      "family": "09-light",
+      "subfamily": "flare",
+      "path": "transitions/09-light/flare/flare-sweep",
+      "facets": {
+        "structure": "bridged",
+        "origin": "edge-left",
+        "edge": "soft",
+        "layers": "third",
+        "space": "2d",
+        "timing": "eased",
+        "tone": [
+          "luxe",
+          "technical"
+        ],
+        "function": [
+          "energy",
+          "brand"
+        ],
+        "also": []
+      },
+      "duration": {
+        "default": 30,
+        "min": 14,
+        "max": 60
+      },
+      "overlay": true,
+      "requires": [],
+      "params": [
+        {
+          "name": "color",
+          "type": "color",
+          "default": "#7FC8FF",
+          "description": "Flare tint."
+        },
+        {
+          "name": "y",
+          "type": "number",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "description": "Height of the streak."
+        },
+        {
+          "name": "hold",
+          "type": "number",
+          "default": 0,
+          "min": 0,
+          "max": 0.3,
+          "description": "Share of the transition at full bloom."
+        }
+      ],
+      "presets": [],
+      "authors": [
+        "GTKottman"
+      ],
+      "media": {
+        "preview": "https://github.com/GTKottman/remotion-transitions/releases/download/media/flare-sweep@1.0.0.mp4",
+        "preview720": "https://github.com/GTKottman/remotion-transitions/releases/download/media/flare-sweep@1.0.0-720.mp4",
+        "poster": "https://github.com/GTKottman/remotion-transitions/releases/download/media/flare-sweep@1.0.0.jpg",
+        "overlay": "https://github.com/GTKottman/remotion-transitions/releases/download/media/flare-sweep@1.0.0-overlay.mov"
+      },
+      "source": "https://github.com/GTKottman/remotion-transitions/tree/main/transitions/09-light/flare/flare-sweep"
+    }
+  ]
+}

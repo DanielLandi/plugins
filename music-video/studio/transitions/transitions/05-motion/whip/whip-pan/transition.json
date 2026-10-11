@@ -1,0 +1,74 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "whip-pan",
+  "name": "Whip Pan",
+  "version": "1.0.0",
+  "summary": "A very fast pan with heavy motion blur that hides the cut, as if the camera whipped to the next scene.",
+  "uses": [
+    "Energetic scene changes",
+    "Travel and action edits",
+    "Joining two handheld shots"
+  ],
+  "family": "05-motion",
+  "subfamily": "whip",
+  "facets": {
+    "structure": "direct",
+    "origin": "edge-right",
+    "edge": "soft",
+    "layers": "A+B",
+    "space": "2d",
+    "timing": "snap",
+    "tone": [
+      "bold"
+    ],
+    "function": [
+      "energy",
+      "continuity"
+    ],
+    "also": [
+      "06-distortion/blur"
+    ]
+  },
+  "duration": {
+    "default": 16,
+    "min": 8,
+    "max": 30
+  },
+  "overlay": false,
+  "requires": [
+    "svg-filters"
+  ],
+  "params": [
+    {
+      "name": "direction",
+      "type": "enum",
+      "default": "left",
+      "options": [
+        "left",
+        "right",
+        "up",
+        "down"
+      ],
+      "description": "Direction the motion travels."
+    },
+    {
+      "name": "blur",
+      "type": "number",
+      "default": 90,
+      "min": 0,
+      "max": 200,
+      "description": "Peak motion blur in pixels."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

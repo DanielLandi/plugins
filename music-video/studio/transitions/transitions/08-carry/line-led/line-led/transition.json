@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "line-led",
+  "name": "Line Led",
+  "version": "1.0.0",
+  "summary": "A line draws across the frame, then opens into a band that becomes the new scene as its edges travel out of frame.",
+  "uses": [
+    "Explainers and infographics",
+    "Clean corporate edits",
+    "Connecting two ideas"
+  ],
+  "family": "08-carry",
+  "subfamily": "line-led",
+  "facets": {
+    "structure": "continuous",
+    "origin": "path",
+    "edge": "hard",
+    "layers": "third",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "clean",
+      "technical"
+    ],
+    "function": [
+      "continuity",
+      "reveal"
+    ],
+    "also": [
+      "03-wipe/linear"
+    ]
+  },
+  "duration": {
+    "default": 42,
+    "min": 20,
+    "max": 80
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "Colour of the leading element; use the incoming scene's background colour so it becomes the new background."
+    },
+    {
+      "name": "thickness",
+      "type": "number",
+      "default": 10,
+      "min": 2,
+      "max": 30,
+      "description": "Line thickness in pixels."
+    },
+    {
+      "name": "orientation",
+      "type": "enum",
+      "default": "horizontal",
+      "options": [
+        "horizontal",
+        "vertical"
+      ],
+      "description": "Direction the line draws."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

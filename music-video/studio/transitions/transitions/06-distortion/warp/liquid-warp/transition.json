@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "liquid-warp",
+  "name": "Liquid Warp",
+  "version": "1.0.0",
+  "summary": "The picture ripples and melts like a reflection in water, and the new scene ripples back into focus.",
+  "uses": [
+    "Dreams and flashbacks",
+    "Psychedelic and music edits",
+    "Water and heat themes"
+  ],
+  "family": "06-distortion",
+  "subfamily": "warp",
+  "facets": {
+    "structure": "direct",
+    "origin": "whole-frame",
+    "edge": "soft",
+    "layers": "A+B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "dreamy"
+    ],
+    "function": [
+      "progression"
+    ],
+    "also": [
+      "02-blend/crossfade"
+    ]
+  },
+  "duration": {
+    "default": 40,
+    "min": 16,
+    "max": 90
+  },
+  "overlay": false,
+  "requires": [
+    "svg-filters"
+  ],
+  "params": [
+    {
+      "name": "strength",
+      "type": "number",
+      "default": 120,
+      "min": 0,
+      "max": 400,
+      "description": "Peak displacement in pixels."
+    },
+    {
+      "name": "scale",
+      "type": "number",
+      "default": 0.006,
+      "min": 0.001,
+      "max": 0.03,
+      "description": "Ripple size (smaller = bigger ripples)."
+    },
+    {
+      "name": "seed",
+      "type": "integer",
+      "default": 1,
+      "min": 0,
+      "max": 9999,
+      "description": "Changes the random layout."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "portal-zoom",
+  "name": "Portal Zoom",
+  "version": "1.0.0",
+  "summary": "A round window opens in the old scene showing the new one, and the camera flies into it.",
+  "uses": [
+    "Diving into a screen, window or detail",
+    "Worlds within worlds",
+    "Openers"
+  ],
+  "family": "08-carry",
+  "subfamily": "portal",
+  "facets": {
+    "structure": "continuous",
+    "origin": "point",
+    "edge": "hard",
+    "layers": "A+B",
+    "space": "2.5d",
+    "timing": "eased",
+    "tone": [
+      "bold",
+      "playful"
+    ],
+    "function": [
+      "continuity",
+      "reveal"
+    ],
+    "also": [
+      "05-motion/zoom",
+      "03-wipe/iris"
+    ]
+  },
+  "duration": {
+    "default": 42,
+    "min": 20,
+    "max": 80
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "x",
+      "type": "number",
+      "default": 0.79,
+      "min": 0,
+      "max": 1,
+      "description": "Portal centre x."
+    },
+    {
+      "name": "y",
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "description": "Portal centre y."
+    },
+    {
+      "name": "radius",
+      "type": "number",
+      "default": 0.17,
+      "min": 0.05,
+      "max": 0.4,
+      "description": "Opening size of the portal, as a share of frame height."
+    },
+    {
+      "name": "ring",
+      "type": "color",
+      "default": "#F1EFEA",
+      "description": "Colour of the portal rim."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

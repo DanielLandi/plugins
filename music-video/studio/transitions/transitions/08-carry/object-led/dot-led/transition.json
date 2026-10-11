@@ -1,0 +1,82 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "dot-led",
+  "name": "Dot Led",
+  "version": "1.0.0",
+  "summary": "A dot bounces across the old scene and lands, then the new scene grows out of it.",
+  "uses": [
+    "Playful explainers",
+    "Pointing at the next thing",
+    "Kids content"
+  ],
+  "family": "08-carry",
+  "subfamily": "object-led",
+  "facets": {
+    "structure": "continuous",
+    "origin": "path",
+    "edge": "geometric",
+    "layers": "A+B",
+    "space": "2d",
+    "timing": "elastic",
+    "tone": [
+      "playful"
+    ],
+    "function": [
+      "continuity",
+      "reveal"
+    ],
+    "also": [
+      "03-wipe/iris"
+    ]
+  },
+  "duration": {
+    "default": 48,
+    "min": 24,
+    "max": 90
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "Colour of the leading element; use the incoming scene's background colour so it becomes the new background."
+    },
+    {
+      "name": "size",
+      "type": "number",
+      "default": 0.06,
+      "min": 0.02,
+      "max": 0.2,
+      "description": "Dot size, as a share of frame height."
+    },
+    {
+      "name": "toX",
+      "type": "number",
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "description": "Where the dot lands, x."
+    },
+    {
+      "name": "toY",
+      "type": "number",
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "description": "Where the dot lands, y."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

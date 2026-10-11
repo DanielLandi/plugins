@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "frame-morph",
+  "name": "Frame Morph",
+  "version": "1.0.0",
+  "summary": "The whole frame rounds and shrinks into a circle, the picture inside becomes the new scene, and the circle grows back into the full frame.",
+  "uses": [
+    "Changing topic with one continuous object",
+    "App and UI demos",
+    "Playful explainers"
+  ],
+  "family": "07-morph",
+  "subfamily": "shape",
+  "facets": {
+    "structure": "continuous",
+    "origin": "point",
+    "edge": "geometric",
+    "layers": "A+B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "playful",
+      "clean"
+    ],
+    "function": [
+      "continuity"
+    ],
+    "also": [
+      "03-wipe/iris"
+    ]
+  },
+  "duration": {
+    "default": 40,
+    "min": 20,
+    "max": 80
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "background",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "Colour that closes in around the shrinking frame; use the incoming scene's background colour."
+    },
+    {
+      "name": "size",
+      "type": "number",
+      "default": 0.42,
+      "min": 0.15,
+      "max": 0.8,
+      "description": "Circle size at the middle, as a share of frame height."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

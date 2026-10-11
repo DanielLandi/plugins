@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "noise-wipe",
+  "name": "Noise Wipe",
+  "version": "1.0.0",
+  "summary": "A ragged, noise-driven edge sweeps across the frame, like a torn or eroded border.",
+  "uses": [
+    "Organic, handmade looks",
+    "Documentary and nature edits",
+    "Softer alternative to a linear wipe"
+  ],
+  "family": "03-wipe",
+  "subfamily": "organic",
+  "facets": {
+    "structure": "direct",
+    "origin": "edge-left",
+    "edge": "organic",
+    "layers": "B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "gritty",
+      "playful"
+    ],
+    "function": [
+      "progression"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 30,
+    "min": 12,
+    "max": 72
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "direction",
+      "type": "enum",
+      "default": "left",
+      "options": [
+        "left",
+        "right",
+        "up",
+        "down"
+      ],
+      "description": "Direction the motion travels."
+    },
+    {
+      "name": "roughness",
+      "type": "number",
+      "default": 0.12,
+      "min": 0,
+      "max": 0.4,
+      "description": "How far the edge wanders, as a fraction of the frame."
+    },
+    {
+      "name": "seed",
+      "type": "integer",
+      "default": 1,
+      "min": 0,
+      "max": 9999,
+      "description": "Changes the random layout."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

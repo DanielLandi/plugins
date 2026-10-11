@@ -1,0 +1,19 @@
+id: __ID__
+# concept | lyrics | song | timing | look | sample | production | delivery | done
+step: concept
+lang: en
+# none | lines | words, decided at step 6 (also set in look.ts)
+subtitles: null
+# One --gl mode for every render of this video (angle uses the GPU; swangle is the software fallback).
+gl: angle
+# Designed still or black stretches qc must accept, as [start, end] seconds.
+holds: []
+checklist:
+  - concept approved
+  - lyrics approved
+  - take picked, downloaded, ingested
+  - timing approved (preview watched)
+  - look approved
+  - sample, storyboard and subtitles approved (go)
+  - draft approved
+  - delivered and committed

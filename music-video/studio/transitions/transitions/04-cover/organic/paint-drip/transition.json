@@ -1,0 +1,99 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "paint-drip",
+  "name": "Paint Drip",
+  "version": "1.0.0",
+  "summary": "Paint pours down from the top in uneven drips that join into a solid frame, then drains away to show the next scene.",
+  "uses": [
+    "Bold, messy, street-art looks",
+    "Music and fashion edits",
+    "Halloween and horror (in red)"
+  ],
+  "family": "04-cover",
+  "subfamily": "organic",
+  "facets": {
+    "structure": "bridged",
+    "origin": "edge-top",
+    "edge": "organic",
+    "layers": "third",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "bold",
+      "gritty",
+      "playful"
+    ],
+    "function": [
+      "section-break",
+      "energy"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 72,
+    "min": 40,
+    "max": 120
+  },
+  "overlay": true,
+  "requires": [
+    "webgl2"
+  ],
+  "params": [
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "The incoming scene's background colour; the transition brings it in."
+    },
+    {
+      "name": "drips",
+      "type": "integer",
+      "default": 14,
+      "min": 4,
+      "max": 40,
+      "description": "Number of drips."
+    },
+    {
+      "name": "seed",
+      "type": "integer",
+      "default": 1,
+      "min": 0,
+      "max": 9999,
+      "description": "Changes the random layout."
+    },
+    {
+      "name": "hold",
+      "type": "number",
+      "default": 0.1,
+      "min": 0,
+      "max": 0.4,
+      "description": "Share of the transition spent fully covered."
+    }
+  ],
+  "presets": [
+    {
+      "id": "blood",
+      "name": "Blood",
+      "params": {
+        "color": "#8a0303"
+      }
+    },
+    {
+      "id": "ink",
+      "name": "Black paint",
+      "params": {
+        "color": "#111111"
+      }
+    }
+  ],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

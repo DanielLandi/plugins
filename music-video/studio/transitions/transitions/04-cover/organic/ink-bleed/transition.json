@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "ink-bleed",
+  "name": "Ink Bleed",
+  "version": "1.0.0",
+  "summary": "Drops of ink land and spread with fibrous edges until the frame is solid, then the next scene bleeds back through.",
+  "uses": [
+    "Editorial and artistic edits",
+    "Section breaks",
+    "Calligraphic or handmade brands"
+  ],
+  "family": "04-cover",
+  "subfamily": "organic",
+  "facets": {
+    "structure": "bridged",
+    "origin": "point",
+    "edge": "textured",
+    "layers": "third",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "luxe",
+      "gritty"
+    ],
+    "function": [
+      "section-break",
+      "brand"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 90,
+    "min": 48,
+    "max": 150
+  },
+  "overlay": true,
+  "requires": [
+    "webgl2"
+  ],
+  "params": [
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "The incoming scene's background colour; the transition brings it in."
+    },
+    {
+      "name": "drops",
+      "type": "integer",
+      "default": 4,
+      "min": 1,
+      "max": 9,
+      "description": "Number of ink drops."
+    },
+    {
+      "name": "seed",
+      "type": "integer",
+      "default": 1,
+      "min": 0,
+      "max": 9999,
+      "description": "Changes the random layout."
+    },
+    {
+      "name": "hold",
+      "type": "number",
+      "default": 0.1,
+      "min": 0,
+      "max": 0.4,
+      "description": "Share of the transition spent fully covered."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

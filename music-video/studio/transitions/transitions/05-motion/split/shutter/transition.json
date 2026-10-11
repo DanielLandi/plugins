@@ -1,0 +1,68 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "shutter",
+  "name": "Shutter",
+  "version": "1.0.0",
+  "summary": "The old scene splits into two halves that slide apart like doors, with the new scene behind them.",
+  "uses": [
+    "Grand reveals",
+    "Product launches",
+    "Openers"
+  ],
+  "family": "05-motion",
+  "subfamily": "split",
+  "facets": {
+    "structure": "direct",
+    "origin": "edges-inward",
+    "edge": "hard",
+    "layers": "A",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "bold",
+      "luxe"
+    ],
+    "function": [
+      "reveal"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 30,
+    "min": 12,
+    "max": 60
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "orientation",
+      "type": "enum",
+      "default": "vertical",
+      "options": [
+        "vertical",
+        "horizontal"
+      ],
+      "description": "vertical: halves part left and right. horizontal: up and down."
+    },
+    {
+      "name": "scaleIn",
+      "type": "number",
+      "default": 0.08,
+      "min": 0,
+      "max": 0.3,
+      "description": "How much the new scene settles from a zoom as it is revealed."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

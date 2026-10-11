@@ -1,0 +1,69 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "pixelate",
+  "name": "Pixelate",
+  "version": "1.0.0",
+  "summary": "The picture breaks into growing blocks of pixels, swaps at the coarsest point, then sharpens into the new scene.",
+  "uses": [
+    "Game and retro edits",
+    "Censor-style jokes",
+    "Digital themes"
+  ],
+  "family": "06-distortion",
+  "subfamily": "pixel",
+  "facets": {
+    "structure": "direct",
+    "origin": "whole-frame",
+    "edge": "geometric",
+    "layers": "A+B",
+    "space": "2d",
+    "timing": "snap",
+    "tone": [
+      "retro",
+      "playful",
+      "technical"
+    ],
+    "function": [
+      "energy"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 24,
+    "min": 10,
+    "max": 60
+  },
+  "overlay": false,
+  "requires": [
+    "svg-filters"
+  ],
+  "params": [
+    {
+      "name": "maxBlock",
+      "type": "integer",
+      "default": 96,
+      "min": 8,
+      "max": 240,
+      "description": "Largest block size in pixels."
+    },
+    {
+      "name": "steps",
+      "type": "integer",
+      "default": 7,
+      "min": 2,
+      "max": 16,
+      "description": "Number of block sizes on the way up."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

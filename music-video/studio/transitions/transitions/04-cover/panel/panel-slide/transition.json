@@ -1,0 +1,89 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "panel-slide",
+  "name": "Panel Slide",
+  "version": "1.0.0",
+  "summary": "Solid bars slide in one after another to cover the frame, then carry on out the other side to show the next scene.",
+  "uses": [
+    "Corporate and broadcast looks",
+    "Lower-energy section breaks",
+    "Slide decks"
+  ],
+  "family": "04-cover",
+  "subfamily": "panel",
+  "facets": {
+    "structure": "bridged",
+    "origin": "edge-left",
+    "edge": "hard",
+    "layers": "third",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "clean",
+      "bold"
+    ],
+    "function": [
+      "section-break",
+      "brand"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 40,
+    "min": 20,
+    "max": 80
+  },
+  "overlay": true,
+  "requires": [],
+  "params": [
+    {
+      "name": "colors",
+      "type": "colors",
+      "default": [
+        "#111111",
+        "#F1EFEA",
+        "#FF4F1A"
+      ],
+      "description": "Panel colours in order; the last one ends on top, so make it the incoming scene's background colour."
+    },
+    {
+      "name": "direction",
+      "type": "enum",
+      "default": "left",
+      "options": [
+        "left",
+        "right",
+        "up",
+        "down"
+      ],
+      "description": "Direction the motion travels."
+    },
+    {
+      "name": "stagger",
+      "type": "number",
+      "default": 0.12,
+      "min": 0,
+      "max": 0.3,
+      "description": "Delay between bars, as a share of each phase."
+    },
+    {
+      "name": "hold",
+      "type": "number",
+      "default": 0.1,
+      "min": 0,
+      "max": 0.4,
+      "description": "Share of the transition spent fully covered."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

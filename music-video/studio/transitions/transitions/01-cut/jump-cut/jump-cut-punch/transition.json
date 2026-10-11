@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "jump-cut-punch",
+  "name": "Punch-in Jump Cut",
+  "version": "1.0.0",
+  "summary": "Cuts to the next shot framed tighter, then cuts again to the normal framing: the vlog punch-in for emphasis.",
+  "uses": [
+    "Vlogs and talking heads",
+    "Emphasising a line",
+    "Tightening a long take"
+  ],
+  "family": "01-cut",
+  "subfamily": "jump-cut",
+  "facets": {
+    "structure": "instant",
+    "origin": "whole-frame",
+    "edge": "none",
+    "layers": "B",
+    "space": "2d",
+    "timing": "snap",
+    "tone": [
+      "bold",
+      "playful"
+    ],
+    "function": [
+      "energy",
+      "continuity"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 24,
+    "min": 8,
+    "max": 60
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "scale",
+      "type": "number",
+      "default": 1.18,
+      "min": 1.02,
+      "max": 1.6,
+      "description": "How far the punch-in zooms."
+    },
+    {
+      "name": "originX",
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "description": "Zoom centre, x (0..1)."
+    },
+    {
+      "name": "originY",
+      "type": "number",
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "description": "Zoom centre, y (0..1)."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

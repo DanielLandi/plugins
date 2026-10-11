@@ -1,0 +1,91 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "match-cut-anchor",
+  "name": "Anchored Match Cut",
+  "version": "1.0.0",
+  "summary": "A hard cut that lines up a point in the next scene with a point in the old one, then eases the new scene back to its own framing.",
+  "uses": [
+    "Match cuts on shape or position",
+    "Object continuity between shots",
+    "Graphic match cuts"
+  ],
+  "family": "01-cut",
+  "subfamily": "match-cut",
+  "facets": {
+    "structure": "instant",
+    "origin": "point",
+    "edge": "none",
+    "layers": "B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "clean"
+    ],
+    "function": [
+      "continuity"
+    ],
+    "also": [
+      "05-motion/zoom"
+    ]
+  },
+  "duration": {
+    "default": 30,
+    "min": 10,
+    "max": 60
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "fromX",
+      "type": "number",
+      "default": 0.79,
+      "min": 0,
+      "max": 1,
+      "description": "Anchor in scene A, x (0..1)."
+    },
+    {
+      "name": "fromY",
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "description": "Anchor in scene A, y (0..1)."
+    },
+    {
+      "name": "toX",
+      "type": "number",
+      "default": 0.19,
+      "min": 0,
+      "max": 1,
+      "description": "Anchor in scene B, x (0..1)."
+    },
+    {
+      "name": "toY",
+      "type": "number",
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "description": "Anchor in scene B, y (0..1)."
+    },
+    {
+      "name": "scale",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.25,
+      "max": 4,
+      "description": "Scale of scene B at the cut."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

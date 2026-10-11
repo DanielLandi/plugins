@@ -1,0 +1,91 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "zoom-through",
+  "name": "Zoom Through",
+  "version": "1.0.0",
+  "summary": "A circle in the new background colour opens on the old scene and the camera rushes into it; it fills the frame and the new scene lands.",
+  "uses": [
+    "Diving into a detail",
+    "Energetic intros",
+    "Music videos"
+  ],
+  "family": "05-motion",
+  "subfamily": "zoom",
+  "facets": {
+    "structure": "direct",
+    "origin": "point",
+    "edge": "soft",
+    "layers": "third",
+    "space": "2d",
+    "timing": "snap",
+    "tone": [
+      "bold"
+    ],
+    "function": [
+      "energy",
+      "continuity"
+    ],
+    "also": [
+      "08-carry/portal",
+      "06-distortion/blur"
+    ]
+  },
+  "duration": {
+    "default": 30,
+    "min": 14,
+    "max": 60
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "The incoming scene's background colour; the transition brings it in."
+    },
+    {
+      "name": "x",
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "description": "Where the circle opens, x (0..1)."
+    },
+    {
+      "name": "y",
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "description": "Where the circle opens, y (0..1)."
+    },
+    {
+      "name": "amount",
+      "type": "number",
+      "default": 3,
+      "min": 1.5,
+      "max": 8,
+      "description": "How far the old scene zooms in."
+    },
+    {
+      "name": "blur",
+      "type": "number",
+      "default": 14,
+      "min": 0,
+      "max": 40,
+      "description": "Peak blur in pixels."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

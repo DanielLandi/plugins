@@ -1,0 +1,79 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "stinger",
+  "name": "Logo Stinger",
+  "version": "1.0.0",
+  "summary": "A badge pops in, spins and grows to fill the frame with a word on it, then shrinks back and pops away to show the next scene.",
+  "uses": [
+    "Branded scene changes",
+    "Streams and esports",
+    "YouTube segment breaks"
+  ],
+  "family": "04-cover",
+  "subfamily": "stinger",
+  "facets": {
+    "structure": "bridged",
+    "origin": "point",
+    "edge": "geometric",
+    "layers": "third",
+    "space": "2d",
+    "timing": "elastic",
+    "tone": [
+      "playful",
+      "bold"
+    ],
+    "function": [
+      "brand",
+      "section-break"
+    ],
+    "also": [
+      "05-motion/spin"
+    ]
+  },
+  "duration": {
+    "default": 60,
+    "min": 36,
+    "max": 100
+  },
+  "overlay": true,
+  "requires": [],
+  "params": [
+    {
+      "name": "text",
+      "type": "string",
+      "default": "NEXT",
+      "description": "Word on the badge."
+    },
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "Badge colour; use the incoming scene's background colour."
+    },
+    {
+      "name": "textColor",
+      "type": "color",
+      "default": "#111111",
+      "description": "Word colour."
+    },
+    {
+      "name": "hold",
+      "type": "number",
+      "default": 0.25,
+      "min": 0,
+      "max": 0.5,
+      "description": "Share of the transition spent fully covered (the word is readable here)."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

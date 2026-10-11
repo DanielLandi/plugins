@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "flare-sweep",
+  "name": "Flare Sweep",
+  "version": "1.0.0",
+  "summary": "An anamorphic lens flare streaks across the frame and blooms over the cut.",
+  "uses": [
+    "Sci-fi and trailer looks",
+    "Tech launches",
+    "Night and city footage"
+  ],
+  "family": "09-light",
+  "subfamily": "flare",
+  "facets": {
+    "structure": "bridged",
+    "origin": "edge-left",
+    "edge": "soft",
+    "layers": "third",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "luxe",
+      "technical"
+    ],
+    "function": [
+      "energy",
+      "brand"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 30,
+    "min": 14,
+    "max": 60
+  },
+  "overlay": true,
+  "requires": [],
+  "params": [
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#7FC8FF",
+      "description": "Flare tint."
+    },
+    {
+      "name": "y",
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "description": "Height of the streak."
+    },
+    {
+      "name": "hold",
+      "type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 0.3,
+      "description": "Share of the transition at full bloom."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

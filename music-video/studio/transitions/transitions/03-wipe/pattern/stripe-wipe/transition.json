@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "stripe-wipe",
+  "name": "Stripe Wipe",
+  "version": "1.0.0",
+  "summary": "Diagonal stripes of the new scene open one after another and widen until they join.",
+  "uses": [
+    "Sports and broadcast graphics",
+    "Energetic topic changes",
+    "Lower-thirds into full screen"
+  ],
+  "family": "03-wipe",
+  "subfamily": "pattern",
+  "facets": {
+    "structure": "direct",
+    "origin": "edge-diagonal",
+    "edge": "hard",
+    "layers": "B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "bold",
+      "clean"
+    ],
+    "function": [
+      "energy",
+      "progression"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 30,
+    "min": 12,
+    "max": 60
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "count",
+      "type": "integer",
+      "default": 7,
+      "min": 2,
+      "max": 24,
+      "description": "Number of stripes."
+    },
+    {
+      "name": "angle",
+      "type": "number",
+      "default": 60,
+      "min": 0,
+      "max": 180,
+      "description": "Stripe angle in degrees."
+    },
+    {
+      "name": "stagger",
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 0.9,
+      "description": "How much the stripes open one after another."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

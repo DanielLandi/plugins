@@ -1,0 +1,98 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "linear-wipe",
+  "name": "Linear Wipe",
+  "version": "1.0.0",
+  "summary": "A straight edge sweeps across the frame at any angle, hard or soft. Split mode opens from the middle like barn doors.",
+  "uses": [
+    "Changes of place",
+    "Before/after reveals",
+    "Slide-like presentations"
+  ],
+  "family": "03-wipe",
+  "subfamily": "linear",
+  "facets": {
+    "structure": "direct",
+    "origin": "edge-left",
+    "edge": "hard",
+    "layers": "B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "clean"
+    ],
+    "function": [
+      "progression",
+      "reveal"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 24,
+    "min": 8,
+    "max": 60
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "angle",
+      "type": "number",
+      "default": 90,
+      "min": 0,
+      "max": 360,
+      "description": "Direction the edge travels, in degrees (90 = left to right)."
+    },
+    {
+      "name": "softness",
+      "type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 40,
+      "description": "Edge softness, as a percentage of the frame."
+    },
+    {
+      "name": "mode",
+      "type": "enum",
+      "default": "single",
+      "options": [
+        "single",
+        "split"
+      ],
+      "description": "single: one edge. split: two edges open from the centre."
+    }
+  ],
+  "presets": [
+    {
+      "id": "soft",
+      "name": "Soft edge",
+      "params": {
+        "softness": 18
+      }
+    },
+    {
+      "id": "barn-door",
+      "name": "Barn door",
+      "params": {
+        "mode": "split"
+      }
+    },
+    {
+      "id": "diagonal",
+      "name": "Diagonal",
+      "params": {
+        "angle": 135
+      }
+    }
+  ],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

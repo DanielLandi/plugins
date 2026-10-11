@@ -1,0 +1,79 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "slide-over",
+  "name": "Slide Over",
+  "version": "1.0.0",
+  "summary": "The new scene slides in over the old one like a card, with a soft shadow, while the old one drifts back and dims.",
+  "uses": [
+    "Next item or chapter",
+    "App-style navigation",
+    "Stacked story beats"
+  ],
+  "family": "05-motion",
+  "subfamily": "push-slide",
+  "facets": {
+    "structure": "direct",
+    "origin": "edge-right",
+    "edge": "hard",
+    "layers": "A+B",
+    "space": "2.5d",
+    "timing": "eased",
+    "tone": [
+      "clean",
+      "luxe"
+    ],
+    "function": [
+      "progression",
+      "continuity"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 28,
+    "min": 12,
+    "max": 60
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "direction",
+      "type": "enum",
+      "default": "left",
+      "options": [
+        "left",
+        "right",
+        "up",
+        "down"
+      ],
+      "description": "Direction the motion travels."
+    },
+    {
+      "name": "dim",
+      "type": "number",
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "description": "How dark the old scene gets."
+    },
+    {
+      "name": "drift",
+      "type": "number",
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "description": "How far the old scene moves along, as a share of the new one's travel."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

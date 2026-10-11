@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "flash",
+  "name": "Flash",
+  "version": "1.0.0",
+  "summary": "A burst of overexposed light blows out the old scene and settles on the new one.",
+  "uses": [
+    "Beat drops and impacts",
+    "Camera-flash moments",
+    "Flashbacks"
+  ],
+  "family": "09-light",
+  "subfamily": "flash",
+  "facets": {
+    "structure": "bridged",
+    "origin": "whole-frame",
+    "edge": "soft",
+    "layers": "third",
+    "space": "2d",
+    "timing": "snap",
+    "tone": [
+      "bold"
+    ],
+    "function": [
+      "energy",
+      "contrast"
+    ],
+    "also": [
+      "02-blend/dip-to-colour"
+    ]
+  },
+  "duration": {
+    "default": 16,
+    "min": 6,
+    "max": 40
+  },
+  "overlay": true,
+  "requires": [],
+  "params": [
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#FFFFFF",
+      "description": "Flash colour."
+    },
+    {
+      "name": "bloom",
+      "type": "number",
+      "default": 2.5,
+      "min": 1,
+      "max": 6,
+      "description": "How much the scenes overexpose around the flash."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

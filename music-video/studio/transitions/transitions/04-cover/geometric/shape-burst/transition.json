@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "shape-burst",
+  "name": "Shape Burst",
+  "version": "1.0.0",
+  "summary": "Rings of colour burst out from a point one after another until the last one covers the frame, then a hole bursts open the same way.",
+  "uses": [
+    "Energetic reveals",
+    "Social and kids content",
+    "Logo moments"
+  ],
+  "family": "04-cover",
+  "subfamily": "geometric",
+  "facets": {
+    "structure": "bridged",
+    "origin": "point",
+    "edge": "geometric",
+    "layers": "third",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "playful",
+      "bold"
+    ],
+    "function": [
+      "energy",
+      "section-break"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 48,
+    "min": 24,
+    "max": 90
+  },
+  "overlay": true,
+  "requires": [],
+  "params": [
+    {
+      "name": "colors",
+      "type": "colors",
+      "default": [
+        "#111111",
+        "#F1EFEA",
+        "#FF4F1A"
+      ],
+      "description": "Ring colours in order; the last one covers the frame, so make it the incoming scene's background colour."
+    },
+    {
+      "name": "x",
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "description": "Burst centre x."
+    },
+    {
+      "name": "y",
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "description": "Burst centre y."
+    },
+    {
+      "name": "hold",
+      "type": "number",
+      "default": 0.1,
+      "min": 0,
+      "max": 0.4,
+      "description": "Share of the transition spent fully covered."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

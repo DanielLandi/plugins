@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "brush-stroke",
+  "name": "Brush Stroke",
+  "version": "1.0.0",
+  "summary": "A thick, rough brush paints across the frame in a few passes until it is covered, then the stroke wipes away to show the next scene.",
+  "uses": [
+    "Handmade and artistic edits",
+    "Travel and lifestyle",
+    "Titles over paint"
+  ],
+  "family": "04-cover",
+  "subfamily": "stroke",
+  "facets": {
+    "structure": "bridged",
+    "origin": "edge-left",
+    "edge": "textured",
+    "layers": "third",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "playful",
+      "gritty"
+    ],
+    "function": [
+      "section-break",
+      "brand"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 60,
+    "min": 30,
+    "max": 100
+  },
+  "overlay": true,
+  "requires": [
+    "svg-filters"
+  ],
+  "params": [
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "The incoming scene's background colour; the transition brings it in."
+    },
+    {
+      "name": "passes",
+      "type": "integer",
+      "default": 4,
+      "min": 2,
+      "max": 7,
+      "description": "How many back-and-forth strokes cover the frame."
+    },
+    {
+      "name": "seed",
+      "type": "integer",
+      "default": 1,
+      "min": 0,
+      "max": 9999,
+      "description": "Changes the random layout."
+    },
+    {
+      "name": "hold",
+      "type": "number",
+      "default": 0.1,
+      "min": 0,
+      "max": 0.4,
+      "description": "Share of the transition spent fully covered."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

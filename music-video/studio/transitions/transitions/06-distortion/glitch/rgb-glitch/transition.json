@@ -1,0 +1,69 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "rgb-glitch",
+  "name": "RGB Glitch",
+  "version": "1.0.0",
+  "summary": "The picture tears into shifted colour channels and displaced blocks, and the new scene glitches in.",
+  "uses": [
+    "Tech, gaming and cyber looks",
+    "Beat drops",
+    "Something going wrong"
+  ],
+  "family": "06-distortion",
+  "subfamily": "glitch",
+  "facets": {
+    "structure": "direct",
+    "origin": "whole-frame",
+    "edge": "textured",
+    "layers": "A+B",
+    "space": "2d",
+    "timing": "snap",
+    "tone": [
+      "gritty",
+      "technical"
+    ],
+    "function": [
+      "energy",
+      "contrast"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 16,
+    "min": 6,
+    "max": 36
+  },
+  "overlay": false,
+  "requires": [
+    "svg-filters"
+  ],
+  "params": [
+    {
+      "name": "strength",
+      "type": "number",
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "description": "Overall glitch strength."
+    },
+    {
+      "name": "seed",
+      "type": "integer",
+      "default": 1,
+      "min": 0,
+      "max": 9999,
+      "description": "Changes the random layout."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

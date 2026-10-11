@@ -1,0 +1,115 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "shape-grid",
+  "name": "Shape Grid",
+  "version": "1.0.0",
+  "summary": "A grid of shapes scales up in a wave until they cover the frame, then shrinks away in the same direction to show the next scene.",
+  "uses": [
+    "Clean corporate and tech edits",
+    "Explainers",
+    "Section breaks"
+  ],
+  "family": "04-cover",
+  "subfamily": "geometric",
+  "facets": {
+    "structure": "bridged",
+    "origin": "edge-diagonal",
+    "edge": "geometric",
+    "layers": "third",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "clean",
+      "technical"
+    ],
+    "function": [
+      "section-break"
+    ],
+    "also": [
+      "03-wipe/pattern"
+    ]
+  },
+  "duration": {
+    "default": 48,
+    "min": 24,
+    "max": 90
+  },
+  "overlay": true,
+  "requires": [],
+  "params": [
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "The incoming scene's background colour; the transition brings it in."
+    },
+    {
+      "name": "shape",
+      "type": "enum",
+      "default": "square",
+      "options": [
+        "square",
+        "circle",
+        "diamond"
+      ],
+      "description": "Shape of each cell."
+    },
+    {
+      "name": "columns",
+      "type": "integer",
+      "default": 12,
+      "min": 4,
+      "max": 32,
+      "description": "Cells across the frame."
+    },
+    {
+      "name": "from",
+      "type": "enum",
+      "default": "top-left",
+      "options": [
+        "top-left",
+        "center",
+        "left",
+        "top",
+        "random"
+      ],
+      "description": "Where the wave starts."
+    },
+    {
+      "name": "hold",
+      "type": "number",
+      "default": 0.1,
+      "min": 0,
+      "max": 0.4,
+      "description": "Share of the transition spent fully covered."
+    }
+  ],
+  "presets": [
+    {
+      "id": "dots",
+      "name": "Dots from centre",
+      "params": {
+        "shape": "circle",
+        "from": "center"
+      }
+    },
+    {
+      "id": "diamonds",
+      "name": "Diamonds",
+      "params": {
+        "shape": "diamond",
+        "columns": 10
+      }
+    }
+  ],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "text-mask",
+  "name": "Text Mask Zoom",
+  "version": "1.0.0",
+  "summary": "A word appears with the new scene inside its letters, then zooms through one letter until the new scene fills the frame.",
+  "uses": [
+    "Title reveals",
+    "Branded openers",
+    "Chapter titles"
+  ],
+  "family": "03-wipe",
+  "subfamily": "shape-mask",
+  "facets": {
+    "structure": "direct",
+    "origin": "point",
+    "edge": "geometric",
+    "layers": "B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "bold",
+      "luxe"
+    ],
+    "function": [
+      "reveal",
+      "brand",
+      "section-break"
+    ],
+    "also": [
+      "08-carry/portal"
+    ]
+  },
+  "duration": {
+    "default": 48,
+    "min": 24,
+    "max": 90
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "text",
+      "type": "string",
+      "default": "NEXT",
+      "description": "The word that reveals the new scene."
+    },
+    {
+      "name": "focus",
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "description": "Point of the word the zoom heads into, across its width (0..1)."
+    },
+    {
+      "name": "background",
+      "type": "color",
+      "default": "#111111",
+      "description": "Colour around the word before it fills the frame."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

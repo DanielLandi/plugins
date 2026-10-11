@@ -1,0 +1,98 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "spin",
+  "name": "Spin",
+  "version": "1.0.0",
+  "summary": "A shape in the new background colour spins in at the centre and grows while the camera rolls with it, until it fills the frame; the new scene then spins into place.",
+  "uses": [
+    "Playful scene changes",
+    "Social and music content",
+    "Retro TV looks"
+  ],
+  "family": "05-motion",
+  "subfamily": "spin",
+  "facets": {
+    "structure": "direct",
+    "origin": "point",
+    "edge": "soft",
+    "layers": "third",
+    "space": "2d",
+    "timing": "snap",
+    "tone": [
+      "playful",
+      "bold"
+    ],
+    "function": [
+      "energy"
+    ],
+    "also": [
+      "04-cover/geometric"
+    ]
+  },
+  "duration": {
+    "default": 36,
+    "min": 18,
+    "max": 72
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "The incoming scene's background colour; the transition brings it in."
+    },
+    {
+      "name": "shape",
+      "type": "enum",
+      "default": "square",
+      "options": [
+        "square",
+        "circle"
+      ],
+      "description": "Shape that spins in."
+    },
+    {
+      "name": "turns",
+      "type": "number",
+      "default": 0.5,
+      "min": 0.1,
+      "max": 2,
+      "description": "Turns the shape makes while it grows."
+    },
+    {
+      "name": "roll",
+      "type": "number",
+      "default": 18,
+      "min": 0,
+      "max": 90,
+      "description": "Degrees the camera rolls along with it."
+    },
+    {
+      "name": "counterClockwise",
+      "type": "boolean",
+      "default": false,
+      "description": "Spin the other way."
+    },
+    {
+      "name": "blur",
+      "type": "number",
+      "default": 8,
+      "min": 0,
+      "max": 30,
+      "description": "Peak motion blur in pixels."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

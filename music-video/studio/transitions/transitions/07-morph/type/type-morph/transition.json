@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "type-morph",
+  "name": "Type Morph",
+  "version": "1.0.0",
+  "summary": "A word melts into another word with a gooey liquid morph while the scene behind changes.",
+  "uses": [
+    "Title and keyword swaps",
+    "Explainers (\"this becomes that\")",
+    "Kinetic typography"
+  ],
+  "family": "07-morph",
+  "subfamily": "type",
+  "facets": {
+    "structure": "continuous",
+    "origin": "whole-frame",
+    "edge": "organic",
+    "layers": "A+B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "playful",
+      "clean"
+    ],
+    "function": [
+      "continuity"
+    ],
+    "also": [
+      "02-blend/crossfade"
+    ]
+  },
+  "duration": {
+    "default": 40,
+    "min": 20,
+    "max": 90
+  },
+  "overlay": false,
+  "requires": [
+    "svg-filters"
+  ],
+  "params": [
+    {
+      "name": "from",
+      "type": "string",
+      "default": "BEFORE",
+      "description": "Word on scene A."
+    },
+    {
+      "name": "to",
+      "type": "string",
+      "default": "AFTER",
+      "description": "Word on scene B."
+    },
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#111111",
+      "description": "Word colour."
+    },
+    {
+      "name": "panel",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "Colour of the band behind the word; use the incoming scene's background colour."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

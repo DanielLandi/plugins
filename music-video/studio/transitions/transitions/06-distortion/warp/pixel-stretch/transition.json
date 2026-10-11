@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "pixel-stretch",
+  "name": "Pixel Stretch",
+  "version": "1.0.0",
+  "summary": "The new scene sweeps in with its leading edge smeared into long streaks, like pixels stretched by speed.",
+  "uses": [
+    "Music videos and fast edits",
+    "Tech and gaming",
+    "A sharper alternative to a whip pan"
+  ],
+  "family": "06-distortion",
+  "subfamily": "warp",
+  "facets": {
+    "structure": "direct",
+    "origin": "edge-right",
+    "edge": "textured",
+    "layers": "B",
+    "space": "2d",
+    "timing": "snap",
+    "tone": [
+      "bold",
+      "technical"
+    ],
+    "function": [
+      "energy"
+    ],
+    "also": [
+      "03-wipe/linear"
+    ]
+  },
+  "duration": {
+    "default": 24,
+    "min": 10,
+    "max": 50
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "streak",
+      "type": "number",
+      "default": 0.4,
+      "min": 0.05,
+      "max": 0.9,
+      "description": "Longest streak, as a share of the frame width."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

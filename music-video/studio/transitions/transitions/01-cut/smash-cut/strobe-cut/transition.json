@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "strobe-cut",
+  "name": "Strobe Cut",
+  "version": "1.0.0",
+  "summary": "Cuts back and forth between the two scenes faster and faster, then lands on the new one.",
+  "uses": [
+    "Music videos and beat drops",
+    "Hype edits",
+    "Glitchy energy without effects"
+  ],
+  "family": "01-cut",
+  "subfamily": "smash-cut",
+  "facets": {
+    "structure": "instant",
+    "origin": "whole-frame",
+    "edge": "none",
+    "layers": "A+B",
+    "space": "2d",
+    "timing": "beat-synced",
+    "tone": [
+      "bold",
+      "gritty"
+    ],
+    "function": [
+      "energy",
+      "contrast"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 18,
+    "min": 8,
+    "max": 40
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "flips",
+      "type": "integer",
+      "default": 6,
+      "min": 2,
+      "max": 16,
+      "description": "How many times the picture swaps."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

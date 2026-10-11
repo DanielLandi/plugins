@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "paper-tear",
+  "name": "Paper Tear",
+  "version": "1.0.0",
+  "summary": "The old scene rips down the middle along a ragged edge, and the two pieces pull apart to show the new scene.",
+  "uses": [
+    "Collage and scrapbook styles",
+    "Editorial and punk looks",
+    "Before/after reveals"
+  ],
+  "family": "06-distortion",
+  "subfamily": "break",
+  "facets": {
+    "structure": "direct",
+    "origin": "edges-inward",
+    "edge": "textured",
+    "layers": "A",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "gritty",
+      "playful"
+    ],
+    "function": [
+      "reveal",
+      "contrast"
+    ],
+    "also": [
+      "03-wipe/organic"
+    ]
+  },
+  "duration": {
+    "default": 36,
+    "min": 18,
+    "max": 72
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "paper",
+      "type": "color",
+      "default": "#F7F5F0",
+      "description": "Colour of the torn paper edge."
+    },
+    {
+      "name": "roughness",
+      "type": "number",
+      "default": 0.06,
+      "min": 0,
+      "max": 0.15,
+      "description": "How jagged the tear is."
+    },
+    {
+      "name": "seed",
+      "type": "integer",
+      "default": 1,
+      "min": 0,
+      "max": 9999,
+      "description": "Changes the random layout."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

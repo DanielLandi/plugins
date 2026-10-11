@@ -1,0 +1,147 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "liquid-fill",
+  "name": "Liquid Fill",
+  "version": "1.0.0",
+  "summary": "Blobs of liquid grow into cells with thin veins, the veins pinch away until the frame is one colour, then the next scene floods back in the same way.",
+  "uses": [
+    "Scene changes",
+    "Section breaks",
+    "Intros and outros",
+    "Hiding a jump cut"
+  ],
+  "family": "04-cover",
+  "subfamily": "organic",
+  "facets": {
+    "structure": "bridged",
+    "origin": "distributed",
+    "edge": "organic",
+    "layers": "third",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "clean",
+      "bold"
+    ],
+    "function": [
+      "section-break",
+      "reveal",
+      "brand"
+    ],
+    "also": [
+      "03-wipe/organic"
+    ]
+  },
+  "duration": {
+    "default": 96,
+    "min": 48,
+    "max": 150
+  },
+  "overlay": true,
+  "requires": [
+    "webgl2"
+  ],
+  "params": [
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "The incoming scene's background colour; the transition brings it in."
+    },
+    {
+      "name": "seed",
+      "type": "integer",
+      "default": 3,
+      "min": 0,
+      "max": 9999,
+      "description": "Blob layout. The reveal uses seed + 1."
+    },
+    {
+      "name": "rows",
+      "type": "integer",
+      "default": 5,
+      "min": 2,
+      "max": 9,
+      "description": "Blobs across the frame height; more means smaller cells."
+    },
+    {
+      "name": "from",
+      "type": "enum",
+      "default": "random",
+      "options": [
+        "random",
+        "center",
+        "left",
+        "right",
+        "top",
+        "bottom"
+      ],
+      "description": "Where the first blobs appear."
+    },
+    {
+      "name": "gap",
+      "type": "number",
+      "default": 0.0085,
+      "min": 0.002,
+      "max": 0.03,
+      "description": "Half the vein width, as a fraction of frame height."
+    },
+    {
+      "name": "wobble",
+      "type": "number",
+      "default": 0.012,
+      "min": 0,
+      "max": 0.04,
+      "description": "How much the liquid edge wobbles."
+    },
+    {
+      "name": "hold",
+      "type": "number",
+      "default": 0.1,
+      "min": 0,
+      "max": 0.4,
+      "description": "Share of the transition spent fully covered."
+    }
+  ],
+  "presets": [
+    {
+      "id": "ink",
+      "name": "Black liquid",
+      "params": {
+        "color": "#111111"
+      }
+    },
+    {
+      "id": "white",
+      "name": "White liquid",
+      "params": {
+        "color": "#ffffff"
+      }
+    },
+    {
+      "id": "fine-cells",
+      "name": "Fine cells",
+      "params": {
+        "rows": 8,
+        "gap": 0.005
+      }
+    },
+    {
+      "id": "from-center",
+      "name": "From the centre",
+      "params": {
+        "from": "center"
+      }
+    }
+  ],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

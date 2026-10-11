@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "rounded-reveal",
+  "name": "Rounded Reveal",
+  "version": "1.0.0",
+  "summary": "The new scene opens in a rounded window that grows from the centre to full frame, settling from a slight zoom inside.",
+  "uses": [
+    "App and product demos",
+    "Clean corporate edits",
+    "Revealing a screen recording"
+  ],
+  "family": "03-wipe",
+  "subfamily": "shape-mask",
+  "facets": {
+    "structure": "direct",
+    "origin": "point",
+    "edge": "geometric",
+    "layers": "B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "clean",
+      "luxe"
+    ],
+    "function": [
+      "reveal"
+    ],
+    "also": [
+      "03-wipe/iris"
+    ]
+  },
+  "duration": {
+    "default": 30,
+    "min": 14,
+    "max": 60
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "x",
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "description": "Window centre x."
+    },
+    {
+      "name": "y",
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "description": "Window centre y."
+    },
+    {
+      "name": "corner",
+      "type": "number",
+      "default": 0.08,
+      "min": 0,
+      "max": 0.3,
+      "description": "Corner radius as a share of frame height (it eases to square at the end)."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

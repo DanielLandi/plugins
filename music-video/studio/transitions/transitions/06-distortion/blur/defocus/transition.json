@@ -1,0 +1,68 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "defocus",
+  "name": "Defocus",
+  "version": "1.0.0",
+  "summary": "The old scene drifts out of focus, and the new one comes into focus.",
+  "uses": [
+    "Gentle scene changes",
+    "Memories and dreams",
+    "Interviews and B-roll"
+  ],
+  "family": "06-distortion",
+  "subfamily": "blur",
+  "facets": {
+    "structure": "direct",
+    "origin": "whole-frame",
+    "edge": "soft",
+    "layers": "A+B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "dreamy",
+      "luxe"
+    ],
+    "function": [
+      "progression"
+    ],
+    "also": [
+      "02-blend/crossfade"
+    ]
+  },
+  "duration": {
+    "default": 30,
+    "min": 12,
+    "max": 72
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "blur",
+      "type": "number",
+      "default": 40,
+      "min": 4,
+      "max": 120,
+      "description": "Peak blur in pixels."
+    },
+    {
+      "name": "zoom",
+      "type": "number",
+      "default": 0.06,
+      "min": 0,
+      "max": 0.3,
+      "description": "Slight zoom while out of focus."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

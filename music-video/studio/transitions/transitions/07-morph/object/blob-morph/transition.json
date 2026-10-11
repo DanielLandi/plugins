@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "blob-morph",
+  "name": "Blob Morph",
+  "version": "1.0.0",
+  "summary": "The frame collapses into a wobbling liquid blob, which turns into the new scene and swells back to fill the frame.",
+  "uses": [
+    "Organic, playful brands",
+    "Kids and lifestyle content",
+    "Liquid themes"
+  ],
+  "family": "07-morph",
+  "subfamily": "object",
+  "facets": {
+    "structure": "continuous",
+    "origin": "point",
+    "edge": "organic",
+    "layers": "A+B",
+    "space": "2d",
+    "timing": "elastic",
+    "tone": [
+      "playful"
+    ],
+    "function": [
+      "continuity"
+    ],
+    "also": [
+      "07-morph/shape"
+    ]
+  },
+  "duration": {
+    "default": 48,
+    "min": 24,
+    "max": 90
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "background",
+      "type": "color",
+      "default": "#FF4F1A",
+      "description": "Colour that closes in around the shrinking frame; use the incoming scene's background colour."
+    },
+    {
+      "name": "wobble",
+      "type": "number",
+      "default": 0.18,
+      "min": 0,
+      "max": 0.4,
+      "description": "How much the blob wobbles."
+    },
+    {
+      "name": "seed",
+      "type": "integer",
+      "default": 1,
+      "min": 0,
+      "max": 9999,
+      "description": "Changes the random layout."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

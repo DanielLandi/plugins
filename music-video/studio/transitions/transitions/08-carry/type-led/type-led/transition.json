@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "type-led",
+  "name": "Type Led",
+  "version": "1.0.0",
+  "summary": "A word lands on the old scene and stays put while the scene changes behind it, then flies away.",
+  "uses": [
+    "Title cards",
+    "Chapter names",
+    "Keyword-driven edits"
+  ],
+  "family": "08-carry",
+  "subfamily": "type-led",
+  "facets": {
+    "structure": "continuous",
+    "origin": "whole-frame",
+    "edge": "hard",
+    "layers": "A+B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "bold",
+      "clean"
+    ],
+    "function": [
+      "continuity",
+      "section-break"
+    ],
+    "also": [
+      "03-wipe/linear"
+    ]
+  },
+  "duration": {
+    "default": 54,
+    "min": 30,
+    "max": 100
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "text",
+      "type": "string",
+      "default": "MEANWHILE",
+      "description": "The word that carries the change."
+    },
+    {
+      "name": "direction",
+      "type": "enum",
+      "default": "left",
+      "options": [
+        "left",
+        "right",
+        "up",
+        "down"
+      ],
+      "description": "Direction the motion travels."
+    },
+    {
+      "name": "color",
+      "type": "color",
+      "default": "#111111",
+      "description": "Word colour."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

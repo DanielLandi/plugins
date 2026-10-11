@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "push",
+  "name": "Push",
+  "version": "1.0.0",
+  "summary": "The new scene pushes the old one out of frame.",
+  "uses": [
+    "Next item in a sequence",
+    "Changing place or topic",
+    "Carousels and lists"
+  ],
+  "family": "05-motion",
+  "subfamily": "push-slide",
+  "facets": {
+    "structure": "direct",
+    "origin": "edge-right",
+    "edge": "hard",
+    "layers": "A+B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "clean"
+    ],
+    "function": [
+      "continuity",
+      "progression"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 24,
+    "min": 8,
+    "max": 60
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "direction",
+      "type": "enum",
+      "default": "left",
+      "options": [
+        "left",
+        "right",
+        "up",
+        "down"
+      ],
+      "description": "Direction the motion travels."
+    },
+    {
+      "name": "curve",
+      "type": "enum",
+      "default": "quint",
+      "options": [
+        "cubic",
+        "quint",
+        "expo"
+      ],
+      "description": "Ease curve; expo is the snappiest."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

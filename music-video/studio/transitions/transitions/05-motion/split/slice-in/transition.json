@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "slice-in",
+  "name": "Slice In",
+  "version": "1.0.0",
+  "summary": "The new scene arrives in vertical slices that slide up into place one after another.",
+  "uses": [
+    "Title sequences",
+    "Fashion and editorial",
+    "Energetic section changes"
+  ],
+  "family": "05-motion",
+  "subfamily": "split",
+  "facets": {
+    "structure": "direct",
+    "origin": "edge-bottom",
+    "edge": "hard",
+    "layers": "B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "bold",
+      "luxe"
+    ],
+    "function": [
+      "energy",
+      "reveal"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 30,
+    "min": 14,
+    "max": 60
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "slices",
+      "type": "integer",
+      "default": 5,
+      "min": 2,
+      "max": 16,
+      "description": "Number of slices."
+    },
+    {
+      "name": "stagger",
+      "type": "number",
+      "default": 0.45,
+      "min": 0,
+      "max": 0.8,
+      "description": "How much the slices arrive one after another."
+    },
+    {
+      "name": "from",
+      "type": "enum",
+      "default": "bottom",
+      "options": [
+        "bottom",
+        "top",
+        "alternate"
+      ],
+      "description": "Where the slices come from."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

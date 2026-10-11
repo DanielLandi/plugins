@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "crossfade",
+  "name": "Crossfade",
+  "version": "1.0.0",
+  "summary": "Scene A fades out while scene B fades in. The classic dissolve.",
+  "uses": [
+    "Time passing",
+    "Soft scene changes",
+    "Montages"
+  ],
+  "family": "02-blend",
+  "subfamily": "crossfade",
+  "facets": {
+    "structure": "direct",
+    "origin": "whole-frame",
+    "edge": "none",
+    "layers": "B",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "clean",
+      "dreamy"
+    ],
+    "function": [
+      "progression",
+      "continuity"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 24,
+    "min": 6,
+    "max": 90
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "curve",
+      "type": "enum",
+      "default": "smooth",
+      "options": [
+        "linear",
+        "smooth"
+      ],
+      "description": "Opacity curve."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

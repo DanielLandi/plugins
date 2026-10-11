@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "split-slices",
+  "name": "Split Slices",
+  "version": "1.0.0",
+  "summary": "The old scene breaks into horizontal slices that slide off alternately left and right, showing the new scene behind.",
+  "uses": [
+    "Tech and sports edits",
+    "Energetic section changes",
+    "Title sequences"
+  ],
+  "family": "05-motion",
+  "subfamily": "split",
+  "facets": {
+    "structure": "direct",
+    "origin": "distributed",
+    "edge": "hard",
+    "layers": "A",
+    "space": "2d",
+    "timing": "eased",
+    "tone": [
+      "bold",
+      "technical"
+    ],
+    "function": [
+      "energy",
+      "progression"
+    ],
+    "also": []
+  },
+  "duration": {
+    "default": 30,
+    "min": 12,
+    "max": 60
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "slices",
+      "type": "integer",
+      "default": 7,
+      "min": 2,
+      "max": 24,
+      "description": "Number of slices."
+    },
+    {
+      "name": "orientation",
+      "type": "enum",
+      "default": "horizontal",
+      "options": [
+        "horizontal",
+        "vertical"
+      ],
+      "description": "Slice direction."
+    },
+    {
+      "name": "stagger",
+      "type": "number",
+      "default": 0.35,
+      "min": 0,
+      "max": 0.8,
+      "description": "How much the slices move one after another."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../../schema/transition.schema.json",
+  "id": "smash-cut-shake",
+  "name": "Smash Cut with Shake",
+  "version": "1.0.0",
+  "summary": "A hard cut to the next scene, which lands with a short, decaying camera shake.",
+  "uses": [
+    "Comedic or dramatic contrast",
+    "Beat drops",
+    "Impacts"
+  ],
+  "family": "01-cut",
+  "subfamily": "smash-cut",
+  "facets": {
+    "structure": "instant",
+    "origin": "whole-frame",
+    "edge": "none",
+    "layers": "B",
+    "space": "2d",
+    "timing": "snap",
+    "tone": [
+      "bold"
+    ],
+    "function": [
+      "contrast",
+      "energy"
+    ],
+    "also": [
+      "05-motion/whip"
+    ]
+  },
+  "duration": {
+    "default": 16,
+    "min": 8,
+    "max": 30
+  },
+  "overlay": false,
+  "requires": [],
+  "params": [
+    {
+      "name": "cutAt",
+      "type": "number",
+      "default": 0.25,
+      "min": 0,
+      "max": 0.9,
+      "description": "Where in the transition the cut happens (0..1)."
+    },
+    {
+      "name": "strength",
+      "type": "number",
+      "default": 28,
+      "min": 0,
+      "max": 80,
+      "description": "Shake distance in pixels."
+    },
+    {
+      "name": "seed",
+      "type": "integer",
+      "default": 1,
+      "min": 0,
+      "max": 9999,
+      "description": "Changes the random layout."
+    }
+  ],
+  "presets": [],
+  "authors": [
+    "GTKottman"
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-06",
+      "notes": "First version."
+    }
+  ]
+}
