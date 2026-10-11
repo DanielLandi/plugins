@@ -58,11 +58,20 @@ def load_album(ws: Workspace, album_id: str) -> Album:
         raise MVError(f"no album '{album_id}' ({path})")
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as e:
+        raise MVError(f"{path}: not valid YAML ({str(e).splitlines()[0]})") from e
+    if not isinstance(raw, dict):
+        raise MVError(f"{path}: an album is a mapping (title, year, artist, cover, styles)")
+    if not isinstance(raw.get("styles") or {}, dict):
+        raise MVError(f"{path}: styles must map each style key to its artist/album/genre/era")
+    try:
         styles = {str(k): Style(**(v or {})) for k, v in (raw.get("styles") or {}).items()}
         year = int(raw.get("year") or datetime.now().year)
-    except (yaml.YAMLError, TypeError, ValueError) as e:
+    except (TypeError, ValueError) as e:
         raise MVError(f"{path}: needs title, year and styles of artist/album/genre/era ({e})") from e
     cover = path.parent / raw["cover"] if raw.get("cover") else None
+    if cover is not None and not cover.is_file():
+        raise MVError(f"{path}: cover {cover} does not exist")
     return Album(id=album_id, title=str(raw.get("title") or album_id), year=year,
                  artist=str(raw.get("artist") or ws.artist), cover=cover, styles=styles)
 
@@ -97,6 +106,9 @@ def build_manifest(ws: Workspace, album_id: str) -> list[dict]:
         audio = filed_path(ws, kept["file"])
         if not audio.is_file():
             raise MVError(f"{data['id']}: filed audio missing at {audio}")
+        errors = album_errors(data, load_album(ws, album_id))
+        if errors:
+            raise MVError(f"{data['id']}: {errors[0]}")
         c = credit(ws, data)
         entries.append({
             "id": data["id"], "title": data["title"], "artist": c.artist, "album": c.album, "genre": c.genre,
@@ -108,6 +120,7 @@ def build_manifest(ws: Workspace, album_id: str) -> list[dict]:
 
 
 def write_manifest(ws: Workspace, album_id: str) -> tuple[Path, int]:
+    load_album(ws, album_id)  # an unknown album id is an error, never an empty manifest in a new folder
     entries = build_manifest(ws, album_id)
     out = ws.album_dir(album_id)
     out.mkdir(parents=True, exist_ok=True)

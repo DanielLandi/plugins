@@ -29,11 +29,7 @@ A look is a system before it is pictures. Write it, then prove it with real fram
   ```
 
 - View every still yourself before showing it.
-- Put the directions' contact sheets side by side (one image to show):
-
-  ```bash
-  ffmpeg -loglevel error -y -i "<renders>/frames/a/<id>-look-a-sheet.png" -i "<renders>/frames/b/<id>-look-b-sheet.png" -filter_complex vstack=2 "<renders>/frames/looks.png"
-  ```
-
+- Show the user the directions' contact sheets (`<renders>/frames/<letter>/<id>-look-<letter>-sheet.png`) one
+  after another, in the same message, so they compare them at a glance.
 - If they do not look like one film side by side, the system is not done.
 - After approval: write `look.ts` (palette, fonts, `lyricStyle`), delete the losing `looks/*` and their compositions.

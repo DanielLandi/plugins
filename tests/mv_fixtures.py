@@ -104,8 +104,8 @@ def filed_song(mv_ws, write_spec):
         subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i",
                         f"sine=frequency={freq}:sample_rate=44100:duration={seconds}",
                         "-ac", "1", "-c:a", "libmp3lame", "-b:a", "128k", "-y", str(mp3)], check=True)
-        kept = {"take_url": "https://suno.com/song/abc", "downloaded_at": "2026-10-01T10:00:00-07:00",
-                "file": rel, "filed_at": "2026-10-01T10:01:00-07:00"}
+        kept = {"take_url": "https://suno.com/song/abc", "downloaded_at": "2026-10-01T10:00:00+00:00",
+                "file": rel, "filed_at": "2026-10-01T10:01:00+00:00"}
         path = write_spec(**({"status": "filed", "kept": kept} | overrides))
         return path.stem, mp3
 

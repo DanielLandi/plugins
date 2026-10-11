@@ -106,3 +106,17 @@ def test_cli_ingest(mv_ws, downloaded, make_mp3, capsys):
     make_mp3(mv_ws.downloads_dir / "Night Drive.mp3")
     assert main(["ingest", SPEC_ID]) == 0
     assert "Test Artist - Night Drive.mp3" in capsys.readouterr().out
+
+
+def test_a_file_from_outside_the_downloads_folder_is_copied_not_moved(mv_ws, write_spec, make_mp3, tmp_path):
+    write_spec(status="generated")
+    mine = make_mp3(tmp_path / "My Music" / "keep me.mp3")
+    dest = ingest(mv_ws, SPEC_ID, mine)
+    assert dest.is_file() and mine.is_file()  # the user's own copy stays
+
+
+def test_a_download_is_moved_out_of_the_downloads_folder(mv_ws, write_spec, make_mp3):
+    write_spec(status="generated")
+    download = make_mp3(mv_ws.downloads_dir / "Night Drive.mp3")
+    ingest(mv_ws, SPEC_ID, download)
+    assert not download.exists()

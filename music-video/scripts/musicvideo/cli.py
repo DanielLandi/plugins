@@ -308,7 +308,7 @@ def _remotion(command):
         rt, ctx, entry, env = _prepare(args.id)
         if command in ("render", "still"):
             rest = _resolve_output(rest, 1)
-        cmd = [studio.npx(), "remotion", command, str(entry), *rest, f"--public-dir={ctx.public}"]
+        cmd = [*studio.tool(rt, "remotion"), command, str(entry), *rest, f"--public-dir={ctx.public}"]
         if command != "studio":
             cmd.append(f"--gl={ctx.gl}")
         return studio.run_node(cmd, rt, env)
@@ -319,7 +319,7 @@ def _tool(script, output_index=None):
     def run(args) -> int:
         rt, ctx, entry, env = _prepare(args.id)
         rest = _resolve_output(args.rest, output_index) if output_index is not None else list(args.rest)
-        return studio.run_node([studio.npx(), "tsx", f"tools/{script}", args.id, *rest], rt, env)
+        return studio.run_node([*studio.tool(rt, "tsx"), f"tools/{script}", args.id, *rest], rt, env)
     return run
 
 
@@ -328,7 +328,8 @@ def cmd_web(args) -> int:
     ws = load_workspace()
     env["MV_WEB_ENTRY"] = str(studio.web_entry(rt, ctx))
     out = Path(args.out).expanduser().resolve() if args.out else ws.results_for(args.id) / "web"
-    cmd = [studio.npx(), "tsx", "tools/web.ts", args.id, "--out", str(out)]
+    studio.check_web_out(out)
+    cmd = [*studio.tool(rt, "tsx"), "tools/web.ts", args.id, "--out", str(out)]
     if args.audio_loop:
         loop = ws.work_for(args.audio_loop) / "loop"
         if not (loop / "loop.m4a").is_file() or not (loop / "loop.json").is_file():
@@ -347,7 +348,7 @@ def cmd_new_video(args) -> int:
 
 def cmd_typecheck(args) -> int:
     rt, ctx, entry, env = _prepare(args.id)
-    return studio.run_node([studio.npx(), "tsc", "-p", str(studio.typecheck_config(rt, ctx))], rt, env)
+    return studio.run_node([*studio.tool(rt, "tsc"), "-p", str(studio.typecheck_config(rt, ctx))], rt, env)
 
 
 HANDLERS: dict = {"web": cmd_web, "album": cmd_album, "loop": cmd_loop, "clean": cmd_clean, "new-video": cmd_new_video, "typecheck": cmd_typecheck, "studio": _remotion("studio"),

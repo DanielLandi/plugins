@@ -128,3 +128,28 @@ def test_an_old_engine_in_the_cache_is_moved_not_reinstalled(tmp_path):
     _tree(old, {"node_modules/other.js": "y"})
     assert studio.migrate_old_runtime() is False  # the new one exists: leave both alone
     assert old.exists()
+
+
+def test_a_missing_tool_script_says_doctor(tmp_path, monkeypatch):
+    monkeypatch.setattr(studio.shutil, "which", lambda name: "/usr/bin/" + name)
+    rt = tmp_path / "rt"
+    with pytest.raises(MVError, match="music-video doctor"):
+        studio.tool(rt, "tsx")
+    script = rt / studio.SCRIPTS["tsx"]
+    script.parent.mkdir(parents=True)
+    script.write_text("", encoding="utf-8")
+    assert studio.tool(rt, "tsx") == ["/usr/bin/node", str(script)]
+
+
+def test_install_includes_the_build_tools(tmp_path, monkeypatch):
+    # tsx and typescript are dev dependencies: an npm set to omit them would leave the engine without its tools.
+    calls = []
+    monkeypatch.setattr(studio.shutil, "which", lambda name: name)
+    monkeypatch.setattr(studio.subprocess, "run", lambda cmd, **k: calls.append(cmd) or type("R", (), {"returncode": 0})())
+    rt = tmp_path / "rt"
+    rt.mkdir()
+    for name in studio.SCRIPTS.values():
+        (rt / name).parent.mkdir(parents=True, exist_ok=True)
+        (rt / name).write_text("", encoding="utf-8")
+    studio.install(rt)
+    assert calls[0][:2] == ["npm", "ci"] and "--include=dev" in calls[0]

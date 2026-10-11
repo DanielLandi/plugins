@@ -3,6 +3,7 @@ there: specs, albums and video code go in the project folder, finals in results_
 OS cache by default), the engine in the install folder."""
 import json
 import os
+import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,7 +13,9 @@ import yaml
 from .errors import MVError
 
 DEFAULT_HOME = Path.home() / "Documents" / "Music Videos"  # the project: specs, albums, video code (small)
-DEFAULT_RESULTS = Path.home() / "Movies" / "Music Videos"  # finals, web pages, albums: what gets shared
+def default_results() -> Path:
+    """Finals, web pages, albums (what gets shared): the platform's videos folder."""
+    return Path.home() / ("Movies" if sys.platform == "darwin" else "Videos") / "Music Videos"
 CONFIG = "config.yaml"
 
 
@@ -48,7 +51,9 @@ def settings_file() -> Path:
     if value := os.environ.get("MV_SETTINGS"):
         return Path(value).expanduser()
     if sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support"
+        # Preferences, not Application Support: that is the install folder, and deleting the engine must not
+        # forget where the project is.
+        base = Path.home() / "Library" / "Preferences"
     elif sys.platform == "win32":
         base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
     else:
@@ -56,10 +61,29 @@ def settings_file() -> Path:
     return base / "music-video" / "settings.json"
 
 
+def _old_settings() -> Path:
+    return Path.home() / "Library" / "Application Support" / "music-video" / "settings.json"
+
+
+def _settings_to_read() -> Path:
+    """0.2.0 kept macOS settings in the install folder: copy them to the new place once (a copy, so an older plugin
+    still running keeps finding them). If the copy cannot be made, read the old file rather than fail."""
+    f = settings_file()
+    old = _old_settings()
+    if sys.platform != "darwin" or os.environ.get("MV_SETTINGS") or f.exists() or not old.is_file():
+        return f
+    try:
+        f.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(old, f)
+        return f
+    except OSError:
+        return old
+
+
 def workspace_home() -> Path:
     if value := os.environ.get("MUSIC_VIDEO_HOME"):
         return Path(value).expanduser()
-    f = settings_file()
+    f = _settings_to_read()
     if f.is_file():
         saved = _read_json(f).get("workspace")
         if saved:
@@ -137,7 +161,7 @@ def load_workspace(home: Path | None = None) -> Workspace:
         artist=artist,
         videos_dir=_absolute(home, raw.get("videos_dir", "videos")),
         # 0.1.0 called the results folder media_dir.
-        results_dir=_absolute(home, raw.get("results_dir") or raw.get("media_dir") or DEFAULT_RESULTS),
+        results_dir=_absolute(home, raw.get("results_dir") or raw.get("media_dir") or default_results()),
         work_dir=_absolute(home, raw.get("work_dir") or cache_dir() / "work"),
         downloads_dir=_absolute(home, raw.get("downloads_dir", "~/Downloads")),
         billing_day=_optional_int(raw, "billing_day", 1, 31, path),
@@ -164,7 +188,7 @@ def init_workspace(home: Path, artist: str, billing_day: int | None = None, down
             "downloads_dir": "~/Downloads",
             "videos_dir": "videos",
             # Finals go here; working files (renders, timings) go to the OS cache unless work_dir is set.
-            "results_dir": str(results_dir) if results_dir else "~/Movies/Music Videos",
+            "results_dir": str(results_dir) if results_dir else "~/" + default_results().relative_to(Path.home()).as_posix(),
         }
         (home / CONFIG).write_text(yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
     remember_home(home)

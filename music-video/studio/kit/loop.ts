@@ -1,5 +1,6 @@
 import type { CutSpec } from './series';
 import type { SongData } from './types';
+import { normWord } from './words';
 
 /**
  * An endless loop over song time: `from` to `to`, with the last `fade` seconds crossfading into the picture from
@@ -41,11 +42,12 @@ export const seamOpacity = (i: number, seamFrames: number) => {
 export const scaleCuts = (cuts: readonly CutSpec[], fps: number): CutSpec[] =>
   cuts.map((c) => ({ ...c, frames: Math.max(1, Math.round((c.frames * fps) / 30)) }));
 
-const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+// Matched the same way scenes look words up (findWord): see words.ts.
+const norm = normWord;
 
 /**
  * The song data a silent loop draws from: no beats, downbeats or hits (the music it plays under has its own
- * tempo), and of the lyrics only the sung words scenes look up by name (wordAt), with no lines, so no lyrics ship.
+ * tempo), and of the lyrics only the sung words scenes look up by name (findWord), with no lines, so no lyrics ship.
  */
 export const loopScore = (data: SongData, words: readonly string[]): SongData => {
   const keep = new Set(words.map(norm));

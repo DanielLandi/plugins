@@ -13,3 +13,4 @@ export * from './Excerpt';
 export * from './SongAudio';
 export * from './loop';
 export * from './web';
+export * from './words';

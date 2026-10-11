@@ -65,7 +65,7 @@ def beats(song: str, out_json: str) -> None:
             if device == devices[-1]:
                 raise
     Path(out_json).write_text(json.dumps({"beats": [round(float(b), 3) for b in found],
-                                          "downbeats": [round(float(d), 3) for d in down]}))
+                                          "downbeats": [round(float(d), 3) for d in down]}), encoding="utf-8")
 
 
 if __name__ == "__main__":

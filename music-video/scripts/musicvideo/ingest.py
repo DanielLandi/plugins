@@ -88,7 +88,8 @@ def ingest(ws: Workspace, spec_id: str, file: Path | None = None) -> Path:
         tmp.unlink(missing_ok=True)
         raise
     tmp.replace(dest)
-    if file.resolve() != dest.resolve():
+    # A download is tidied out of the downloads folder; a file the user pointed at elsewhere is theirs to keep.
+    if file.resolve() != dest.resolve() and file.resolve().is_relative_to(ws.downloads_dir.expanduser().resolve()):
         file.unlink()
 
     kept["file"] = rel

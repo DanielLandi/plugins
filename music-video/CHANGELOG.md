@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.1
+
+- `web` refuses a non-empty folder that is not its own build, a file as `--out`, or a `web.tsx` without a `web`
+  export, in one line, before building anything.
+- Albums are checked strictly: an unknown album id, `styles:` that is not a mapping, a missing cover, and a song
+  whose style left the album are all named errors; `album <typo>` no longer writes an empty manifest.
+- The default results folder follows the platform (`~/Movies` on macOS, `~/Videos` elsewhere); on macOS the
+  settings file now lives in `~/Library/Preferences/music-video/` (copied there for you), apart from the install
+  folder.
+- Sung words are matched the same way everywhere (scenes' `findWord`/`findLine` and a web page's `words`): every
+  script, Latin accents ignored, the marks that change a word elsewhere kept.
+- `ingest --file` keeps a file you point at outside the downloads folder (downloads are still tidied away).
+- Remotion, tsx and tsc run through node and their own entry scripts (no npx shim re-parsing arguments on Windows;
+  `doctor` installs the build tools even where npm is set to skip dev dependencies);
+  every text read and write names UTF-8; the skills give only the plugin's own commands.
+
 ## 0.2.0
 
 - Four folders: project (specs, albums, video code), install (the engine and models, once), work (regenerable

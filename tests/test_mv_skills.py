@@ -28,7 +28,7 @@ def _shell(text):
             lang = None
         elif lang is not None:
             body.append(line)
-    inline = re.findall(r"`(uv run [^`]*|ffmpeg [^`]*)`", text)
+    inline = re.findall(r"`(uv run [^`]*)`", text)
     return "\n".join(blocks + inline)
 
 
@@ -101,3 +101,10 @@ def test_cli_help_is_generator_neutral():
     for name, p in sub.choices.items():
         texts += [a.help or "" for a in p._actions] + [sub._choices_actions[list(sub.choices).index(name)].help or ""]
     assert [t for t in texts if "suno" in t.lower()] == []
+
+
+def test_skills_run_only_the_plugin():
+    # Every shell command a skill gives is the plugin's CLI (it brings its own tools), never a bare tool.
+    for f in _docs():
+        for line in _shell(f.read_text(encoding="utf-8")).splitlines():
+            assert not line.strip() or line.strip().startswith("uv run "), f"{f.relative_to(REPO)}: {line}"

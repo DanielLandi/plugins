@@ -4,6 +4,8 @@ import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import { Font, type FontData } from 'three/examples/jsm/loaders/FontLoader.js';
 import type { TimingWord } from '../types';
 import outfit800 from './fonts/outfit-800.json';
+import { normWord } from '../words';
+
 
 // Outfit ExtraBold (OFL, fonts/OFL.txt), the same family as the 2D lyrics; made by tools/typeface.py.
 export const OUTFIT_800 = new Font(outfit800 as unknown as FontData);
@@ -112,9 +114,10 @@ export const Letters: React.FC<
   );
 };
 
-const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+const norm = normWord;
 
-/** The first sung word matching `text` (case and punctuation ignored) that starts at or after `after` seconds. */
+/** The first sung word matching `text` (as normWord matches: case, punctuation and Latin accents ignored) that starts
+ * at or after `after` seconds. */
 export const findWord = (words: readonly TimingWord[], text: string, after = 0): TimingWord => {
   const w = words.find((x) => !x.backing && x.start >= after - 0.05 && norm(x.text) === norm(text));
   if (!w) throw new Error(`No sung word "${text}" after ${after}s`);

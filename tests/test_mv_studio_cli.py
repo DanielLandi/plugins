@@ -48,8 +48,11 @@ def test_typecheck_config_links_the_video_into_the_engine(mv_ws, tmp_path):
 def fake_node(mv_ws, monkeypatch, tmp_path):
     calls = []
     rt = tmp_path / "rt"
+    for script in studio.SCRIPTS.values():  # a fake engine with its tools' entry scripts
+        (rt / script).parent.mkdir(parents=True, exist_ok=True)
+        (rt / script).write_text("", encoding="utf-8")
     monkeypatch.setattr(studio, "ensure_ready", lambda: rt)
-    monkeypatch.setattr(studio, "npx", lambda: "npx")
+    monkeypatch.setattr(studio, "node", lambda: "node")
     monkeypatch.setattr(studio, "run_node", lambda cmd, cwd, env: calls.append((cmd, cwd, env)) or 0)
     studio.new_video(mv_ws, "night-drive")
     pub = mv_ws.work_for("night-drive") / "public"
@@ -64,7 +67,7 @@ def test_render_resolves_output_and_builds_args(fake_node, tmp_path):
     calls, rt, pub = fake_node
     assert main(["render", "night-drive", "night-drive-full", "out.mp4", "--muted"]) == 0
     cmd, cwd, env = calls[0]
-    assert cmd[:3] == ["npx", "remotion", "render"]
+    assert cmd[:3] == ["node", str(rt / "node_modules/@remotion/cli/remotion-cli.js"), "render"]
     assert cmd[3] == str(rt / ".entries" / "night-drive" / "index.ts")
     assert cmd[4:6] == ["night-drive-full", str((tmp_path / "out.mp4").resolve())]
     assert "--muted" in cmd and f"--public-dir={pub}" in cmd and "--gl=angle" in cmd
@@ -87,9 +90,9 @@ def test_tools_pass_the_id_first(fake_node):
     assert main(["stills", "night-drive", "night-drive-full", "out", "1,2", "--seconds"]) == 0
     assert main(["blur", "night-drive", "night-drive-full", "b.mp4", "--samples=32"]) == 0
     assert main(["board", "night-drive"]) == 0
-    assert [c[0][:4] for c in calls] == [["npx", "tsx", "tools/stills.ts", "night-drive"],
-                                         ["npx", "tsx", "tools/blur.ts", "night-drive"],
-                                         ["npx", "tsx", "tools/board.ts", "night-drive"]]
+    tsx = ["node", str(rt / "node_modules/tsx/dist/cli.mjs")]
+    assert [c[0][:4] for c in calls] == [[*tsx, "tools/stills.ts", "night-drive"], [*tsx, "tools/blur.ts", "night-drive"],
+                                         [*tsx, "tools/board.ts", "night-drive"]]
     assert calls[0][0][4:] == ["night-drive-full", str(Path("out").resolve()), "1,2", "--seconds"]
 
 
@@ -97,7 +100,7 @@ def test_typecheck_runs_tsc_on_generated_config(fake_node):
     calls, rt, pub = fake_node
     assert main(["typecheck", "night-drive"]) == 0
     cmd = calls[0][0]
-    assert cmd[:4] == ["npx", "tsc", "-p", str(rt / ".entries" / "night-drive" / "tsconfig.json")]
+    assert cmd[:4] == ["node", str(rt / "node_modules/typescript/bin/tsc"), "-p", str(rt / ".entries" / "night-drive" / "tsconfig.json")]
 
 
 def test_stills_and_blur_outputs_resolve_against_the_callers_folder(fake_node, tmp_path):

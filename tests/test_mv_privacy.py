@@ -86,15 +86,19 @@ def _text(f):
         return "\n".join(m.decode("latin-1") for m in re.findall(rb"[\x20-\x7e\xc0-\xff]{4,}", data)), False
 
 
-def test_no_private_terms():
-    terms = _terms()
+def _hits(files, terms):
     hits = []
-    for f in _files():
+    for f in files:
         if f in ATTRIBUTION:
             continue
         text = PUBLIC.sub("", _text(f)[0])
-        hits += [f"{f.relative_to(REPO)}: {m.group(0)}" for t in terms for m in [t.search(text)] if m]
-    assert hits == []
+        name = f.relative_to(REPO) if f.is_relative_to(REPO) else f
+        hits += [f"{name}: {m.group(0)}" for t in terms for m in [t.search(text)] if m]
+    return hits
+
+
+def test_no_private_terms():
+    assert _hits(_files(), _terms()) == []
 
 
 def test_tests_are_scanned_too():
@@ -118,17 +122,13 @@ def test_no_paths_emails_or_tokens():
     assert hits == []
 
 
-def test_scan_catches_a_planted_term():
+def test_scan_catches_a_planted_term(tmp_path):
     if not TERMS_FILE.is_file():
         pytest.skip("needs the local denylist")
     term = next(t.strip() for t in TERMS_FILE.read_text(encoding="utf-8").splitlines() if t.strip())
-    planted = MV / "scripts" / "musicvideo" / "_planted_test.md"
+    planted = tmp_path / "planted.md"  # never inside the plugin: an interrupted run must not leave it there
     planted.write_text(f"a line with {term} in it\n", encoding="utf-8")
-    try:
-        with pytest.raises(AssertionError):
-            test_no_private_terms()
-    finally:
-        planted.unlink()
+    assert _hits([planted], _terms())
 
 
 def test_email_pattern_skips_versioned_file_names():

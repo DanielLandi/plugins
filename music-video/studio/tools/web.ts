@@ -36,7 +36,11 @@ registerHooks({
   load: (url, context, next) =>
     /\.(glb|gltf)$/.test(url) ? { format: 'module', source: 'export default "";', shortCircuit: true } : next(url, context),
 });
-const { web: entry } = (await import(pathToFileURL(entryFile).href)) as { web: WebEntry };
+const { web: entry } = (await import(pathToFileURL(entryFile).href)) as { web?: WebEntry };
+if (!entry?.Component) {
+  console.error('error: the video\'s web.tsx must export `web` ({ Component, fps, frames }): nothing was built');
+  process.exit(2);
+}
 
 const json = <T,>(path: string) => JSON.parse(readFileSync(path, 'utf8')) as T;
 const publicDir = process.env.MV_PUBLIC ?? join(studio, 'fixture', 'song');

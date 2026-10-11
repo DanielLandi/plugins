@@ -42,8 +42,7 @@ def test_defaults_keep_media_out_of_the_project(tmp_path, monkeypatch):
     home = tmp_path / "ws"
     w.init_workspace(home, artist="A")
     ws = w.load_workspace(home)
-    assert ws.results_for("v") == w.DEFAULT_RESULTS / "v"
-    assert w.DEFAULT_RESULTS.parts[-2:] == ("Movies", "Music Videos")
+    assert ws.results_for("v") == w.default_results() / "v"
     assert ws.work_for("v") == w.cache_dir() / "work" / "v"
     assert w.install_dir().name == "music-video" and "Caches" not in w.install_dir().parts
     assert w.DEFAULT_HOME.parts[-2:] == ("Documents", "Music Videos")
@@ -117,3 +116,37 @@ def test_cli_init(tmp_path, monkeypatch, capsys):
     assert main(["init", "--path", str(home), "--artist", "Night Owls", "--billing-day", "3", "--download-budget", "10"]) == 0
     assert "created" in capsys.readouterr().out
     assert w.load_workspace().artist == "Night Owls"
+
+
+@pytest.mark.parametrize("platform, parts", [("darwin", ("Movies", "Music Videos")), ("win32", ("Videos", "Music Videos")),
+                                             ("linux", ("Videos", "Music Videos"))])
+def test_default_results_follow_the_platform(monkeypatch, platform, parts):
+    monkeypatch.setattr(w.sys, "platform", platform)
+    assert w.default_results().parts[-2:] == parts
+
+
+def test_macos_settings_live_apart_from_the_install_folder(tmp_path, monkeypatch):
+    monkeypatch.delenv("MV_SETTINGS")
+    monkeypatch.delenv("MV_INSTALL_DIR")
+    monkeypatch.setattr(w.sys, "platform", "darwin")
+    monkeypatch.setattr(w.Path, "home", classmethod(lambda cls: tmp_path))
+    assert w.settings_file() == tmp_path / "Library" / "Preferences" / "music-video" / "settings.json"
+    assert not w.settings_file().is_relative_to(w.install_dir())
+    old = tmp_path / "Library" / "Application Support" / "music-video" / "settings.json"
+    old.parent.mkdir(parents=True)
+    old.write_text('{"workspace": "/somewhere/project"}', encoding="utf-8")
+    monkeypatch.delenv("MUSIC_VIDEO_HOME", raising=False)
+    assert w.workspace_home() == Path("/somewhere/project")  # 0.2.0's file is still read, then copied
+    assert w.settings_file().is_file() and old.is_file()  # an older plugin still running keeps finding it
+
+
+def test_a_failed_settings_copy_still_reads_the_old_file(tmp_path, monkeypatch):
+    monkeypatch.delenv("MV_SETTINGS")
+    monkeypatch.delenv("MUSIC_VIDEO_HOME", raising=False)
+    monkeypatch.setattr(w.sys, "platform", "darwin")
+    monkeypatch.setattr(w.Path, "home", classmethod(lambda cls: tmp_path))
+    old = tmp_path / "Library" / "Application Support" / "music-video" / "settings.json"
+    old.parent.mkdir(parents=True)
+    old.write_text('{"workspace": "/somewhere/project"}', encoding="utf-8")
+    (tmp_path / "Library" / "Preferences").write_text("not a folder", encoding="utf-8")  # the copy cannot happen
+    assert w.workspace_home() == Path("/somewhere/project")

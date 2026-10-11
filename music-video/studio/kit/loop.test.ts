@@ -61,9 +61,16 @@ describe('loopScore', () => {
     },
   } as SongData;
 
-  it('keeps only the looked-up words, matched like wordAt (case and punctuation ignored), and no lines', () => {
+  it('keeps only the looked-up words, matched like findWord (case, punctuation and Latin accents ignored), and no lines', () => {
     const s = loopScore(data, ['silver', 'water']);
     expect(s.timing.words.map((w) => w.text)).toEqual(['silver,', 'Water']);
+  });
+
+  it('keeps only the named words in any script, accents and case aside', () => {
+    const many = { ...data, timing: { ...data.timing,
+      words: [word(0, 'Ônibus,'), word(1, 'дорога'), word(2, 'ночь'), word(3, '道'), word(4, '夜')] } };
+    const s = loopScore(many as SongData, ['onibus', 'Дорога', '道']);
+    expect(s.timing.words.map((w) => w.text)).toEqual(['Ônibus,', 'дорога', '道']);
     expect(s.timing.lines).toEqual([]);
     expect(s.timing.sections).toEqual([]);
   });

@@ -21,6 +21,19 @@ KEEP = {"node_modules", ".entries"}  # runtime-only folders, never synced or pru
 LOCK_STAMP = ".installed-lock"
 SYNCED = ".synced.json"  # what the last sync copied: the only files a sync may delete
 ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+WEB_EXPORT = re.compile(r"export\s+(?:const|let|var|function)\s+web\b|export\s*\{[^}]*\bweb\b[^}]*\}")
+WEB_MARK = "<!-- built by music-video web -->"  # first line of a web build's README (tools/web-out.ts)
+
+
+def check_web_out(out: Path) -> None:
+    """The web build empties its output first: refuse anything but a missing or empty folder, or an earlier build."""
+    if out.exists() and not out.is_dir():
+        raise MVError(f"{out} is not a folder: give --out a folder for the page")
+    if out.is_dir() and any(out.iterdir()):
+        readme = out / "README.md"
+        if not (readme.is_file() and readme.read_text(encoding="utf-8").startswith(WEB_MARK)):
+            raise MVError(f"{out} is not empty and is not a web build (no README.md from music-video web): "
+                          "refusing to empty it; pick an empty folder")
 
 
 def runtime_dir() -> Path:
@@ -76,20 +89,34 @@ def is_installed(rt: Path) -> bool:
     return (rt / "node_modules").is_dir() and stamp.is_file() and stamp.read_text(encoding="utf-8") == lock_hash(rt)
 
 
-def npx() -> str:
-    found = shutil.which("npx")
+def node() -> str:
+    found = shutil.which("node")
     if not found:
-        raise MVError("Node.js (npx) not found: install Node 20 or newer, then run music-video doctor")
+        raise MVError("Node.js not found: install Node 20 or newer, then run music-video doctor")
     return found
+
+
+# Each tool's own entry script, run by node itself: no npx, so no .cmd shim on Windows re-parsing the arguments
+# (a JSON --props value survives intact).
+SCRIPTS = {"remotion": "node_modules/@remotion/cli/remotion-cli.js", "tsx": "node_modules/tsx/dist/cli.mjs",
+           "tsc": "node_modules/typescript/bin/tsc"}
+
+
+def tool(rt: Path, name: str) -> list[str]:
+    script = rt / SCRIPTS[name]
+    if not script.is_file():
+        raise MVError(f"the video engine is missing {name} ({script}): run music-video doctor")
+    return [node(), str(script)]
 
 
 def install(rt: Path) -> None:
     npm = shutil.which("npm")
     if not npm:
         raise MVError("Node.js (npm) not found: install Node 20 or newer, then run music-video doctor")
-    if subprocess.run([npm, "ci", "--no-audit", "--no-fund"], cwd=rt).returncode:
+    # --include=dev: the build tools (tsx, typescript) are dev dependencies, which an npm set to omit them would skip.
+    if subprocess.run([npm, "ci", "--include=dev", "--no-audit", "--no-fund"], cwd=rt).returncode:
         raise MVError(f"npm ci failed in {rt}")
-    if subprocess.run([npx(), "remotion", "browser", "ensure"], cwd=rt).returncode:
+    if subprocess.run([*tool(rt, "remotion"), "browser", "ensure"], cwd=rt).returncode:
         raise MVError("Remotion could not install its browser")
     (rt / LOCK_STAMP).write_text(lock_hash(rt), encoding="utf-8")
 
@@ -220,9 +247,12 @@ def typecheck_config(rt: Path, ctx: VideoContext) -> Path:
 def web_entry(rt: Path, ctx: VideoContext) -> Path:
     """The module the web page imports as `@mv/web-entry`: the video's own web.tsx, reached through its link."""
     source = next((ctx.dir / n for n in ("web.tsx", "web.ts") if (ctx.dir / n).is_file()), None)
+    how = ("add `export const web: WebEntry = { Component, fps, frames }` (the template's web.tsx is a starting "
+           "point) to publish this video as a web page")
     if source is None:
-        raise MVError(f"{ctx.dir} has no web.tsx: add one with `export const web: WebEntry = {{ Component, fps, "
-                      "frames }}` (the template's web.tsx is a starting point) to publish this video as a web page")
+        raise MVError(f"{ctx.dir} has no web.tsx: {how}")
+    if not WEB_EXPORT.search(source.read_text(encoding="utf-8")):
+        raise MVError(f"{source} does not export `web`: {how}")
     entry = rt / ".entries" / ctx.id / "web.ts"
     entry.parent.mkdir(parents=True, exist_ok=True)
     target = (linked_video(rt, ctx) / source.name).as_posix()  # with its extension: a web/ folder may sit beside it

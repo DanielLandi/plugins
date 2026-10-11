@@ -18,7 +18,7 @@ def test_versions_agree():
     market = json.loads((REPO / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
     entry = next(p for p in market["plugins"] if p["name"] == "music-video")
     assert plugin["name"] == "music-video"
-    assert plugin["version"] == entry["version"] == musicvideo.__version__ == "0.2.0"
+    assert plugin["version"] == entry["version"] == musicvideo.__version__ == "0.2.1"
     assert entry["source"] == "./music-video"
 
 
@@ -59,3 +59,19 @@ def test_every_command_has_a_handler():
     from musicvideo import cli
     sub = next(a for a in cli.build_parser()._actions if a.dest == "command")
     assert set(sub.choices) - set(cli.HANDLERS) == set()
+
+
+def test_every_text_io_names_its_encoding():
+    # Windows defaults to a legacy code page: every text read/write and text subprocess says utf-8.
+    import ast
+    misses = []
+    for f in sorted((MV / "scripts").rglob("*.py")):
+        for node in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.Call):
+                continue
+            name = getattr(node.func, "attr", getattr(node.func, "id", ""))
+            keys = {k.arg for k in node.keywords}
+            text_run = name == "run" and any(k.arg == "text" for k in node.keywords)
+            if (name in ("read_text", "write_text") or text_run) and "encoding" not in keys:
+                misses.append(f"{f.relative_to(MV)}:{node.lineno}")
+    assert misses == []

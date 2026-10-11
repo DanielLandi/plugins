@@ -117,3 +117,26 @@ def test_validate_command_checks_the_album(album, capsys):
     save_spec(album.specs_dir / "night-drive.yaml", valid_spec(album="night-shift", style="polka"))
     assert main(["validate", "night-drive"]) == 1
     assert "style 'polka'" in capsys.readouterr().out
+
+
+def test_album_command_refuses_an_unknown_album(album, capsys):
+    assert main(["album", "night-shfit"]) == 2
+    assert "no album 'night-shfit'" in capsys.readouterr().err
+    assert not album.album_dir("night-shfit").exists()
+
+
+def test_manifest_rechecks_styles(album, make_mp3, tmp_path):
+    save_spec(album.specs_dir / "night-drive.yaml", valid_spec(album="night-shift", style="jazz", status="generated"))
+    ingest(album, "night-drive", make_mp3(tmp_path / "x.mp3"))
+    path = album.home / "albums" / "night-shift.yaml"
+    path.write_text(path.read_text(encoding="utf-8").replace("  jazz:", "  swing:"), encoding="utf-8")
+    with pytest.raises(MVError, match="night-drive: style 'jazz' is not in album 'night-shift'"):
+        build_manifest(album, "night-shift")
+
+
+@pytest.mark.parametrize("text, message", [("title: X\nstyles:\n  - jazz\n", "styles"), ("- just a list\n", "mapping"),
+                                            ("title: X\ncover: missing.png\n", "cover")])
+def test_a_malformed_album_is_one_line(album, text, message):
+    (album.home / "albums" / "bad.yaml").write_text(text, encoding="utf-8")
+    with pytest.raises(MVError, match=message):
+        load_album(album, "bad")

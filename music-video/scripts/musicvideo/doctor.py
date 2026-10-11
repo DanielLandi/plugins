@@ -16,7 +16,7 @@ NEEDS = {
 
 
 def _node_major() -> int:
-    out = subprocess.run([shutil.which("node"), "--version"], capture_output=True, text=True).stdout
+    out = subprocess.run([shutil.which("node"), "--version"], capture_output=True, text=True, encoding="utf-8").stdout
     m = re.match(r"v(\d+)", out.strip())
     return int(m.group(1)) if m else 0
 
