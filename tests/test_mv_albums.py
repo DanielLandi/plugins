@@ -140,3 +140,10 @@ def test_a_malformed_album_is_one_line(album, text, message):
     (album.home / "albums" / "bad.yaml").write_text(text, encoding="utf-8")
     with pytest.raises(MVError, match=message):
         load_album(album, "bad")
+
+
+@pytest.mark.parametrize("cover", ["5", "[a.png]", "{x: 1}"])
+def test_a_cover_that_is_not_a_file_name_is_named(album, cover):
+    (album.home / "albums" / "bad.yaml").write_text(f"title: X\ncover: {cover}\n", encoding="utf-8")
+    with pytest.raises(MVError, match="cover"):
+        load_album(album, "bad")

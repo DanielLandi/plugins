@@ -36,8 +36,10 @@ def test_web_builds_into_the_results_folder(mv_ws, web_video):
     assert "--audio" not in cmd
     entry = rt / ".entries" / "night-drive" / "web.ts"
     assert env["MV_WEB_ENTRY"] == str(entry)
-    # The file itself, extension included: a video may also have a web/ folder next to web.tsx.
-    assert entry.read_text(encoding="utf-8").rstrip().endswith('/src/web.tsx";')
+    # The file itself, extension included (a video may also have a web/ folder next to web.tsx), re-exported with
+    # `export *` so a missing `web` reaches the build's own one-line check instead of failing Node's import.
+    text = entry.read_text(encoding="utf-8")
+    assert text.startswith("export * from ") and text.rstrip().endswith('/src/web.tsx";')
 
 
 def test_web_with_an_audio_loop_needs_the_loop_first(mv_ws, web_video, capsys):
@@ -82,7 +84,23 @@ def test_a_foreign_output_folder_is_refused_in_one_line(mv_ws, web_video, tmp_pa
     assert "not a folder" in capsys.readouterr().err
 
 
-def test_a_web_entry_without_the_export_is_named(mv_ws, web_video, capsys):
-    (mv_ws.video_dir("night-drive") / "web.tsx").write_text("export const other = 1;\n", encoding="utf-8")
-    assert main(["web", "night-drive"]) == 2
-    assert "export const web" in capsys.readouterr().err
+@pytest.mark.parametrize("source", ["export async function web() {}\n", "export * from './scene';\n",
+                                    "export class web {}\n", "const w = 1;\nexport { w as web };\n"])
+def test_valid_ways_of_exporting_web_are_not_refused(mv_ws, web_video, source):
+    calls, rt = web_video
+    (mv_ws.video_dir("night-drive") / "web.tsx").write_text(source, encoding="utf-8")
+    assert main(["web", "night-drive"]) == 0 and calls
+
+
+def test_the_marker_is_the_build_tools_marker():
+    # Python refuses foreign folders and the build writes the marker: they must agree, or every rebuild is refused.
+    ts = (studio.PLUGIN_STUDIO / "tools" / "web-out.ts").read_text(encoding="utf-8")
+    assert f"MARK = '{studio.WEB_MARK}'" in ts
+
+
+def test_a_foreign_folder_with_a_binary_readme_is_refused_cleanly(mv_ws, web_video, tmp_path, capsys):
+    foreign = tmp_path / "site"
+    foreign.mkdir()
+    (foreign / "README.md").write_bytes(b"\xff\xfe not utf-8")
+    assert main(["web", "night-drive", "--out", str(foreign)]) == 2
+    assert "not a web build" in capsys.readouterr().err

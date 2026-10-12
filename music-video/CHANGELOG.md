@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.2
+
+- `web` no longer refuses valid ways of exporting `web` (`export * from …`, `export async function web`,
+  `export class web`, `export { w as web }`); a `web.tsx` without a usable `web` export (renamed, deleted, or not
+  `{ Component, fps, frames }`) is named by the build in one line.
+- A folder whose README is not text is refused as "not a web build" in one line (it gave a traceback).
+- `ingest --file` decides by where the file sits, not where a link points: a link you made outside the downloads
+  folder is kept.
+- An album `cover:` that is not a file name is a named error.
+- Tests: the web build's marker is checked to match on both sides; the UTF-8 check also covers `open`,
+  `Path.open`, `Popen` and `check_output`, and the engine's Python tools; the privacy scan is checked to cover the
+  plugin's own code, skills and engine.
+
 ## 0.2.1
 
 - `web` refuses a non-empty folder that is not its own build, a file as `--out`, or a `web.tsx` without a `web`

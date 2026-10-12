@@ -104,6 +104,8 @@ def test_no_private_terms():
 def test_tests_are_scanned_too():
     names = {f.name for f in _files()}
     assert {"mv_fixtures.py", "test_mv_workspace.py", "test_mv_privacy.py"} <= names
+    # and the plugin itself: its code, skills and engine
+    assert {"cli.py", "SKILL.md", "web.ts", "README.md"} <= names
 
 
 def test_no_paths_emails_or_tokens():

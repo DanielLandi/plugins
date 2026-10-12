@@ -79,7 +79,7 @@ def main():
         "resolution": head.unitsPerEm,
         "original_font_information": {"weight": a.weight, "license": "SIL Open Font License 1.1 (see OFL.txt)"},
     }
-    with open(a.out, "w") as f:
+    with open(a.out, "w", encoding="utf-8") as f:
         json.dump(data, f, separators=(",", ":"))
     print(f"{a.out}: {len(glyphs)} glyphs", file=sys.stderr)
 

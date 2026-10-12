@@ -21,7 +21,6 @@ KEEP = {"node_modules", ".entries"}  # runtime-only folders, never synced or pru
 LOCK_STAMP = ".installed-lock"
 SYNCED = ".synced.json"  # what the last sync copied: the only files a sync may delete
 ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-WEB_EXPORT = re.compile(r"export\s+(?:const|let|var|function)\s+web\b|export\s*\{[^}]*\bweb\b[^}]*\}")
 WEB_MARK = "<!-- built by music-video web -->"  # first line of a web build's README (tools/web-out.ts)
 
 
@@ -31,7 +30,7 @@ def check_web_out(out: Path) -> None:
         raise MVError(f"{out} is not a folder: give --out a folder for the page")
     if out.is_dir() and any(out.iterdir()):
         readme = out / "README.md"
-        if not (readme.is_file() and readme.read_text(encoding="utf-8").startswith(WEB_MARK)):
+        if not (readme.is_file() and readme.read_bytes().startswith(WEB_MARK.encode("utf-8"))):
             raise MVError(f"{out} is not empty and is not a web build (no README.md from music-video web): "
                           "refusing to empty it; pick an empty folder")
 
@@ -251,10 +250,10 @@ def web_entry(rt: Path, ctx: VideoContext) -> Path:
            "point) to publish this video as a web page")
     if source is None:
         raise MVError(f"{ctx.dir} has no web.tsx: {how}")
-    if not WEB_EXPORT.search(source.read_text(encoding="utf-8")):
-        raise MVError(f"{source} does not export `web`: {how}")
     entry = rt / ".entries" / ctx.id / "web.ts"
     entry.parent.mkdir(parents=True, exist_ok=True)
     target = (linked_video(rt, ctx) / source.name).as_posix()  # with its extension: a web/ folder may sit beside it
-    entry.write_text(f"export {{ web }} from {json.dumps(target)};\n", encoding="utf-8")
+    # `export *`, not `export { web }`: a module without `web` then imports cleanly and the build's own check
+    # (tools/web.ts) says what is missing in one line, instead of Node failing the import with a stack trace.
+    entry.write_text(f"export * from {json.dumps(target)};\n", encoding="utf-8")
     return entry

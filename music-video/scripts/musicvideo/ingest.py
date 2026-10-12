@@ -89,7 +89,8 @@ def ingest(ws: Workspace, spec_id: str, file: Path | None = None) -> Path:
         raise
     tmp.replace(dest)
     # A download is tidied out of the downloads folder; a file the user pointed at elsewhere is theirs to keep.
-    if file.resolve() != dest.resolve() and file.resolve().is_relative_to(ws.downloads_dir.expanduser().resolve()):
+    # Where the file sits decides, not where a link points: a link the user made elsewhere is theirs too.
+    if file.resolve() != dest.resolve() and file.parent.resolve().is_relative_to(ws.downloads_dir.expanduser().resolve()):
         file.unlink()
 
     kept["file"] = rel

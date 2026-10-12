@@ -69,6 +69,8 @@ def load_album(ws: Workspace, album_id: str) -> Album:
         year = int(raw.get("year") or datetime.now().year)
     except (TypeError, ValueError) as e:
         raise MVError(f"{path}: needs title, year and styles of artist/album/genre/era ({e})") from e
+    if raw.get("cover") is not None and not isinstance(raw["cover"], str):
+        raise MVError(f"{path}: cover must be an image file name (next to the album file), not {raw['cover']!r}")
     cover = path.parent / raw["cover"] if raw.get("cover") else None
     if cover is not None and not cover.is_file():
         raise MVError(f"{path}: cover {cover} does not exist")

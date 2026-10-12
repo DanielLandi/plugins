@@ -99,3 +99,12 @@ def test_the_page_music_is_a_hashed_asset(smoke_video, tmp_path):
     assert len(audio) == 1 and not list(out.glob("*.m4a"))
     score = next((out / "assets").glob("score-*.json")).read_text(encoding="utf-8")
     assert f'"file":"assets/{audio[0].name}"' in score
+
+
+@pytest.mark.parametrize("source", ["// The live web page\nexport const webPage = 1;\n", "export * from './scenes';\n",
+                                    "export const other = 1;\n"])
+def test_a_web_tsx_without_its_web_export_fails_in_one_line(smoke_video, source, tmp_path, capfd):
+    (smoke_video.video_dir("smoke-test") / "web.tsx").write_text(source, encoding="utf-8")
+    assert main(["web", "smoke-test", "--out", str(tmp_path / "page")]) == 2
+    err = capfd.readouterr().err
+    assert "must export `web`" in err and "SyntaxError" not in err and "    at " not in err

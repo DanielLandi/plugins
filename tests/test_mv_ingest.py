@@ -120,3 +120,13 @@ def test_a_download_is_moved_out_of_the_downloads_folder(mv_ws, write_spec, make
     download = make_mp3(mv_ws.downloads_dir / "Night Drive.mp3")
     ingest(mv_ws, SPEC_ID, download)
     assert not download.exists()
+
+
+def test_a_link_outside_downloads_is_kept_even_if_it_points_into_them(mv_ws, write_spec, make_mp3, tmp_path):
+    write_spec(status="generated")
+    download = make_mp3(mv_ws.downloads_dir / "Night Drive.mp3")
+    link = tmp_path / "elsewhere" / "link.mp3"
+    link.parent.mkdir()
+    link.symlink_to(download)
+    ingest(mv_ws, SPEC_ID, link)
+    assert link.is_symlink()  # the user's own link, outside the downloads folder, stays
