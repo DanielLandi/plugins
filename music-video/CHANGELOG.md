@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2
+
+- The camera follows a monotone cubic curve through its keys (Fritsch–Carlson) instead of a centripetal Catmull-Rom:
+  it still passes every key, but it never overshoots one or runs backwards between two on any axis, and a held aim
+  stays still. Catmull-Rom looped where keys were dense or held, which showed as a small backward jolt as the
+  camera left or reached a framing. Every key, and so every framing, is unchanged.
+
 ## 0.3.1
 
 - `<video>/song-fixes.yaml` lifts a word the take barely sings: a fader ride over the stretch (`gain_db`, up to
