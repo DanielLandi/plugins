@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0
+
+- `version <id> <file> --scene <name>` keeps a render (or a still) as the next numbered version of a scene, in
+  `<work>/review/`, with the song time it starts at (`--excerpt`, `--at`), a note, and the video code's commit. A
+  render must have passed `qc`, and not changed since, before it is kept.
+- `review <id> [--open]` writes the review page: every version by scene, and any two played in sync on the song
+  clock (so a scene clip lines up with a full draft), side by side, with a wipe, or flipping between them; frame
+  steps, half speed, sound from either side, and **Copy timecode** for quoting a moment in a note.
+- The make skill keeps the sample, the stills shown in production, each draft and each changed-section clip as
+  versions, and opens the review page with every draft, so earlier drafts stay comparable instead of being
+  deleted.
+
 ## 0.2.2
 
 - `web` no longer refuses valid ways of exporting `web` (`export * from …`, `export async function web`,

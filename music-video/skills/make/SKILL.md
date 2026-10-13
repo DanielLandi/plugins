@@ -167,6 +167,12 @@ Follow `references/storyboard.md`:
    Add a `--hold a-b` to each qc for every designed hold in `video.yaml`: song time, the same values as there,
    even though these are excerpts (qc shifts them into the clip).
 
+   Keep the clean sample as the first version on the review page (it refuses a render that has not passed qc):
+
+   ```bash
+   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" version <id> "<renders>/sample-clean.mp4" --scene sample --excerpt <from>-<to> --note "<what it shows>"
+   ```
+
 6. Show together: the storyboard (as text), the board panels, both samples. Ask the subtitles question with a
    default: none / whole lines / word highlight, and the style. On approval: set `subtitles` in `look.ts` and
    `video.yaml`; `step: production`.
@@ -175,7 +181,9 @@ Follow `references/storyboard.md`:
 
 1. For every storyboard section without real code, dispatch a scene agent with the brief template in
    `references/studio.md` (at most 4 at a time; they write only `scenes/<section>.tsx` and render stills only).
-   Review each agent's stills yourself; re-brief any scene that drifts from `LOOK.md`.
+   Review each agent's stills yourself; re-brief any scene that drifts from `LOOK.md`. Keep the stills you show as
+   versions of their scene (`version <id> <still.png> --scene <section> --at <song seconds>`), so the next pass of
+   the scene can be compared with this one.
 2. The board must pass (`board <id>`) and the code must type-check:
 
    ```bash
@@ -190,12 +198,21 @@ Follow `references/storyboard.md`:
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" qc "<renders>/draft-v<n>.mp4" --spec <id> --size 1920x1080
    ```
 
-   Add `--hold a-b` to qc for every designed hold in `video.yaml`. Fix and re-render on any problem. Delete the
-   previous draft once this one is shown.
+   Add `--hold a-b` to qc for every designed hold in `video.yaml`. Fix and re-render on any problem. Then keep it
+   as a version and open the review page (versions live in `<work>/review/`, so the render itself can be deleted
+   once kept; the review page holds every earlier draft):
+
+   ```bash
+   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" version <id> "<renders>/draft-v<n>.mp4" --scene draft --note "Round <n-1>: <the notes it answers>"
+   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" review <id> --open
+   ```
 4. Show the draft. Number the user's notes in `NOTES.md` under "Round <n>". Sort each into error or taste. The
    next version answers every note in `NOTES.md` (what changed, or why not; never just "addressed"). Changed
    sections can come back first as clips (`--frames=a-b`); a clip also goes through `mux --excerpt` and
-   `qc --excerpt` before it is shown (hard rule 4). For an error no check caught, propose a new entry for
+   `qc --excerpt` before it is shown (hard rule 4), then `version <id> <clip> --scene <section> --excerpt <from>-<to>
+   --note "<the notes it answers>"`. On the review page the user compares the new version with the last one (or
+   with the draft, lined up on the song clock): side by side, a wipe, or flipping; **Copy timecode** gives them a
+   line like `relay v3 vs relay v2 at 1:42.3` to quote in a note. For an error no check caught, propose a new entry for
    `references/checks.md`; for taste, a line for the workspace's `taste.md` (see `references/taste.md`); add them
    only with the user's OK.
 5. Motion blur, when the look calls for it (smooth camera moves, fast objects): render with sub-frames and average
@@ -248,7 +265,7 @@ jump, the sound button works. Copying it to a site is the user's call.
 ## 10. Clean up
 
 Last, once the user is happy with the finals (and the web page, if any), offer to free the working files: renders
-can be gigabytes. The timing corrections stay in `<video>`; a later re-render re-runs `align` and `analyze` first.
+can be gigabytes, and the review page's versions go with them. The timing corrections stay in `<video>`; a later re-render re-runs `align` and `analyze` first.
 
 ```bash
 uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" clean <id>

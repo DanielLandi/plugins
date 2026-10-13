@@ -75,6 +75,7 @@ The skills run these for you; each is `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/mus
 | `loop`, `web` | a seamless audio loop of a song; a live web page of a video (looping, optional sound) |
 | `studio`, `still`, `stills`, `render`, `blur`, `board` | Remotion Studio, stills, renders, motion blur, the transition board |
 | `mux`, `qc` | add the song to a silent render; check a render |
+| `version`, `review` | keep each checked render or still as a numbered version of its scene; a local page that plays any two versions in sync (side by side, wipe, flip) |
 
 ## Song generators and albums
 

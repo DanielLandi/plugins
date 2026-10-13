@@ -23,6 +23,7 @@ from .video.mux import mux
 from .video.paths import VideoPaths, open_file, video_song
 from .video.preview import preview
 from .video.qc import run_qc
+from .video.review import build_page, load_versions, record_version
 from .video.timing import clock
 from .workspace import init_workspace, install_dir, load_private_names, load_workspace, workspace_home
 
@@ -233,6 +234,33 @@ def cmd_qc(args) -> int:
     return 0 if report["result"] == "PASS" else 1
 
 
+def cmd_version(args) -> int:
+    if args.excerpt and args.at is not None:
+        raise MVError("give --excerpt (a clip) or --at (a still), not both")
+    start = _range(args.excerpt)[0] if args.excerpt else args.at
+    ws = load_workspace()
+    v = record_version(ws, args.id, Path(args.file), args.scene, start=start, note=args.note or "")
+    shows = f"{clock(v['start'])}–{clock(v['start'] + v['duration'])}" if v["kind"] == "video" else "a still"
+    print(f"kept {v['scene']} v{v['n']} ({shows}{', code ' + v['code'] if v['code'] else ''})")
+    print(f"review: {build_page(ws, args.id)}")
+    return 0
+
+
+def cmd_review(args) -> int:
+    ws = load_workspace()
+    versions = load_versions(ws, args.id)
+    page = build_page(ws, args.id, versions)
+    scenes: dict[str, list[dict]] = {}
+    for v in versions:
+        scenes.setdefault(v["scene"], []).append(v)
+    for scene, vs in scenes.items():
+        print(f"{scene}: " + " · ".join(f"v{v['n']} {v['at'][5:16].replace('T', ' ')}" for v in vs))
+    print(page if versions else f"{page} (no versions yet: keep one with music-video version)")
+    if args.open:
+        open_file(page)
+    return 0
+
+
 def cmd_paths(args) -> int:
     ws = load_workspace()
     meta_file = ws.video_dir(args.id) / "video.yaml"
@@ -354,7 +382,7 @@ def cmd_typecheck(args) -> int:
 HANDLERS: dict = {"web": cmd_web, "album": cmd_album, "loop": cmd_loop, "clean": cmd_clean, "new-video": cmd_new_video, "typecheck": cmd_typecheck, "studio": _remotion("studio"),
                   "render": _remotion("render"), "still": _remotion("still"), "stills": _tool("stills.ts", 1),
                   "blur": _tool("blur.ts", 1), "board": _tool("board.ts"), "doctor": cmd_doctor, "align": cmd_align, "analyze": cmd_analyze, "preview": cmd_preview, "mux": cmd_mux,
-                  "qc": cmd_qc, "paths": cmd_paths, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
+                  "qc": cmd_qc, "version": cmd_version, "review": cmd_review, "paths": cmd_paths, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
                   "downloaded": cmd_downloaded, "status": cmd_status}
 
 
@@ -412,6 +440,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--hold", action="append", help="a designed still or black stretch, start-end in song time (as in video.yaml holds); repeatable")
     p.add_argument("--size", help="expected WIDTHxHEIGHT")
     p.add_argument("--fps", type=float, default=30)
+    p = sub.add_parser("version", help="keep a checked render (or a still) as the next version of a scene, for review")
+    p.add_argument("id")
+    p.add_argument("file", help="a render that passed qc, or a still (.png/.jpg)")
+    p.add_argument("--scene", required=True, help="the scene's name as in scenes.ts, or draft, sample, vertical")
+    p.add_argument("--excerpt", help="start-end in song seconds when the render is an excerpt (as for mux and qc)")
+    p.add_argument("--at", type=float, help="the song time a still shows, in seconds")
+    p.add_argument("--note", help="what changed in this version (the notes it answers)")
+    p = sub.add_parser("review", help="the review page: every version of every scene, two at a time in sync")
+    p.add_argument("id")
+    p.add_argument("--open", action="store_true", help="open the page in the browser")
     p = sub.add_parser("new-video", help="start a video's code folder from the template")
     p.add_argument("id")
     p = sub.add_parser("typecheck", help="type-check a video's code against the engine")
