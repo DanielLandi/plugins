@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review · {{TITLE}}</title>
+<style>
+  :root {
+    --bg: #161618; --panel: #1f1f22; --line: #2e2e33; --text: #e8e6e3; --dim: #9a9894; --a: #f2a541; --b: #5fb3d9;
+    --stage: #000;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, system-ui, sans-serif; }
+  header { display: flex; gap: 12px; align-items: baseline; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 16px; font-weight: 600; }
+  header span { color: var(--dim); }
+  .app { display: grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 47px); }
+  aside { border-right: 1px solid var(--line); overflow-y: auto; max-height: calc(100vh - 47px); }
+  .scene { border-bottom: 1px solid var(--line); }
+  .scene h2 { margin: 0; padding: 10px 12px 6px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--dim); cursor: pointer; }
+  .ver { display: grid; grid-template-columns: 72px 1fr auto; gap: 8px; padding: 6px 12px; align-items: center; }
+  .ver:hover { background: var(--panel); }
+  .ver img { width: 72px; height: 40px; object-fit: cover; border-radius: 3px; background: #000; display: block; }
+  .ver .t { min-width: 0; }
+  .ver .t b { font-weight: 600; }
+  .ver .t small { display: block; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pick { display: flex; gap: 4px; }
+  .pick button { width: 26px; height: 26px; border-radius: 4px; border: 1px solid var(--line); background: none;
+    color: var(--dim); font-weight: 700; cursor: pointer; }
+  .pick button.on-a { background: var(--a); border-color: var(--a); color: #000; }
+  .pick button.on-b { background: var(--b); border-color: var(--b); color: #000; }
+  main { padding: 12px 16px; min-width: 0; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button, .btn { background: none; border: 0; color: var(--text); padding: 6px 10px; cursor: pointer; font: inherit; }
+  .btn { border: 1px solid var(--line); border-radius: 6px; }
+  .seg button.on { background: var(--line); }
+  .grow { flex: 1; }
+  .stage { position: relative; background: var(--stage); border-radius: 6px; overflow: hidden; user-select: none; }
+  .stage.side { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+  .pane { position: relative; aspect-ratio: var(--ar, 16 / 9); background: #000; }
+  .stage.stack .pane { position: absolute; inset: 0; }
+  .stage.stack { aspect-ratio: var(--ar, 16 / 9); max-height: 72vh; margin: 0 auto; }
+  .stage.side .pane { max-height: 72vh; }
+  .pane video, .pane img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .label { position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: 4px; font-weight: 700;
+    font-size: 13px; color: #000; z-index: 2; }
+  .pane.b .label { left: auto; right: 8px; }
+  .pane.a .label { background: var(--a); } .pane.b .label { background: var(--b); }
+  .empty { position: absolute; inset: 0; display: none; place-items: center; color: var(--dim); background: #000c; }
+  .pane.out .empty { display: grid; }
+  .wipe { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; z-index: 3; display: none;
+    box-shadow: 0 0 0 1px #0006; pointer-events: none; }
+  .stage.wipe-mode .wipe { display: block; }
+  .stage.wipe-mode { cursor: ew-resize; }
+  .flipnote { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); color: var(--dim);
+    font-size: 12px; z-index: 3; display: none; }
+  .stage.flip-mode .flipnote { display: block; }
+  .transport { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+  .transport input[type=range] { flex: 1; accent-color: var(--a); }
+  .time { font-variant-numeric: tabular-nums; min-width: 132px; text-align: right; color: var(--dim); }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .card { background: var(--panel); border-radius: 6px; padding: 10px 12px; border-top: 3px solid var(--a); }
+  .card.b { border-top-color: var(--b); }
+  .card h3 { margin: 0 0 4px; font-size: 14px; }
+  .card p { margin: 4px 0 0; white-space: pre-wrap; }
+  .card dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 6px 0 0; color: var(--dim);
+    font-size: 12px; }
+  .card dd { margin: 0; color: var(--text); }
+  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: #000;
+    padding: 6px 12px; border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .keys { color: var(--dim); font-size: 12px; margin-top: 10px; }
+  .none { padding: 40px; color: var(--dim); }
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    aside { max-height: 40vh; border-right: 0; border-bottom: 1px solid var(--line); }
+    .stage.side { grid-template-columns: 1fr; }
+    .cards { grid-template-columns: 1fr; }
+    header { flex-wrap: wrap; }
+    header h1 { overflow-wrap: anywhere; }
+    .transport { flex-wrap: wrap; }
+    .transport input[type=range] { flex-basis: 100%; order: 3; }
+    .time { min-width: 0; margin-left: auto; }
+  }
+</style>
+</head>
+<body>
+<header><h1>Review · {{TITLE}}</h1><span id="count"></span></header>
+<div class="app">
+  <aside id="list"></aside>
+  <main id="main">
+    <div class="bar">
+      <div class="seg" id="modes">
+        <button data-mode="side">Side by side</button><button data-mode="wipe">Wipe</button><button data-mode="flip">Flip</button>
+      </div>
+      <div class="seg" id="audio" title="Which version you hear">
+        <button data-audio="a">Sound A</button><button data-audio="b">Sound B</button>
+      </div>
+      <div class="seg" id="rates"><button data-rate="0.5">½×</button><button data-rate="1">1×</button></div>
+      <span class="grow"></span>
+      <button class="btn" id="copy" title="Copy the two versions and the song time, to quote in a note">Copy timecode</button>
+    </div>
+    <div class="stage" id="stage">
+      <div class="pane a" id="paneA"><span class="label" id="labelA">A</span><div class="empty">no footage at this time</div></div>
+      <div class="pane b" id="paneB"><span class="label" id="labelB">B</span><div class="empty">no footage at this time</div></div>
+      <div class="wipe" id="wipe"></div>
+      <div class="flipnote">F or click to flip</div>
+    </div>
+    <div class="transport" id="transport">
+      <button class="btn" id="play">Play</button>
+      <button class="btn" id="back" title="One frame back (Shift: one second)">◀︎</button>
+      <button class="btn" id="fwd" title="One frame on (Shift: one second)">▶︎</button>
+      <input type="range" id="scrub" min="0" max="1" step="0.001" value="0">
+      <span class="time" id="time"></span>
+    </div>
+    <div class="cards"><div class="card a" id="cardA"></div><div class="card b" id="cardB"></div></div>
+    <div class="keys">Space play · ← → one frame (Shift: one second) · 1 2 3 mode · F flip · S swap A and B · C copy timecode</div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const DATA = /*VERSIONS*/null;
+const VERS = DATA.versions.map((v, i) => ({ ...v, i, end: v.kind === 'video' ? v.start + v.duration : null }));
+const $ = (id) => document.getElementById(id);
+const KEY = 'mv-review:' + DATA.video;
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } },
+  set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { /* private window */ } },
+};
+const S = { a: null, b: null, mode: 'side', audio: 'a', rate: 1, t: 0, playing: false, wipe: 0.5, flipB: false,
+            clock: null };
+const el = { a: null, b: null };
+
+function clock(t) {
+  if (t == null || isNaN(t)) return '–';
+  const m = Math.floor(t / 60), s = t - m * 60;
+  return `${m}:${s.toFixed(1).padStart(4, '0')}`;
+}
+const name = (v) => `${v.scene} v${v.n}`;
+const when = (v) => new Date(v.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+const fps = () => (VERS[S.a] && VERS[S.a].fps) || 30;
+
+function range() {
+  const xs = [VERS[S.a], VERS[S.b]].filter((v) => v && v.kind === 'video');
+  if (!xs.length) return null;
+  const lo = Math.max(...xs.map((v) => v.start)), hi = Math.min(...xs.map((v) => v.end));
+  if (hi - lo > 0.2) return [lo, hi];  // their overlap, so both always show footage
+  return [Math.min(...xs.map((v) => v.start)), Math.max(...xs.map((v) => v.end))];
+}
+
+function list() {
+  $('count').textContent = `${VERS.length} version${VERS.length === 1 ? '' : 's'}`;
+  const scenes = [];
+  for (const v of VERS) if (!scenes.includes(v.scene)) scenes.push(v.scene);
+  scenes.sort((x, y) => latest(y).at.localeCompare(latest(x).at));
+  $('list').innerHTML = '';
+  for (const sc of scenes) {
+    const box = document.createElement('div');
+    box.className = 'scene';
+    const h = document.createElement('h2');
+    h.textContent = sc;
+    h.title = 'Compare its two newest versions';
+    h.onclick = () => pickScene(sc);
+    box.appendChild(h);
+    for (const v of VERS.filter((x) => x.scene === sc).sort((x, y) => y.n - x.n)) {
+      const row = document.createElement('div');
+      row.className = 'ver';
+      const img = document.createElement('img');
+      img.src = v.poster || v.file;
+      img.alt = '';
+      img.loading = 'lazy';
+      const t = document.createElement('div');
+      t.className = 't';
+      t.innerHTML = `<b></b> <small></small><small></small>`;
+      t.querySelector('b').textContent = `v${v.n}`;
+      const [s1, s2] = t.querySelectorAll('small');
+      s1.textContent = `${when(v)} · ${v.kind === 'video' ? `${clock(v.start)}–${clock(v.end)}` : `still${v.start == null ? '' : ` at ${clock(v.start)}`}`}`;
+      s2.textContent = v.note || '';
+      s2.title = v.note || '';
+      const pick = document.createElement('div');
+      pick.className = 'pick';
+      for (const side of ['a', 'b']) {
+        const b = document.createElement('button');
+        b.textContent = side.toUpperCase();
+        b.dataset.side = side;
+        b.dataset.i = v.i;
+        b.onclick = () => choose(side, v.i);
+        pick.appendChild(b);
+      }
+      row.append(img, t, pick);
+      box.appendChild(row);
+    }
+    $('list').appendChild(box);
+  }
+}
+
+function latest(scene) {
+  return VERS.filter((v) => v.scene === scene).reduce((x, y) => (y.n > x.n ? y : x));
+}
+
+function partner(v) {
+  // The previous version of the scene; else the newest other version whose footage covers it (a draft).
+  const prev = VERS.filter((x) => x.scene === v.scene && x.n < v.n).sort((x, y) => y.n - x.n)[0];
+  if (prev) return prev;
+  const over = VERS.filter((x) => x.i !== v.i && x.kind === v.kind &&
+    (v.kind !== 'video' || (x.start < v.end && x.end > v.start)));
+  return over.sort((x, y) => y.at.localeCompare(x.at))[0] || v;
+}
+
+function pickScene(scene) {
+  const v = latest(scene);
+  setPair(v.i, partner(v).i);
+}
+
+function choose(side, i) {
+  if (side === 'a') setPair(i, S.b == null ? partner(VERS[i]).i : S.b);
+  else setPair(S.a == null ? i : S.a, i);
+}
+
+function mediaFor(v, pane) {
+  pane.querySelectorAll('video, img.m').forEach((n) => n.remove());
+  let m;
+  if (v.kind === 'video') {
+    m = document.createElement('video');
+    m.src = v.file;
+    m.preload = 'auto';
+    m.playsInline = true;
+    m.muted = true;
+  } else {
+    m = document.createElement('img');
+    m.className = 'm';
+    m.src = v.file;
+    m.alt = name(v);
+  }
+  pane.insertBefore(m, pane.firstChild);
+  return m;
+}
+
+function setPair(a, b) {
+  pause();
+  S.a = a; S.b = b;
+  const A = VERS[a], B = VERS[b];
+  el.a = mediaFor(A, $('paneA'));
+  el.b = mediaFor(B, $('paneB'));
+  $('labelA').textContent = `A · ${name(A)}`;
+  $('labelB').textContent = `B · ${name(B)}`;
+  const size = A.size || B.size;
+  document.documentElement.style.setProperty('--ar', size ? `${size[0]} / ${size[1]}` : '16 / 9');
+  card($('cardA'), A, 'A');
+  card($('cardB'), B, 'B');
+  document.querySelectorAll('.pick button').forEach((x) => {
+    x.className = (+x.dataset.i === (x.dataset.side === 'a' ? a : b)) ? `on-${x.dataset.side}` : '';
+  });
+  const r = range();
+  $('transport').style.display = r ? '' : 'none';
+  $('audio').style.display = $('rates').style.display = r ? '' : 'none';
+  if (r) {
+    if (!(S.t >= r[0] && S.t <= r[1])) S.t = r[0];
+    $('scrub').min = r[0]; $('scrub').max = r[1];
+  }
+  [el.a, el.b].forEach((m) => { if (m.tagName === 'VIDEO') m.addEventListener('loadedmetadata', () => seek(S.t), { once: true }); });
+  audio(S.audio);
+  seek(S.t);
+  store.set({ a: A.file, b: B.file, mode: S.mode, newest: VERS.length });
+}
+
+function card(box, v, side) {
+  box.innerHTML = '<h3></h3><dl></dl><p></p>';
+  box.querySelector('h3').textContent = `${side} · ${name(v)}`;
+  const rows = [['made', when(v)], ['shows', v.kind === 'video' ? `${clock(v.start)}–${clock(v.end)} of the song` : (v.start == null ? 'a still' : `a still at ${clock(v.start)}`)],
+    ['code', v.code || '–'], ['qc', v.qc || (v.kind === 'video' ? '–' : 'not a video')], ['from', v.source]];
+  if (v.size) rows.push(['size', `${v.size[0]}×${v.size[1]}`]);
+  const dl = box.querySelector('dl');
+  for (const [k, val] of rows) {
+    const dt = document.createElement('dt'), dd = document.createElement('dd');
+    dt.textContent = k; dd.textContent = val;
+    dl.append(dt, dd);
+  }
+  box.querySelector('p').textContent = v.note || '';
+}
+
+function mode(m) {
+  S.mode = m;
+  const st = $('stage');
+  st.className = 'stage ' + (m === 'side' ? 'side' : 'stack') + (m === 'wipe' ? ' wipe-mode' : '') + (m === 'flip' ? ' flip-mode' : '');
+  document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === m));
+  layout();
+  if (S.a != null) store.set({ a: VERS[S.a].file, b: VERS[S.b].file, mode: m, newest: VERS.length });
+}
+
+function layout() {
+  const pa = $('paneA'), pb = $('paneB');
+  pa.style.clipPath = ''; pa.style.visibility = ''; pb.style.visibility = '';
+  pa.style.zIndex = 1; pb.style.zIndex = 0;
+  if (S.mode === 'wipe') {
+    pa.style.clipPath = `inset(0 ${(1 - S.wipe) * 100}% 0 0)`;
+    $('wipe').style.left = `calc(${S.wipe * 100}% - 1px)`;
+  } else if (S.mode === 'flip') {
+    (S.flipB ? pa : pb).style.visibility = 'hidden';
+  }
+}
+
+function audio(which) {
+  S.audio = which;
+  document.querySelectorAll('#audio button').forEach((b) => b.classList.toggle('on', b.dataset.audio === which));
+  if (el.a && el.a.tagName === 'VIDEO') el.a.muted = which !== 'a';
+  if (el.b && el.b.tagName === 'VIDEO') el.b.muted = which !== 'b';
+}
+
+function rate(r) {
+  S.rate = r;
+  document.querySelectorAll('#rates button').forEach((b) => b.classList.toggle('on', +b.dataset.rate === r));
+  [el.a, el.b].forEach((m) => { if (m && m.tagName === 'VIDEO') m.playbackRate = r; });
+}
+
+// One song clock. While playing, the version you hear leads (no audio glitches from seeking it); the other follows.
+function place(side, t, hard) {
+  const v = VERS[side === 'a' ? S.a : S.b], m = el[side], pane = side === 'a' ? $('paneA') : $('paneB');
+  if (!v || v.kind !== 'video') return;
+  const local = t - v.start, inside = local >= 0 && local < v.duration - 0.02;
+  pane.classList.toggle('out', !inside);
+  if (!inside) { if (!m.paused) m.pause(); return; }
+  if (S.playing && m.paused) m.play().catch(() => {});
+  if (!S.playing && !m.paused) m.pause();
+  if (hard || Math.abs(m.currentTime - local) > (S.playing ? 0.08 : 0.001)) m.currentTime = local;
+}
+
+function leader() {
+  for (const side of [S.audio, S.audio === 'a' ? 'b' : 'a']) {
+    const v = VERS[side === 'a' ? S.a : S.b], m = el[side];
+    if (v && v.kind === 'video' && !m.paused && S.t >= v.start && S.t < v.end - 0.05) return [v, m];
+  }
+  return null;
+}
+
+function tick(now) {
+  if (!S.playing) return;
+  const r = range();
+  const lead = leader();
+  if (lead) S.t = lead[0].start + lead[1].currentTime;
+  else if (S.clock) S.t += (now - S.clock) / 1000 * S.rate;
+  S.clock = now;
+  if (S.t >= r[1]) { S.t = r[0]; place('a', S.t, true); place('b', S.t, true); }  // loop the stretch
+  else { place('a', S.t, false); place('b', S.t, false); }
+  show();
+  requestAnimationFrame(tick);
+}
+
+function show() {
+  $('scrub').value = S.t;
+  const r = range();
+  $('time').textContent = r ? `${clock(S.t)}  (${clock(r[0])}–${clock(r[1])})` : '';
+}
+
+function seek(t) {
+  const r = range();
+  if (!r) return;
+  S.t = Math.min(Math.max(t, r[0]), r[1] - 1 / fps() / 2);
+  place('a', S.t, true); place('b', S.t, true);
+  show();
+}
+
+function play() {
+  if (!range()) return;
+  S.playing = true; S.clock = null;
+  $('play').textContent = 'Pause';
+  place('a', S.t, true); place('b', S.t, true);
+  requestAnimationFrame(tick);
+}
+
+function pause() {
+  S.playing = false;
+  $('play').textContent = 'Play';
+  [el.a, el.b].forEach((m) => { if (m && m.tagName === 'VIDEO') m.pause(); });
+  if (S.a != null) seek(S.t);
+}
+
+function step(frames) { pause(); seek(S.t + frames / fps()); }
+
+function toast(text) {
+  const t = $('toast');
+  t.textContent = text; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+function copy() {
+  const A = VERS[S.a], B = VERS[S.b];
+  const text = `${name(A)} vs ${name(B)} at ${clock(S.t)}`;
+  const done = () => toast(`Copied: ${text}`);
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { toast(text); }
+    ta.remove();
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+}
+
+function flip() { S.flipB = !S.flipB; layout(); }
+
+function wipeAt(e) {
+  const box = $('stage').getBoundingClientRect();
+  S.wipe = Math.min(Math.max((e.clientX - box.left) / box.width, 0), 1);
+  layout();
+}
+
+function boot() {
+  if (!VERS.length) {
+    $('main').innerHTML = '<p class="none">No versions yet: keep one with <code>music-video version</code>.</p>';
+    return;
+  }
+  list();
+  document.querySelectorAll('#modes button').forEach((b) => (b.onclick = () => mode(b.dataset.mode)));
+  document.querySelectorAll('#audio button').forEach((b) => (b.onclick = () => audio(b.dataset.audio)));
+  document.querySelectorAll('#rates button').forEach((b) => (b.onclick = () => rate(+b.dataset.rate)));
+  $('play').onclick = () => (S.playing ? pause() : play());
+  $('back').onclick = (e) => step(e.shiftKey ? -fps() : -1);
+  $('fwd').onclick = (e) => step(e.shiftKey ? fps() : 1);
+  $('scrub').oninput = (e) => { if (S.playing) pause(); seek(+e.target.value); };
+  $('copy').onclick = copy;
+  const st = $('stage');
+  let dragging = false;
+  st.addEventListener('pointerdown', (e) => {
+    if (S.mode === 'wipe') { dragging = true; st.setPointerCapture(e.pointerId); wipeAt(e); }
+    else if (S.mode === 'flip') flip();
+  });
+  st.addEventListener('pointermove', (e) => { if (dragging) wipeAt(e); });
+  st.addEventListener('pointerup', () => { dragging = false; });
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' && e.key !== ' ') return;
+    if (e.key === ' ') { e.preventDefault(); S.playing ? pause() : play(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); step(e.shiftKey ? -fps() : -1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); step(e.shiftKey ? fps() : 1); }
+    else if (e.key === '1') mode('side');
+    else if (e.key === '2') mode('wipe');
+    else if (e.key === '3') mode('flip');
+    else if (e.key === 'f' || e.key === 'F') flip();
+    else if (e.key === 's' || e.key === 'S') setPair(S.b, S.a);
+    else if (e.key === 'c' || e.key === 'C') copy();
+  });
+  // Come back to the last pair, unless a version was added since: then open on the newest.
+  const saved = store.get();
+  const byFile = (f) => VERS.findIndex((v) => v.file === f);
+  if (saved && saved.newest === VERS.length && byFile(saved.a) >= 0 && byFile(saved.b) >= 0) {
+    S.mode = saved.mode || 'side';
+    setPair(byFile(saved.a), byFile(saved.b));
+  } else {
+    const newest = VERS.reduce((x, y) => (y.at >= x.at ? y : x));
+    setPair(newest.i, partner(newest).i);
+  }
+  mode(S.mode);
+  rate(1);
+}
+boot();
+</script>
+</body>
+</html>
