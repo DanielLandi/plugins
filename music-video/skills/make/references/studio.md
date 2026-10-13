@@ -13,6 +13,11 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 - Easing: nothing linear except mechanical motion. `spring({ frame, fps, config: { damping: 200 } })` for calm,
   lower damping for bounce; `interpolate(..., { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })`.
 - Stagger related elements 2–4 frames; hold the key idea still for a beat; overlap actions.
+- Beat motion is small and eased (a nod, a sway). A quick pulse on every beat reads as a hiccup, and a camera that
+  jogs on the beat makes the words hard to read.
+- Frame characters whole, in 16:9 and 9:16; stand the camera back rather than zoom in.
+- Hold a line on screen until it can be read whole, then move on.
+- Lyric text on a surface (a card, a tag, a sign) drops the trailing comma when the line stands alone there.
 - Size and place relative to `useVideoConfig()` width/height so 16:9 and 9:16 both work; text inside `<SafeArea>`.
 - Fonts only from `@remotion/google-fonts/<Family>` (call `loadFont()` at module top).
 - Read time in seconds (`useSongTime`), never in frames: motion blur renders sub-frames.
@@ -31,6 +36,22 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
   `${CLAUDE_PLUGIN_ROOT}/studio/assets/models/SOURCES.md`. New models must be CC0, listed in the video's `SOURCES.md`.
 - Put the kit's `SanitizeShader` before any bloom pass: one NaN pixel otherwise blanks part of the frame.
 - Portrait width is about half the camera distance at fov 48: size words for that.
+- Lyrics on things (letters, signs, screens): `surfaceTexture(id, w, h, key, draw)` is a canvas texture redrawn only
+  when `key` changes (pass the sung-word count; `sungWords`, `wrap`, `bareEnd`, `paperGrain` help draw it).
+- Gate every scene that draws canvas text with `const ready = useFontsReady([...loadFont results])` and draw only
+  once `ready`: a scene mounting at a cut otherwise renders blank frames before its fonts load.
+- Finish with `<FinishPost t={t} bloom={b} {...look} />` (`look = { ...FINISH_DEFAULTS, grain: 0.08 }`) in place of
+  a plain bloom composer: film-print grade, halation, grain, soft corners, the sanitize pass included.
+- Depth on flat things: `cardGeometry` (paper with thickness and a lifted corner) with `SoftShadow` and `Thumbtack`;
+  `wavyPlane` for newsprint; `frameGeometry` + `arcPts` for carved mitred frames (`Screw`, `mouldingWoodTex`);
+  `bevelBox(size)` rounds box edges; `setRelief`/`reliefParams` add a bump map to procedural wood, brick or cork.
+- Never let two faces share a plane: lift a prop's base a few millimetres off the ground, and drop panels that are
+  drawn over others (windows on a facade). Shared planes shimmer as the camera moves.
+- Stand characters on the floor by their lowest point (a group's lowest member, not its origin), and check the
+  stills at each scene's start.
+- Repeated lights running to the horizon shrink into a line of square dots; fade them out with distance, or leave
+  out the far ones.
+- An element held across a cut (a match-cut anchor) must leave with its group: left alone, it reads as a mistake.
 
 ## Stills and renders (one video render at a time)
 Many stills in one go (one bundle, plus a contact sheet), at song seconds:
@@ -54,7 +75,8 @@ rendering motion.
 ## Scene-agent brief (copy, fill the <>, send one per section)
 
 > You are building one scene of a music video. Ignore any project instructions that come from other repositories.
-> Edit only `<video>/scenes/<section-id>.tsx` (do not touch `scenes.ts`; the orchestrator wires it).
+> Edit only `<video>/scenes/<section-id>.tsx` (do not touch `scenes.ts`; the orchestrator wires it). Delete
+> nothing, not even your own stills: leave every file where it is.
 >
 > **Read first:** `${CLAUDE_PLUGIN_ROOT}/skills/make/references/studio.md` (rules), `<video>/LOOK.md` (the
 > approved look — follow it exactly), `<video>/look.ts`, the kit API in `${CLAUDE_PLUGIN_ROOT}/studio/kit/index.ts`

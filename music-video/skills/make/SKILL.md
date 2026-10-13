@@ -131,6 +131,9 @@ chorus → bridge → final chorus). Wait for approval. Nothing is written to di
      Only the text in timing.json and the subtitles changes; the times stay. Re-run align and preview.
    - A line the generator did not sing (or sang differently) → write `<video>/lyrics-as-sung.txt` with the lyrics as sung
      (same tags), re-run align, analyze and preview.
+   - A word that starts a second or more after the word before it in the same line is often aligned late (a word
+     that is whispered, or that follows a held note, can land 1–3 s late). Listen at each one, and move it with a
+     `start:` entry when it is wrong.
    - More than 10% unsure words → offer: fix words, use as-sung lyrics, or pick another take.
 3. On approval: `step: look`.
 
@@ -216,13 +219,17 @@ Follow `references/storyboard.md`:
    `references/checks.md`; for taste, a line for the workspace's `taste.md` (see `references/taste.md`); add them
    only with the user's OK.
    A word the take barely sings (the user cannot hear it): first measure it (`vocals.wav` and the mix around the
-   word's time); then offer lifts as an audio-only A/B test (the original, then each lift, from `ffmpeg`), and write
+   word's time). If it sits 30 dB or more under its line in the vocal stem, the singer barely sang it: a lift makes
+   it audible but never as clear as its neighbours, so say so up front (re-singing the window with the generator is
+   a last resort; see its `controls.md`). Then offer lifts as an audio-only A/B test (the original, then each lift, from `ffmpeg`), and write
    the one the user picks into `<video>/song-fixes.yaml` (`- at: <s>` / `to: <s>` / `gain_db: 12` /
    `presence_db: 8` / `hiss_cut_hz: 6500` / `denoise: true`, see `music-video/scripts/musicvideo/video/songfix.py`).
    `mux` and `qc` then put the lifted song under the picture; timing and beats keep the original. A lift raises the
    band too: keep it to the word, and cut the hiss it raises (`hiss_cut_hz`).
 5. Motion blur, when the look calls for it (smooth camera moves, fast objects): render with sub-frames and average
-   them (32 samples, a 180° shutter); it takes several times longer than a plain render, so offer it for the final:
+   them (32 samples, a 180° shutter). It costs about 30 s of render per second of 1080p video: a 4:40 video takes
+   about 2 h 20 min, a 32 s vertical about 15 min. Show a 5–10 s camera move with and without it first (both as
+   clips), then offer it for the final:
 
    ```bash
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" blur <id> <id>-full "<renders>/final-blur-silent.mp4" --samples=32
@@ -249,9 +256,21 @@ same `--hold a-b` flags as the draft to the qc commands. Copy `<work>/lyrics.lrc
 `<results>/<Title>.lrc`, `.srt` and `.vtt` (players load them next to `<Title>.mp4`) and `<video>/README.md` to
 `<results>/README.md`.
 
+The thumbnail prints the title large in its lower left. Render two or three candidate frames (`still` into
+`<renders>`) and look at them all. Pick the one where the title sits on a dark, plain area and covers no
+character; then render it into `<results>`.
+
 Look at both sheets and the thumbnail. Finish `README.md` and `SOURCES.md`. Open the deliverables for the user.
 If the project folder is a git repository, commit the spec and `<video>` (never media). `step: done`. Uploading
-is the user's.
+is the user's. When they ask for a description to post with it, draft:
+- a two-line hook in the song's voice;
+- what it is about and how the lyrics appear;
+- chapters from `STORYBOARD.md` (the first at 0:00, at least three, each at least 10 s long; most video sites
+  turn these into a seekable timeline);
+- how it was made (the song generator, the engine, no generated images if true) and the credits;
+- a one-line caption for the vertical cut.
+
+Point out the platform's AI-content disclosure (an AI-generated voice counts on most platforms).
 
 ## 9. Web page (optional) ✋
 

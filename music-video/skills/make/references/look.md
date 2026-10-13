@@ -9,6 +9,10 @@ A look is a system before it is pictures. Write it, then prove it with real fram
   Sizes on a scale (×1.25). Lyrics ≥ 5% of frame height in 16:9, ≥ 4% of height in 9:16.
 - **Grid and safe areas:** 5% title-safe in 16:9; in 9:16 keep clear of the top 14%, bottom 22%, right 12% (kit `safeRect`).
 - **Shape language and texture:** rounded or sharp, flat or dimensional, line weight, grain/paper/none.
+- **Finish:** the post that makes it read as film rather than a render: grain, vignette, grade, bloom. In 3D, the
+  kit's film-print `FinishPost` and depth on flat things (paper with thickness, carved frames, relief on
+  procedural textures; see `studio.md`). It costs almost no render time, so plan it with the look instead of
+  leaving it for the end.
 - **Motion language:** springy, smooth or mechanical; what happens on beats (kit `useBeat`, `pulse`), on downbeats,
   on big moments (`analysis.hits`), and with energy (`useEnergy`).
 - **Medium:** 2D (SVG/CSS/canvas), 3D (the kit's `@mv/kit/three`, see `studio.md`), or shaders. 3D and shaders need

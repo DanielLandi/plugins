@@ -27,6 +27,15 @@ PAGE_MIN_S = 20.0                              # shorter videos are covered by t
 # blinking over a still background must not read as frozen (0.001 still flagged a 40 px dot on 1280x720).
 BLACK_PIX_TH = 0.03
 FREEZE_NOISE = 0.0005
+# A blank frame at a cut (a scene captured before it finished loading) is dark but not black, and lasts a few
+# frames: blackdetect misses it. A run up to FLASH_MAX_S whose mean luma (YAVG, 0-255) departs from BOTH the frame
+# before and after it, in the same direction, fails. A cut is a step (the run matches one side), a fade moves
+# between its neighbours: neither is a dip. A real draft had runs of 23 against 43 (0.53) and 28 against 97 (0.29);
+# finished videos stay above 0.85 of their neighbours.
+FLASH_MAX_S = 0.2      # 6 frames at 30 fps (a real one was 5); longer dark stretches are scenes
+FLASH_DARK_RATIO, FLASH_DARK_MIN = 0.6, 15.0
+FLASH_WHITE_RATIO, FLASH_WHITE_MIN = 1.5, 40.0
+FLASH_SCALE = "scale=320:-2"
 
 
 @dataclass
@@ -90,6 +99,44 @@ def detect_frozen(video: Path, total: float, holds) -> Check:
     bad = [(a, b) for a, b in _spans(log, "freeze_start", "freeze_end", total) if not _covered(a, b, holds)]
     return Check("frozen", not bad,
                  ", ".join(f"{a:.1f}–{b:.1f} s" for a, b in bad) or "none outside declared holds")
+
+
+def _frame_luma(video: Path) -> list[tuple[float, float]]:
+    out = run([need("ffmpeg"), "-nostdin", "-loglevel", "error", "-i", str(video), "-map", "0:v:0", "-an", "-vf",
+               f"{FLASH_SCALE},signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-", "-f", "null", "-"],
+              "flash-frame scan").stdout.decode()
+    return [(float(t), float(y)) for t, y in
+            re.findall(r"pts_time:(\S+)\s+lavfi\.signalstats\.YAVG=([0-9.]+)", out)]
+
+
+def find_flashes(frames: list[tuple[float, float]], fps: float) -> list[tuple[float, float, int, str]]:
+    """Runs of 1..FLASH_MAX_S frames far darker (or brighter) than both neighbours: (start, end, frames, kind)."""
+    ys = [y for _, y in frames]
+    longest = max(2, round(FLASH_MAX_S * fps))
+    found, covered_to = [], 0
+    for i in range(1, len(ys) - 1):
+        if i < covered_to:
+            continue
+        for n in range(1, longest + 1):
+            if i + n >= len(ys):
+                break
+            run_ = ys[i:i + n]
+            lo, hi = min(ys[i - 1], ys[i + n]), max(ys[i - 1], ys[i + n])
+            kind = ("dark" if max(run_) < FLASH_DARK_RATIO * lo and lo - max(run_) >= FLASH_DARK_MIN else
+                    "white" if min(run_) > FLASH_WHITE_RATIO * hi and min(run_) - hi >= FLASH_WHITE_MIN else None)
+            if kind:
+                found.append((frames[i][0], frames[i + n][0], n, kind))
+                covered_to = i + n
+                break
+    return found
+
+
+def detect_flash(video: Path, total: float, holds, fps: float) -> Check:
+    bad = [(a, n, kind) for a, b, n, kind in find_flashes(_frame_luma(video), fps)
+           if not (a < EDGE_S or b > total - EDGE_S or _covered(a, b, holds))]
+    return Check("flash", not bad,
+                 ", ".join(f"{kind} at {a:.2f} s ({n} frame{'s' if n > 1 else ''})" for a, n, kind in bad)
+                 or "no blank or flash frames outside the edges and declared holds")
 
 
 def check_audio(video: Path, song: Path, excerpt, fps: float) -> Check:
@@ -172,7 +219,8 @@ def run_qc(video: Path, song: Path, out_dir: Path, *, size=None, fps: float = 30
     expected = excerpt[1] - excerpt[0] if excerpt else float(probe(song)["format"]["duration"])
     holds = _clip_holds(holds, excerpt, total)
     checks = check_format(info, size, fps, expected)
-    checks += [detect_black(video, total, holds), detect_frozen(video, total, holds)]
+    checks += [detect_black(video, total, holds), detect_flash(video, total, holds, fps),
+               detect_frozen(video, total, holds)]
     has_audio = any(s["codec_type"] == "audio" for s in info["streams"])
     checks.append(check_audio(video, song, excerpt, fps) if has_audio else Check("audio", False, "no audio stream"))
     out_dir.mkdir(parents=True, exist_ok=True)

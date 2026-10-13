@@ -93,7 +93,7 @@ def test_three_black_frames_in_the_middle_fail(media):
                      "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=30:duration=2.0",
                      "-filter_complex", "[0][1][2]concat=n=3:v=1:a=0"))
     out = mux(v, song, tmp / "blip-out.mp4")
-    assert failed(run_qc(out, song, tmp / "qc")) == {"black"}
+    assert failed(run_qc(out, song, tmp / "qc")) == {"black", "flash"}  # a 3-frame dip is a flash too
 
 
 def test_frozen_stretch_fails_unless_declared(media):
@@ -176,3 +176,73 @@ def test_a_long_video_gets_paged_sheets(media):
     assert report["pages"] == [str(tmp / "qc" / f"long-sheet-0{n}.png") for n in (1, 2)]
     assert all(Path(x).is_file() for x in report["pages"])
     assert run_qc(video("short.mp4"), song, tmp / "qc")["pages"] == []
+
+
+SRC = "testsrc2=size=320x240:rate=30"   # mean luma about 120, always moving
+DARK = f"{SRC},lutyuv=y=val/3"           # the same picture, mean luma about 40
+NEAR_BLACK = "color=c=0x0c0c0c:size=320x240:rate=30"   # luma about 27: dark, but not black to blackdetect
+
+
+def spliced(media, name, *parts):
+    """A 4 s video from lavfi parts given as (source, frames), joined with hard cuts."""
+    song, video, tmp = media
+    graph = ";".join(f"{src},trim=end_frame={n},setpts=PTS-STARTPTS[p{i}]" for i, (src, n) in enumerate(parts))
+    graph += ";" + "".join(f"[p{i}]" for i in range(len(parts))) + f"concat=n={len(parts)}:v=1:a=0"
+    v = video(name, src="nullsrc=size=320x240:rate=30:duration=4", extra=("-filter_complex", graph))
+    return mux(v, song, tmp / f"{Path(name).stem}-out.mp4")
+
+
+def flash_detail(report):
+    return next(c["detail"] for c in report["checks"] if c["id"] == "flash")
+
+
+def test_one_near_black_frame_at_a_cut_fails_flash(media):
+    # A scene mounted before its fonts were ready: one nearly empty, dark (not black) frame at the cut.
+    song, _, tmp = media
+    out = spliced(media, "blank1.mp4", (SRC, 60), (NEAR_BLACK, 1), (SRC, 59))
+    report = run_qc(out, song, tmp / "qc")
+    assert failed(report) == {"flash"}
+    assert "2.00 s" in flash_detail(report) and "dark" in flash_detail(report)
+
+
+def test_a_two_frame_dip_fails_flash(media):
+    song, _, tmp = media
+    report = run_qc(spliced(media, "blank2.mp4", (SRC, 45), (NEAR_BLACK, 2), (SRC, 73)), song, tmp / "qc")
+    assert failed(report) == {"flash"}
+    assert "1.50 s (2 frames)" in flash_detail(report)
+
+
+def test_a_five_frame_dip_into_a_dark_scene_fails_flash(media):
+    # The real one: five nearly empty frames (luma 28) between two frames of the same bright scene.
+    song, _, tmp = media
+    report = run_qc(spliced(media, "blank5.mp4", (SRC, 60), (NEAR_BLACK, 5), (SRC, 55)), song, tmp / "qc")
+    assert failed(report) == {"flash"}
+    assert "2.00 s (5 frames)" in flash_detail(report)
+
+
+def test_a_single_white_frame_fails_flash(media):
+    song, _, tmp = media
+    out = spliced(media, "white1.mp4", (SRC, 75), ("color=c=white:size=320x240:rate=30", 1), (SRC, 44))
+    report = run_qc(out, song, tmp / "qc")
+    assert failed(report) == {"flash"}
+    assert "white at 2.50 s" in flash_detail(report)
+
+
+@pytest.mark.parametrize("parts", [((SRC, 60), (DARK, 60)), ((DARK, 60), (SRC, 60))], ids=["bright-to-dark", "dark-to-bright"])
+def test_a_hard_cut_between_bright_and_dark_is_a_step_not_a_flash(media, parts):
+    song, _, tmp = media
+    assert run_qc(spliced(media, "cut.mp4", *parts), song, tmp / "qc")["result"] == "PASS"
+
+
+def test_a_fade_through_dark_is_not_a_flash(media):
+    song, _, tmp = media
+    out = spliced(media, "fade.mp4", (f"{SRC},fade=t=out:st=1.6:d=0.4:color=0x0c0c0c", 60),
+                  (f"{SRC},fade=t=in:st=0:d=0.4:color=0x0c0c0c", 60))
+    assert run_qc(out, song, tmp / "qc")["result"] == "PASS"
+
+
+def test_a_flash_inside_a_declared_hold_passes(media):
+    song, _, tmp = media
+    out = spliced(media, "heldflash.mp4", (SRC, 60), (NEAR_BLACK, 1), (SRC, 59))
+    assert "flash" in failed(run_qc(out, song, tmp / "qc"))
+    assert run_qc(out, song, tmp / "qc", holds=[(1.9, 2.2)])["result"] == "PASS"

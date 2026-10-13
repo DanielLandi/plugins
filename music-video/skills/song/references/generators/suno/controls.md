@@ -36,6 +36,14 @@ specs choose good values.
 - **Duration** — Auto, or Custom (10–360 s) when a video needs a set length; treat Custom as a strong hint and
   check every take's length.
 
+## Replace Section (editing a take)
+Re-sings a window of an existing take. It was tried once to re-sing a barely sung word, and both takes came back
+unusable. Prefer a mix lift (the make skill's `song-fixes.yaml`); treat Replace Section as a last resort, with the
+user's OK on credits. How the editor behaves:
+- The window is at least 10 s long.
+- The start cannot be set past the end, so set the end first.
+- Each take returns the song only up to the window's end, so a fix has to be spliced back into the original.
+
 ## Copyright filter
 Suno rejects lyrics it recognises, including public-domain texts. Write originals; see `originals.md`.
 
