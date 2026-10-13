@@ -7,7 +7,9 @@
 - **Big moments:** which `hits` get a visual event, and what it is.
 - **Lyrics:** overlay, or how the words appear in the scene.
 - Last entry: **Vertical cut** — the 30–60 s excerpt (start on a bar line, hook in the first frame) and how the
-  layout recomposes for 9:16.
+  layout recomposes for 9:16. It ends on a finished thought (a line's end, an image that resolves), never in the
+  middle of a move; where the 16:9 camera moves on after that, a portrait-only camera key holds the last framing to
+  the end.
 
 ## scenes.ts
 One `SceneEntry` per section, in order, `from` = the section start (snap to the nearest downbeat when it is within

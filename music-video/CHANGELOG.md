@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.4.0
+
+- `qc` has a `flash` check: a run of 1–6 frames far darker (or brighter) than the frames on both sides of it fails,
+  so a scene captured before it finished loading no longer slips through. Such frames are dark but not true black,
+  which the `black` check (3 frames of true black) misses. A cut (a step) and a fade pass. It adds about 10 s to a
+  4-minute video.
+- The 3D kit has lyric surfaces (`surfaceTexture`, a canvas texture redrawn only when what it shows changes, with
+  `sungWords`, `wrap`, `bareEnd`, `paperGrain`). `useFontsReady` holds the render until a scene's web fonts can be
+  drawn and the scene has drawn once with them; that fixes blank frames where a scene mounts at a cut.
+- The 3D kit has a finishing pass:
+  - `FinishPost`, a film-print post (halation-tinted bloom after the sanitize pass, print contrast and shoulder,
+    warm or cool toe, vignette, clumped grain, soft corners with a faint fringe), with `FINISH_DEFAULTS`;
+  - depth for flat things: `cardGeometry` (paper with thickness and a lifted corner), `SoftShadow`, `Thumbtack`,
+    `Screw`, `wavyPlane`;
+  - carved mitred frames: `frameGeometry`, `arcPts`, `mouldingWoodTex`, `mouldingBumpTex`;
+  - `bevelBox`, and relief maps through `setRelief` and `reliefParams`.
+- The make skill and its references:
+  - new error checks: `flash`, `lyric-early`, `framing`, `flicker`, `buried`, `left-behind`, `word-late`;
+  - studio rules: small, eased beat motion; characters framed whole; never two faces in one plane; characters
+    stood on the floor by their lowest point; distant lights fading out; agents delete nothing;
+  - a **Finish** line in the look;
+  - the vertical cut ends on a finished thought;
+  - late words after a pause at timing;
+  - when a quiet word cannot be saved;
+  - the cost of motion blur (about 30 s per second of 1080p video);
+  - thumbnail candidates;
+  - a description to post with the video.
+- The Suno controls reference covers Replace Section: its limits, and why a mix lift comes first.
+
 ## 0.3.2
 
 - The camera follows a monotone cubic curve through its keys (Fritsch–Carlson) instead of a centripetal Catmull-Rom:

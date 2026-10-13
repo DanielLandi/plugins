@@ -7,3 +7,5 @@ export * from './SkyDome';
 export * from './model';
 export * from './settle';
 export * from './sanitize';
+export * from './surfaces';
+export * from './finish';

@@ -435,7 +435,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--spec", required=True)
     p.add_argument("--out", required=True)
     p.add_argument("--excerpt", help="start-end in seconds, for the sample and the vertical cut")
-    p = sub.add_parser("qc", help="check a render: format, black/frozen frames, audio, frame sheet")
+    p = sub.add_parser("qc", help="check a render: format, black/flash/frozen frames, audio, frame sheet")
     p.add_argument("video")
     p.add_argument("--spec", required=True)
     p.add_argument("--excerpt", help="start-end in seconds when the video is an excerpt")

@@ -17,7 +17,7 @@ timings, and a code-rendered 2D/3D video with subtitles, a 9:16 cut and a thumbn
   tempo, beats, sections and big moments. A karaoke preview lets you check sync before any video work.
 - **A video:** a written look, a storyboard with a reason for every cut, real scenes in React (2D, or 3D with the
   bundled kit: camera rigs on the song clock, extruded 3D lyrics, CC0 models), motion blur by sub-frame averaging,
-  subtitles, and automatic checks (black or frozen frames, sync, size) before you see anything.
+  subtitles, and automatic checks (black, flash or frozen frames, sync, size) before you see anything.
 - **Deliverables:** the 16:9 full song, a 9:16 cut, a thumbnail, and `.lrc`/`.srt`/`.vtt` lyrics.
 
 ## Requirements
@@ -94,7 +94,9 @@ static host.
 
 `@mv/kit/three` gives a full-frame `<Stage>`, a `<CameraRig>` whose keys sit on the song clock (land a key on each
 sung word), extruded lyrics (`<Text3D>`, `<Letters>`), a `<SkyDome>`, a `<Model>` loader for the bundled CC0 GLBs,
-and a NaN-safe post chain. `blur` renders sub-frames and averages them with a centred shutter (32 samples gives
+a NaN-safe post chain, and a finishing pass: a film-print post (`FinishPost`), paper with thickness, carved frames
+and relief maps that give flat things depth. Lyrics drawn on things (letters, signs, screens) use canvas surfaces
+whose fonts are loaded before a frame is captured. `blur` renders sub-frames and averages them with a centred shutter (32 samples gives
 film-like blur on camera moves).
 
 ## Licence
