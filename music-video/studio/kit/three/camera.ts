@@ -23,8 +23,45 @@ const EASES: Record<Exclude<Ease, 'cut'>, (x: number) => number> = {
 export type CameraState = { pos: THREE.Vector3; look: THREE.Vector3; fov: number; roll: number };
 
 /**
- * The camera at song time t. Positions follow a centripetal Catmull-Rom curve through the keys, so a path of keys
- * reads as one continuous move; time between keys is eased per segment.
+ * Tangents for a monotone cubic Hermite curve through (ts, vs) (Fritsch–Carlson, with Fritsch–Butland's weighted
+ * harmonic mean): the curve passes every key and never overshoots one, so a camera never runs backwards between two
+ * keys on any axis. A held value (two equal keys) gets a zero tangent, so the hold is still and the move after it
+ * starts from rest. (Centripetal Catmull-Rom looped where keys were dense or held: a visible backward jolt.)
+ */
+const monotoneTangents = (ts: readonly number[], vs: readonly number[]): number[] => {
+  const n = vs.length;
+  const d = ts.slice(0, -1).map((t, j) => (vs[j + 1] - vs[j]) / Math.max(ts[j + 1] - t, 1e-9));
+  const m = new Array<number>(n);
+  m[0] = d[0];
+  m[n - 1] = d[n - 2];
+  for (let j = 1; j < n - 1; j++) {
+    const [d0, d1] = [d[j - 1], d[j]];
+    if (d0 * d1 <= 0) {
+      m[j] = 0;
+      continue;
+    }
+    const [h0, h1] = [ts[j] - ts[j - 1], ts[j + 1] - ts[j]];
+    m[j] = (3 * (h0 + h1)) / ((2 * h1 + h0) / d0 + (h1 + 2 * h0) / d1);
+  }
+  // The end tangents may not exceed three times their secant (or point against it), or the end span overshoots.
+  for (const [j, dj] of [[0, d[0]], [n - 1, d[n - 2]]] as const) {
+    if (m[j] * dj <= 0) m[j] = 0;
+    else if (Math.abs(m[j]) > 3 * Math.abs(dj)) m[j] = 3 * dj;
+  }
+  return m;
+};
+
+/** One axis of the monotone curve, at the eased position x (0..1) of the span from key i to key i + 1. */
+const hermite = (ts: readonly number[], vs: readonly number[], m: readonly number[], i: number, x: number) => {
+  const h = ts[i + 1] - ts[i];
+  const [x2, x3] = [x * x, x * x * x];
+  return (2 * x3 - 3 * x2 + 1) * vs[i] + (x3 - 2 * x2 + x) * h * m[i] + (-2 * x3 + 3 * x2) * vs[i + 1] + (x3 - x2) * h * m[i + 1];
+};
+
+/**
+ * The camera at song time t. Positions follow a monotone cubic curve through the keys (on the song clock), so a path
+ * of keys reads as one continuous move that never runs backwards between keys; time between keys is eased per
+ * segment.
  */
 export const cameraAt = (keys: readonly CameraKey[], t: number, defaultFov = 50): CameraState => {
   if (keys.length === 0) throw new Error('cameraAt needs at least one key');
@@ -59,11 +96,14 @@ export const cameraAt = (keys: readonly CameraKey[], t: number, defaultFov = 50)
   })();
   const span = k.slice(segStart, segEnd + 1);
   const local = i - segStart;
+  const ts = span.map((key) => key.t);
   const along = (pick: (key: CameraKey) => Vec3) => {
     if (span.length < 3) return new THREE.Vector3(...pick(a)).lerp(new THREE.Vector3(...pick(b)), x);
-    const curve = new THREE.CatmullRomCurve3(span.map((key) => new THREE.Vector3(...pick(key))), false, 'centripetal');
-    // Map (segment, x) onto the curve's parameter: Catmull-Rom passes key j at u = j / (n - 1).
-    return curve.getPoint((local + x) / (span.length - 1));
+    const axis = (c: 0 | 1 | 2) => {
+      const vs = span.map((key) => pick(key)[c]);
+      return hermite(ts, vs, monotoneTangents(ts, vs), local, x);
+    };
+    return new THREE.Vector3(axis(0), axis(1), axis(2));
   };
   return {
     pos: along((key) => key.pos),

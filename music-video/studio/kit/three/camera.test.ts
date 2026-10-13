@@ -38,4 +38,37 @@ describe('cameraAt', () => {
   it('is a pure function of time', () => {
     expect(cameraAt(keys, 1.37).pos.toArray()).toEqual(cameraAt(keys, 1.37).pos.toArray());
   });
+
+  it('never runs backwards between keys: a held aim, then a move, dense keys', () => {
+    // The aim holds still for a second (keys every 0.1 s), then moves on; the position drifts, then moves fast.
+    const dense: CameraKey[] = [];
+    for (let i = 0; i <= 40; i++) {
+      const t = i * 0.1;
+      const lookX = t < 1 ? 0 : (t - 1) ** 2;
+      const posX = t < 2 ? t * 0.05 : 0.1 + (t - 2) * 3;
+      dense.push({ t, pos: [posX, 0, 5], look: [lookX, 0, 0], ease: 'linear' });
+    }
+    let [prevPos, prevLook] = [-Infinity, -Infinity];
+    for (let t = 0; t <= 4; t += 1 / 240) {
+      const c = cameraAt(dense, t);
+      expect(c.pos.x).toBeGreaterThanOrEqual(prevPos - 1e-9);
+      expect(c.look.x).toBeGreaterThanOrEqual(prevLook - 1e-9);
+      if (t < 1) expect(c.look.x).toBeCloseTo(0, 9); // the hold is still
+      [prevPos, prevLook] = [c.pos.x, c.look.x];
+    }
+  });
+
+  it('bends smoothly through a corner without overshooting either axis', () => {
+    const corner: CameraKey[] = [
+      { t: 0, pos: [0, 0, 0], look: [0, 0, -1], ease: 'linear' },
+      { t: 1, pos: [4, 0, 0], look: [0, 0, -1], ease: 'linear' },
+      { t: 2, pos: [4, 4, 0], look: [0, 0, -1], ease: 'linear' },
+    ];
+    for (let t = 0; t <= 2; t += 0.01) {
+      const p = cameraAt(corner, t).pos;
+      expect(p.x).toBeGreaterThanOrEqual(-1e-9);
+      expect(p.x).toBeLessThanOrEqual(4 + 1e-9);
+      expect(p.y).toBeGreaterThanOrEqual(-1e-9);
+    }
+  });
 });
