@@ -62,8 +62,8 @@ commands.
   `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`, `JOURNAL.md`, `SOURCES.md`, `README.md`, `look.ts`,
   `video.ts`, `scenes.ts`, `cuts.ts`, `scenes/*.tsx`.
 - Working files, in `<work>`: the song's copy, timings, vocals, previews, renders, checks. All regenerable; `clean`
-  deletes them once the video is delivered. (Your hand-written timing corrections, `timing-fixes.yaml` and
-  `lyrics-as-sung.txt`, are not working files: they live in `<video>`.)
+  deletes them once the video is delivered. (Your hand-written corrections, `timing-fixes.yaml`,
+  `lyrics-as-sung.txt` and `song-fixes.yaml`, are not working files: they live in `<video>`.)
 - Finals, in `<results>`: the videos, thumbnail, subtitles, the song, and `<web>` (the live page).
 - `<id>` is the song spec's id (the workspace's `specs/<id>.yaml`).
 
@@ -215,6 +215,12 @@ Follow `references/storyboard.md`:
    line like `relay v3 vs relay v2 at 1:42.3` to quote in a note. For an error no check caught, propose a new entry for
    `references/checks.md`; for taste, a line for the workspace's `taste.md` (see `references/taste.md`); add them
    only with the user's OK.
+   A word the take barely sings (the user cannot hear it): first measure it (`vocals.wav` and the mix around the
+   word's time); then offer lifts as an audio-only A/B test (the original, then each lift, from `ffmpeg`), and write
+   the one the user picks into `<video>/song-fixes.yaml` (`- at: <s>` / `to: <s>` / `gain_db: 12` /
+   `presence_db: 8` / `hiss_cut_hz: 6500` / `denoise: true`, see `music-video/scripts/musicvideo/video/songfix.py`).
+   `mux` and `qc` then put the lifted song under the picture; timing and beats keep the original. A lift raises the
+   band too: keep it to the word, and cut the hiss it raises (`hiss_cut_hz`).
 5. Motion blur, when the look calls for it (smooth camera moves, fast objects): render with sub-frames and average
    them (32 samples, a 180° shutter); it takes several times longer than a plain render, so offer it for the final:
 

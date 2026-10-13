@@ -54,6 +54,10 @@ class VideoPaths:
         return self._kept("timing-fixes.yaml")
 
     @property
+    def song_fixes(self) -> Path:
+        return self._kept("song-fixes.yaml")
+
+    @property
     def as_sung(self) -> Path:
         return self._kept("lyrics-as-sung.txt")
 
