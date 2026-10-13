@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1
+
+- `<video>/song-fixes.yaml` lifts a word the take barely sings: a fader ride over the stretch (`gain_db`, up to
+  18), with an optional presence boost (`presence_db` at `presence_hz`), a cut above the voice so the raised hiss
+  stays at the song's own level (`hiss_cut_hz`), a spectral denoiser (`denoise`), and fades in and out. `mux` and
+  `qc` use the lifted song (built once into `<work>/public/song-lifted.wav`, rebuilt when the fixes or the song
+  change); alignment, beats and the vocal stem keep the original.
+- The make skill measures a quiet word first, offers lifts as an audio-only A/B test, and records the user's pick.
+
 ## 0.3.0
 
 - `version <id> <file> --scene <name>` keeps a render (or a still) as the next numbered version of a scene, in
