@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- Python is capped below 3.15: PyYAML has no 3.15 wheels yet, so a fresh install picked 3.15 and tried to compile
+  it, which fails on Windows (it needs Microsoft C++ Build Tools) and on a Mac without Xcode's command line tools.
+
 ## 0.4.0
 
 - `qc` has a `flash` check: a run of 1–6 frames far darker (or brighter) than the frames on both sides of it fails,
