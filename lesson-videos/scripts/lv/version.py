@@ -7,6 +7,9 @@ import lv
 
 _VERSION = re.compile(r"(\d{1,4})\.(\d{1,4})\.(\d{1,4})")
 STEPS = ("run /plugin update lesson-videos, then close and reopen Claude Code, then run /lesson-videos:serve")
+MOVED = ("lesson-videos is now slide2video. To switch: run /plugin marketplace add slide2video/slide2video-plugin, "
+         "then /plugin install slide2video@slide2video, then /plugin uninstall lesson-videos, and close and reopen "
+         "Claude Code. Your keys and settings come along.")
 
 
 def parse(s) -> tuple[int, int, int] | None:

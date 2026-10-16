@@ -6,7 +6,7 @@ import sys
 import pytest
 
 import lv
-from lv import site, worker
+from lv import site, version, worker
 from test_worker import DECK, QUESTIONS, _claude_writing, _turn, lessons, lv_pid  # noqa: F401  (fixtures)
 
 
@@ -25,7 +25,12 @@ class Awake:
 
 def _watch(claude, **kw):
     a, lines, sleeps = Awake(), [], []
-    code = worker.watch(claude=claude, out=lines.append, sleep=sleeps.append, awake_on=a.keep, awake_off=a.release, **kw)
+
+    def sleep(seconds):  # a worker that never stops must fail in seconds, not hang
+        sleeps.append(seconds)
+        if len(sleeps) > 50:
+            pytest.fail("worker.watch never stopped")
+    code = worker.watch(claude=claude, out=lines.append, sleep=sleep, awake_on=a.keep, awake_off=a.release, **kw)
     return code, lines, sleeps, a
 
 
@@ -121,6 +126,7 @@ def test_watch_start_line_names_the_site_teacher_and_computer(paired, lessons):
     assert code == 0
     assert lines[0] == (f"Making videos for {paired.url} as teacher@example.org on Test Mac with lesson-videos {lv.__version__}. "
                         "Waiting for lessons… (stop with Ctrl-C, or Disconnect on the website)")
+    assert lines[1] == version.MOVED
     assert paired.next_queries[0] == "start=1"  # status is not /next: the first /next still says start=1
 
 
@@ -250,7 +256,7 @@ def test_watch_says_once_that_an_update_is_available_and_keeps_working(paired, l
     a, lines = Awake(), []
     assert worker.watch(claude=_claude_writing(QUESTIONS), out=lines.append, sleep=sleep,
                         awake_on=a.keep, awake_off=a.release) == 0
-    assert lines[1] == UPDATE_11 and lines.count(UPDATE_11) == 1
+    assert lines[1] == version.MOVED and lines[2] == UPDATE_11 and lines.count(UPDATE_11) == 1
     assert lines[-1].startswith("Disconnected from the website")
 
 

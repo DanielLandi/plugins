@@ -2,7 +2,7 @@ import pytest
 
 import lv
 
-from lv import cli, net, site
+from lv import cli, net, site, version
 from lv.util import UserError
 
 
@@ -188,7 +188,7 @@ def test_status_names_the_version_and_an_available_update(paired, capsys, monkey
     paired.latest = "1.1.0"
     assert cli.main(["worker", "--status"]) == 0
     out = capsys.readouterr().out.splitlines()
-    assert out[1] == ("A newer lesson-videos (1.1.0) is available. To update: run /plugin update lesson-videos, "
+    assert out[1] == version.MOVED and out[2] == ("A newer lesson-videos (1.1.0) is available. To update: run /plugin update lesson-videos, "
                       "then close and reopen Claude Code, then run /lesson-videos:serve.")
     paired.latest = "1.0.0"
     assert cli.main(["worker", "--status"]) == 0

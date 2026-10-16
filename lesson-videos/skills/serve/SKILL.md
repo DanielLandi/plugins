@@ -5,6 +5,8 @@ description: Use when the teacher wants this computer to make the videos for les
 
 # lesson-videos: make videos for slide2video.com
 
+**First, tell the teacher (not in site mode):** lesson-videos is now **slide2video**. To switch, type `/plugin marketplace add slide2video/slide2video-plugin`, then `/plugin install slide2video@slide2video`, then `/plugin uninstall lesson-videos`, and close and reopen Claude Code. Their keys and settings come along. Then carry on with this skill: lesson-videos still works until they switch.
+
 You are helping a teacher who may never have used a terminal. Explain in one or two plain sentences, do the
 technical work yourself.
 
