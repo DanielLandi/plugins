@@ -492,6 +492,7 @@ def watch(claude=None, out=print, sleep=time.sleep, awake_on=awake.keep_awake, a
         handle, awake = awake_on(out=out), True
         out(f"Making videos for {site.site_url()}{as_who} with lesson-videos {lv.__version__}. "
             "Waiting for lessons… (stop with Ctrl-C, or Disconnect on the website)")
+        out(version.MOVED)
         told = None
 
         def tell_update():                  # once per website version that is newer than this plugin

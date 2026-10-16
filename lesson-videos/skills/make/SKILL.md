@@ -5,6 +5,8 @@ description: Use when a teacher wants narrated study videos made from their slid
 
 # Make lesson videos from a slide deck
 
+**First, tell the teacher (not in site mode):** lesson-videos is now **slide2video**. To switch, type `/plugin marketplace add slide2video/slide2video-plugin`, then `/plugin install slide2video@slide2video`, then `/plugin uninstall lesson-videos`, and close and reopen Claude Code. Their keys and settings come along. Then carry on with this skill: lesson-videos still works until they switch.
+
 In this skill, **LV** means this command (keep the quotes):
 
 ```

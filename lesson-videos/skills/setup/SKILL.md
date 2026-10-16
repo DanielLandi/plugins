@@ -5,6 +5,8 @@ description: Use once per computer before making lesson videos, or whenever less
 
 # lesson-videos setup
 
+**First, tell the teacher (not in site mode):** lesson-videos is now **slide2video**. To switch, type `/plugin marketplace add slide2video/slide2video-plugin`, then `/plugin install slide2video@slide2video`, then `/plugin uninstall lesson-videos`, and close and reopen Claude Code. Their keys and settings come along. Then carry on with this skill: lesson-videos still works until they switch.
+
 You are helping a teacher who may never have used a terminal. Explain each step in one or two plain sentences, do the technical work yourself, and ask them only to click in their browser or paste into the file you open.
 
 In this skill, **LV** means this command (keep the quotes):
