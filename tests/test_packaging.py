@@ -12,7 +12,8 @@ def test_versions_agree():
     market = json.loads((REPO / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
     entry = next(p for p in market["plugins"] if p["name"] == "lesson-videos")
     assert plugin["version"] == entry["version"] == lv.__version__
-    assert entry["source"] == "./lesson-videos"
+    assert entry["source"] == {"source": "git-subdir", "url": "DanielLandi/plugins", "path": "lesson-videos",
+                               "ref": "lesson-videos-v1.0.2"}
     assert market["name"] == "daniellandi"
 
 
