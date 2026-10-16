@@ -11,7 +11,7 @@
       "name": "lesson-videos",
       "source": {
         "source": "git-subdir",
-        "url": "DanielLandi/plugins",
+        "url": "https://github.com/DanielLandi/plugins.git",
         "path": "lesson-videos",
         "ref": "lesson-videos-v1.0.2"
       },
