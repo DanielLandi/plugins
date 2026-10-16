@@ -19,8 +19,7 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    # A green run takes about 10 minutes. Without a limit, a hung test held both machines for GitHub's 6-hour maximum
-    # (October 2026, a lesson-videos release, since moved out).
+    # Without a limit, a hung test once held both machines for GitHub's 6-hour maximum (October 2026).
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
