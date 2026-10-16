@@ -29,7 +29,7 @@ Claude Code, sign in, then type:
 Type `/lesson-videos:setup`. Claude installs the free tools it needs (about 10 minutes) and asks which voice you
 want. At the end it asks whether to **connect this computer to slide2video.com**: say yes.
 
-It shows a short code, like `KQ7-4M2`, valid for 10 minutes. On any computer:
+It shows a short code, like `ABC-123`, valid for 10 minutes. On any computer:
 
 1. Sign in at https://slide2video.com.
 2. Open **Devices**.
