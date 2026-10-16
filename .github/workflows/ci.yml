@@ -19,7 +19,8 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    # Without a limit, a hung test once held both machines for GitHub's 6-hour maximum (October 2026).
+    # A green run takes about 10 minutes. Without a limit, a hung test held both machines for GitHub's 6-hour maximum
+    # (October 2026, lesson-videos 0.7.0 to 1.0.1).
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -28,5 +29,9 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then brew install ffmpeg; else choco install ffmpeg -y --no-progress; fi
+      - name: doctor (installs Chromium + ffmpeg, renders a test video)
+        run: uv run lesson-videos/scripts/lesson-videos.py doctor --no-keys
+      - name: browser for the test environment
+        run: uv run python -m playwright install chromium
       - name: tests
         run: uv run pytest -q -p no:cacheprovider --timeout 300 --timeout-method thread
