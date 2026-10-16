@@ -192,7 +192,6 @@ def dispatch(args) -> int:
             s = site.status()
             print(f"Connected to {site.site_url()} as {s['teacher_email']} "
                   f"(this device: {s['device_name']}, lesson-videos {lv.__version__}).")
-            print(version.MOVED)
             line = version.update_line(site.LATEST)
             if line:
                 print(line)
