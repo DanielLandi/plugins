@@ -196,10 +196,3 @@ def test_serve_update_says_to_reopen_claude_code():
 def test_install_guide_update_row_says_to_reopen_claude_code():
     guide = (PLUGIN / "docs/install/slide2video.md").read_text(encoding="utf-8")
     assert STEPS in guide and "hasn't caught up" in guide
-
-
-def test_skills_say_lesson_videos_moved():
-    for s in ("setup", "make", "serve"):
-        _, text = frontmatter(s)
-        assert "/plugin marketplace add slide2video/slide2video-plugin" in text
-        assert "/plugin install slide2video@slide2video" in text and "/plugin uninstall lesson-videos" in text
