@@ -100,11 +100,6 @@ def test_make_skill_has_a_site_mode():
         assert needed in site, needed
 
 
-def test_setup_offers_to_connect_this_mac():
-    _, text = frontmatter("setup")
-    assert "LV pair" in text and "slide2video.com" in text
-
-
 def _setup_section(title):
     _, text = frontmatter("setup")
     m = re.search(rf"^## \d+\. {re.escape(title)}.*?$(.*?)(?=^## |\Z)", text, re.M | re.S)
@@ -112,54 +107,21 @@ def _setup_section(title):
     return m.group(1)
 
 
-def test_setup_points_to_serve_after_pairing():
-    connect = _setup_section("Connect this computer to slide2video.com")
-    assert "/lesson-videos:serve" in connect
-    assert "worker --once" not in connect and "Terminal" not in connect
-
-
-def test_serve_runs_the_watching_worker_in_the_background():
-    fm, text = frontmatter("serve")
-    assert "LV worker --watch" in text and "run_in_background" in text
-    assert "LV worker --status" in text.split("LV worker --watch", 1)[0]  # checks the connection first
-    low = text.lower()
-    assert "keep this claude code window open" in low
-    assert "disconnect" in low and "stop" in low
-    assert "/root/.claude/plugins/synced/" in text
-
-
-def test_serve_quotes_the_workers_own_words():
-    _, text = frontmatter("serve")
-    worker_src = (PLUGIN / "scripts/lv/worker.py").read_text(encoding="utf-8")
-    for line in ("Making videos for", "already making videos", "Disconnected from the website", "Working on"):
-        assert f'"{line}' in text, line          # the skill quotes it…
-        assert line in worker_src, line          # …and the worker prints it
-
-
-def test_serve_stop_explains_a_step_in_progress_starts_over():
-    _, text = frontmatter("serve")
-    stop = text.split("**\"Stop\"**", 1)[1].split("\n- ", 1)[0]
-    low = stop.lower()
-    assert "stop the background bash task" in low
-    assert "working on" in low and "starts over" in low and "disconnect" in low
-
-
-def test_serve_explains_autostart_is_intentionally_not_built():
-    _, text = frontmatter("serve")
-    section = text.split("## Start automatically", 1)[1]
-    low = section.lower()
-    assert "on purpose" in low or "intentionally" in low
-    assert "launchagent" in low and "task scheduler" in low
-    assert "never set it up unasked" in low or "only if the teacher asks" in low
-
-
-def test_setup_asks_about_slide2video_and_pairs_in_the_background():
-    connect = _setup_section("Connect this computer to slide2video.com")
-    assert "ask the teacher" in connect and "invited" in connect and "?" in connect  # not "only if they bring it up"
-    assert "LV worker --status" in connect.split("ask the teacher", 1)[0]  # skip the question when already connected
-    assert "LV pair" in connect and "run_in_background" in connect     # pair waits for the code to be typed
+def test_setup_step_8_says_the_website_moved_and_runs_nothing():
+    step = _setup_section("slide2video.com has moved")
+    assert "/plugin marketplace add slide2video/slide2video-plugin" in step
+    assert "/plugin install slide2video@slide2video" in step and "/slide2video:setup" in step
+    assert "Do not run" in step and "keeps working" in step
     done = _setup_section("Done")
-    assert "slide2video.com" in done
+    assert "slide2video.com" not in done and "worker" not in done
+
+
+def test_serve_says_the_website_moved_and_starts_no_worker():
+    _, text = frontmatter("serve")
+    assert "/plugin marketplace add slide2video/slide2video-plugin" in text
+    assert "/plugin install slide2video@slide2video" in text and "/slide2video:setup" in text
+    assert "run_in_background" not in text and "worker --watch" not in text
+    assert "do not run `lv pair` or" in " ".join(text.lower().split()) and "keeps working" in text
 
 
 def test_site_mode_plans_only_after_the_interview():
@@ -183,16 +145,8 @@ def test_site_mode_sends_the_new_card_details():
     assert "[3/12]" in site                                # counted progress lines
 
 
-STEPS = "/plugin update lesson-videos`, then close and reopen Claude Code"
-
-
-def test_serve_update_says_to_reopen_claude_code():
-    _, text = frontmatter("serve")
-    assert STEPS in text
-    assert "hasn't caught up" in text and "nothing to do on this computer" in text.lower()
-    assert "A newer lesson-videos" in text
-
-
-def test_install_guide_update_row_says_to_reopen_claude_code():
+def test_install_guide_says_the_website_moved():
     guide = (PLUGIN / "docs/install/slide2video.md").read_text(encoding="utf-8")
-    assert STEPS in guide and "hasn't caught up" in guide
+    assert "/plugin marketplace add slide2video/slide2video-plugin" in guide
+    assert "/plugin install slide2video@slide2video" in guide and "/slide2video:setup" in guide
+    assert "keeps working" in guide

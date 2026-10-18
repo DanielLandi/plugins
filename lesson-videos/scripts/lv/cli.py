@@ -71,9 +71,9 @@ def build_parser() -> argparse.ArgumentParser:
     f.add_argument("--max", type=int)
     cd = sub.add_parser("card", help="check a site-mode card (site/card.json) before stopping")
     cd.add_argument("file", type=Path)
-    pr = sub.add_parser("pair", help="connect this computer to slide2video.com (shows a code to type on the website)")
+    pr = sub.add_parser("pair", help="retired: slide2video.com now works with the slide2video plugin (prints how to switch)")
     pr.add_argument("--name", help="what the website calls this computer (default: its computer name)")
-    wk = sub.add_parser("worker", help="take this computer's next job from slide2video.com and run it")
+    wk = sub.add_parser("worker", help="retired: slide2video.com now works with the slide2video plugin (prints how to switch)")
     mode = wk.add_mutually_exclusive_group()
     mode.add_argument("--once", action="store_true", help="run at most one job, then exit (the default)")
     mode.add_argument("--watch", action="store_true",
@@ -124,6 +124,12 @@ def _site_mode_paths_ok(args) -> None:
                 r = item.resolve()
                 if r != root and root not in r.parents:
                     raise UserError(f"{item} is outside this lesson's folder; in site mode only files in the lesson folder can be used.")
+
+
+MOVED = ("slide2video.com now works with the slide2video plugin. In Claude Code run "
+         "/plugin marketplace add slide2video/slide2video-plugin, then /plugin install slide2video@slide2video, "
+         "then close and reopen Claude Code and run /slide2video:setup. "
+         "Making videos on this computer with lesson-videos keeps working.")
 
 
 def dispatch(args) -> int:
@@ -179,27 +185,9 @@ def dispatch(args) -> int:
         bad = contract.problems("card", obj)
         print("card ok" if not bad else "\n".join(bad))
         return 0 if not bad else 1
-    if args.cmd == "pair":
-        from . import site
-        email = site.pair(name=args.name)
-        print(f"This computer is connected to {site.site_url()} for {email}.")
-        return 0
-    if args.cmd == "worker":
-        from . import site
-        if args.status:
-            import lv
-            from . import version
-            s = site.status()
-            print(f"Connected to {site.site_url()} as {s['teacher_email']} "
-                  f"(this device: {s['device_name']}, lesson-videos {lv.__version__}).")
-            line = version.update_line(site.LATEST)
-            if line:
-                print(line)
-            return 0
-        from . import worker
-        if args.watch:
-            return worker.watch()
-        return worker.run_once()
+    if args.cmd in ("pair", "worker"):
+        print(MOVED)  # before any network call: the website no longer accepts lesson-videos
+        return 1
     if args.cmd == "open":
         import webbrowser
         webbrowser.open(args.url)

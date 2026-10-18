@@ -17,13 +17,11 @@ Teachers only receive a change when `lesson-videos/.claude-plugin/plugin.json`
 `lesson-videos/scripts/lv/__init__.py`) is bumped. Bump it for every
 teacher-visible change; `tests/test_packaging.py` checks the three agree.
 
-`lesson-videos/site-contract/contract.json` `plugin` is the plugin version slide2video.com is built for. When a
-release changes anything the website or the worker relies on (the job contract, device calls, card or turn fields,
-what the website shows about computers), set `plugin` to the new version, copy `site-contract/` to slide2video's
-`contract/`, and deploy the website. A breaking change to the contract is a **major** bump (and bumps the schemas'
-`const`). Releases that change none of these need no website deploy: a computer newer than the website, within its major,
-is fine. Publish the plugin release first (merge and push this repo), then deploy the website; never the reverse: a
-website deployed first with a new major refuses every computer until the plugin ships.
+**slide2video.com is retired for `lesson-videos`** (since 1.0.7). The website now works with the `slide2video`
+plugin (repo slide2video/slide2video-plugin, contract 2) and answers lesson-videos computers with a 426 naming the
+switch. `lesson-videos` stays 1.0.x (the website recognises it by version); `pair` and `worker` only print the
+move notice. `lesson-videos/site-contract/` is frozen at contract 1 for reference: do not update it or deploy the
+website from here.
 
 ## Rules
 

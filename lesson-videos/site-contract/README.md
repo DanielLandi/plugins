@@ -1,3 +1,6 @@
+> **Retired.** This folder is frozen at contract 1 and is no longer served: slide2video.com now works with the
+> `slide2video` plugin (contract 2) and refuses `lesson-videos`. Kept for reference only.
+
 # Job contract notes
 
 The JSON schemas in `schemas/` describe the files that travel between slide2video.com and the worker. Two device
