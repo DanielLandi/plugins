@@ -33,7 +33,7 @@ Videos are 4–6 minutes by default; you choose the length.
 | Needs | A Claude plan | A Claude Pro or Max plan |
 | Guide | [Install with Claude Code](docs/install/claude-code.md) | [Use it in Cowork](docs/install/cowork.md) |
 
-Invited to slide2video.com? Upload from any computer, and your own computer at home makes the videos: [Connect a computer to slide2video.com](docs/install/slide2video.md).
+Invited to slide2video.com? The website moved to the `slide2video` plugin: [what to install](docs/install/slide2video.md). Making videos on your own computer with lesson-videos keeps working.
 
 ## Optional: a better voice, music and clips
 

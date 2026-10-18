@@ -51,13 +51,12 @@ def test_empty_204_is_an_empty_dict(paired):
     assert site.call("/api/device/next") == {}
 
 
-def test_cli_pair_and_status(fake_site, monkeypatch, capsys):
-    monkeypatch.setattr(site.time, "sleep", lambda s: None)
-    assert cli.main(["pair", "--name", "Test Mac"]) == 0
-    out = capsys.readouterr().out
-    assert "connected" in out and fake_site.token not in out
-    assert cli.main(["worker", "--status"]) == 0
-    assert "teacher@example.org" in capsys.readouterr().out
+def test_cli_pair_and_worker_say_the_website_moved_without_calling_it(fake_site, capsys):
+    for argv in (["pair", "--name", "Test Mac"], ["worker"], ["worker", "--once"], ["worker", "--watch"],
+                 ["worker", "--status"]):
+        assert cli.main(argv) == 1
+        assert capsys.readouterr().out.strip() == cli.MOVED
+    assert fake_site.plugin_headers == []  # no call reached the site
 
 
 class _Done:
@@ -124,35 +123,6 @@ def test_pair_refuses_a_malformed_token_and_stores_nothing(fake_site):
     assert site.store.get(fake_site.url) is None
 
 
-def test_pair_code_shows_at_once_when_output_is_not_a_terminal(fake_site, tmp_path):
-    """Claude Code runs `pair` in the background with its output in a pipe: the code line must arrive while it still
-    waits, not when it exits (issue #4)."""
-    import os
-    import queue
-    import subprocess
-    import sys
-    import threading
-
-    from conftest import PLUGIN
-
-    fake_site.pair_polls_pending = 10**6  # never typed: the command keeps waiting
-    env = {k: v for k, v in os.environ.items() if k != "PYTHONUNBUFFERED"}
-    env.update(LV_SITE_URL=fake_site.url, LESSON_VIDEOS_HOME=str(tmp_path / "home"))
-    p = subprocess.Popen([sys.executable, str(PLUGIN / "scripts/lesson-videos.py"), "pair", "--name", "Test Mac"],
-                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, encoding="utf-8")
-    lines = queue.Queue()
-    threading.Thread(target=lambda: lines.put(p.stdout.readline()), daemon=True).start()
-    try:
-        first = lines.get(timeout=30)
-        assert p.poll() is None  # still waiting for the code
-        assert "KQ7-4M2" in first
-    except queue.Empty:
-        raise AssertionError("no pairing code within 30 s: stdout is buffered") from None
-    finally:
-        p.kill()
-        p.wait()
-
-
 def test_call_sends_its_version_and_the_old_contract_header(paired):
     site.call("/api/device/status")
     assert paired.plugin_headers[-1] == lv.__version__
@@ -178,18 +148,3 @@ def test_a_refusal_prints_the_websites_own_words(paired):
 def test_the_fallback_update_message_says_to_reopen_claude_code():
     assert site.UPDATE == ("Update the lesson-videos plugin on this computer: run /plugin update lesson-videos, "
                            "then close and reopen Claude Code, then run /lesson-videos:serve.")
-
-
-def test_status_names_the_version_and_an_available_update(paired, capsys, monkeypatch):
-    monkeypatch.setattr(site, "LATEST", None)
-    assert cli.main(["worker", "--status"]) == 0
-    out = capsys.readouterr().out
-    assert f"(this device: Test Mac, lesson-videos {lv.__version__})." in out and "newer" not in out
-    paired.latest = "1.1.0"
-    assert cli.main(["worker", "--status"]) == 0
-    out = capsys.readouterr().out.splitlines()
-    assert out[1] == ("A newer lesson-videos (1.1.0) is available. To update: run /plugin update lesson-videos, "
-                      "then close and reopen Claude Code, then run /lesson-videos:serve.")
-    paired.latest = "1.0.0"
-    assert cli.main(["worker", "--status"]) == 0
-    assert "newer" not in capsys.readouterr().out

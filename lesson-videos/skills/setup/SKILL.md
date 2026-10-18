@@ -92,28 +92,17 @@ Read the result to them in plain words. "ElevenLabs: not set" is fine: the free 
 
 Only if the teacher asks to keep lessons in one project folder (for example a folder they back up or keep in git): `LV init --path "<folder>"`. Lessons then live in `<folder>/lessons/<course>/<unit>/` as text, and finished videos, class materials and paid media in the results folder it prints. Nobody else needs this.
 
-## 8. Connect this computer to slide2video.com (optional)
+## 8. slide2video.com has moved (information only)
 
-slide2video.com is a website where invited teachers upload a lesson and this computer makes the videos for it.
-It works on a Mac or a Windows PC.
+slide2video.com now works with a different plugin, `slide2video`, and no longer accepts lesson-videos. Do not run
+`LV pair` or `LV worker`: both only print this same message and stop. Making videos on this computer with
+lesson-videos (`/lesson-videos:make`) keeps working.
 
-First run `LV worker --status`. If it says "Connected to …", this computer is already connected: tell the teacher
-which account it's connected to and skip to the `/lesson-videos:serve` paragraph below. If it says this computer isn't connected,
-ask the teacher one plain question, even if they never mentioned the website:
-
-> Were you invited to slide2video.com? Do you want this computer to make the videos for lessons you upload there?
-
-If not, skip to step 9. If yes, run `LV pair`. It prints a short code and the website address, then **waits until
-the code is typed** (up to 10 minutes), so start it with the Bash tool's `run_in_background` and read the code
-line from its output as soon as it appears. Give the teacher the address and the code: they sign in there (on any
-computer), open **Devices** and type the code. When the background command finishes it says "This computer is
-connected to …"; then run `LV worker --status` to confirm the connection. If the code expired, run `LV pair` again
-for a new one.
-
-To make videos, the teacher (or you, now) runs `/lesson-videos:serve` in Claude Code: it keeps this computer
-working on the website's lessons, one step after another, while that Claude Code window stays open. Offer to start
-it now.
+Only if the teacher mentions slide2video.com or says they were invited there, tell them: "slide2video.com now works
+with the slide2video plugin. In Claude Code run `/plugin marketplace add slide2video/slide2video-plugin`, then
+`/plugin install slide2video@slide2video`, then close and reopen Claude Code and run `/slide2video:setup`."
+Otherwise say nothing about it.
 
 ## 9. Done
 
-Summarize: what's ready, which narrator voice will be used (the free Microsoft voice unless they added an ElevenLabs key; `doctor`'s Narration line says which voices work right now), whether this computer is connected to slide2video.com (and for which account, from `LV worker --status`), what was skipped, and the cost per video ($0 with the free voice; with ElevenLabs about 5,000–6,000 characters; Gemini about $0.40 per clip plus $0.08 for music). Tell them the next step: open Claude Code in the folder that holds their slide deck and run `/lesson-videos:make`.
+Summarize: what's ready, which narrator voice will be used (the free Microsoft voice unless they added an ElevenLabs key; `doctor`'s Narration line says which voices work right now), what was skipped, and the cost per video ($0 with the free voice; with ElevenLabs about 5,000–6,000 characters; Gemini about $0.40 per clip plus $0.08 for music). Tell them the next step: open Claude Code in the folder that holds their slide deck and run `/lesson-videos:make`.

@@ -85,6 +85,13 @@ def test_keys_load_reports_nothing_found(tmp_path, capsys):
     assert "No keys found" in capsys.readouterr().out
 
 
+def test_moved_names_the_install_lines():
+    assert cli.MOVED == ("slide2video.com now works with the slide2video plugin. In Claude Code run "
+                         "/plugin marketplace add slide2video/slide2video-plugin, then /plugin install "
+                         "slide2video@slide2video, then close and reopen Claude Code and run /slide2video:setup. "
+                         "Making videos on this computer with lesson-videos keeps working.")
+
+
 def test_site_mode_refuses_risky_commands(monkeypatch, capsys):
     monkeypatch.setenv("LV_SITE_MODE", "1")
     for argv in (["open", "https://x"], ["keys", "load", "f"], ["pair"], ["worker"]):

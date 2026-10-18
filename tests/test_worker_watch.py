@@ -232,11 +232,12 @@ def test_run_once_still_reports_idle_as_zero(paired, lessons):
     assert worker.run_once(claude=_claude_writing(QUESTIONS)) == 0
 
 
-def test_cli_worker_watch_is_wired(monkeypatch):
+def test_cli_worker_watch_says_moved_and_does_not_start_the_worker(monkeypatch, capsys):
     from lv import cli
-    seen = {}
-    monkeypatch.setattr(worker, "watch", lambda **kw: seen.setdefault("called", 0) or 0)
-    assert cli.main(["worker", "--watch"]) == 0 and "called" in seen
+    seen = []
+    monkeypatch.setattr(worker, "watch", lambda **kw: seen.append("watch") or 0)
+    assert cli.main(["worker", "--watch"]) == 1
+    assert capsys.readouterr().out.strip() == cli.MOVED and seen == []
 
 
 UPDATE_11 = ("A newer lesson-videos (1.1.0) is available. To update: run /plugin update lesson-videos, then close "
