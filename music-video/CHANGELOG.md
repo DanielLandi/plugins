@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0
+
+- `library`: everything in the results folder (videos, songs, lesson units, albums) as one page that any phone,
+  tablet or TV browser on the home network can play from: newest project first, titled from its README, thumbnails
+  (a poster frame when there is none), subtitles from a `.vtt` beside the video, a Loop button and Play all, songs
+  in the page, live web pages linked. Videos are served in byte ranges, so phones seek and AirPlay works. Folders
+  starting with `_` or `.` (paid source media, working files) are never listed or served. `library install` keeps
+  it running from login on macOS (a launchd agent running a copy in the install folder); `library serve` runs it
+  in the foreground on any platform; `library uninstall` removes the agent.
+
 ## 0.4.1
 
 - Python is capped below 3.15: PyYAML has no 3.15 wheels yet, so a fresh install picked 3.15 and tried to compile

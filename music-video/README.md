@@ -76,6 +76,7 @@ The skills run these for you; each is `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/mus
 | `studio`, `still`, `stills`, `render`, `blur`, `board` | Remotion Studio, stills, renders, motion blur, the transition board |
 | `mux`, `qc` | add the song to a silent render (with any lifts in the video's `song-fixes.yaml`); check a render |
 | `version`, `review` | keep each checked render or still as a numbered version of its scene; a local page that plays any two versions in sync (side by side, wipe, flip) |
+| `library` | everything in your results folder (videos, songs, lessons) as one page any phone, tablet or TV browser on your home network can play from; `library install` keeps it running from login (macOS) |
 
 ## Song generators and albums
 
@@ -83,6 +84,17 @@ A song spec names its generator (`generator: suno`), with that generator's setti
 first, and everything specific to it lives in `skills/song/references/generators/suno/`. Songs can belong to an
 album: `albums/<album>.yaml` gives the title, year and cover, and can credit a different artist and album name per
 style; the album's folder in results holds the tagged MP3s and a `manifest.json` for a site or player.
+
+## Your library at home
+
+`music-video library install` (macOS) starts a small read-only web server at every login and prints its address,
+for example `http://your-mac.local:8642/`. Open it on a phone, a tablet or a TV's browser on the same network: every
+project in the results folder, newest first, with its thumbnail, subtitles, a Loop button (for a film left playing
+on a TV) and Play all; songs play in the page; a live web page is linked. AirPlay or cast from the player to send a
+video to the TV. Working folders (any folder whose name starts with `_` or `.`, such as a lesson's `_source`) are
+never listed or served. It is open to anyone on your home network, with no password: do not forward its port to
+the internet. `library` prints the address, `library serve` runs it in the foreground (any platform), `library
+uninstall` stops it starting at login. After a plugin update, run `library install` again to refresh its copy.
 
 ## The live web page
 

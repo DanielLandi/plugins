@@ -272,6 +272,10 @@ is the user's. When they ask for a description to post with it, draft:
 
 Point out the platform's AI-content disclosure (an AI-generated voice counts on most platforms).
 
+The finished video and song also appear on the user's library page (any phone or TV at home): run
+`uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" library` to print its address, or offer `library install`
+(macOS) when it is not running yet.
+
 ## 9. Web page (optional) ✋
 
 A live web page that draws the video in the browser, on a loop, from `<video>/web.tsx` (the template's plays the
