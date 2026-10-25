@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1
+
+- `library` answers only requests addressed to this computer by an IP address, `localhost`, a `.local` name or its
+  own name, and refuses any other host name: a website whose domain was pointed at the computer (DNS rebinding)
+  can no longer read the library through a browser on the home network. Run `library install` again to refresh a
+  running copy.
+
 ## 0.5.0
 
 - `library`: everything in the results folder (videos, songs, lesson units, albums) as one page that any phone,
