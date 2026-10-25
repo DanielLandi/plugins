@@ -1,7 +1,9 @@
 import argparse
 import json
 import shutil
+import subprocess
 import sys
+import time
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -9,7 +11,7 @@ from pathlib import Path
 import yaml
 
 from . import __version__
-from . import studio
+from . import library, studio
 from .doctor import run_doctor
 from .albums import load_album, write_manifest
 from .errors import MVError
@@ -26,7 +28,7 @@ from .video.qc import run_qc
 from .video.review import build_page, load_versions, record_version
 from .video.songfix import lifted_song
 from .video.timing import clock
-from .workspace import init_workspace, install_dir, load_private_names, load_workspace, workspace_home
+from .workspace import cache_dir, init_workspace, install_dir, load_private_names, load_workspace, workspace_home
 
 
 
@@ -381,7 +383,42 @@ def cmd_typecheck(args) -> int:
     return studio.run_node([*studio.tool(rt, "tsc"), "-p", str(studio.typecheck_config(rt, ctx))], rt, env)
 
 
-HANDLERS: dict = {"web": cmd_web, "album": cmd_album, "loop": cmd_loop, "clean": cmd_clean, "new-video": cmd_new_video, "typecheck": cmd_typecheck, "studio": _remotion("studio"),
+def cmd_library(args) -> int:
+    ws = load_workspace()
+    folder, cache = install_dir() / "library", cache_dir() / "library"
+    if args.action == "serve":
+        if not ws.results_dir.is_dir():
+            raise MVError(f"no results folder yet ({ws.results_dir}): finish a video or a song first")
+        return library.main(["--root", str(ws.results_dir), "--port", str(args.port), "--host", args.host,
+                             "--cache", str(cache)])
+    if args.action in ("install", "uninstall") and sys.platform != "darwin":
+        raise MVError("starting the library at login is macOS-only for now: run `music-video library serve` instead")
+    if args.action == "install":
+        try:
+            plist = library.install_agent(ws.results_dir, args.port, cache, folder)
+        except (RuntimeError, OSError, subprocess.CalledProcessError) as e:
+            raise MVError(f"could not start the library at login: {e}") from e
+        for _ in range(40):
+            if library.answering(args.port):
+                break
+            time.sleep(0.25)
+        else:
+            raise MVError(f"the library did not answer on port {args.port}: see {cache / 'library.log'}")
+        print(f"the library starts at every login ({plist})")
+    elif args.action == "uninstall":
+        print("the library no longer starts at login" if library.uninstall_agent(folder) else "it was not installed")
+        return 0
+    elif not library.answering(args.port):
+        print(f"the library is not running on port {args.port}: `music-video library install` (at login) or "
+              "`music-video library serve` (now)")
+        return 1
+    for u in library.lan_urls(args.port):
+        print(f"open on any phone, tablet or TV on this network: {u}")
+    print(f"showing {ws.results_dir}")
+    return 0
+
+
+HANDLERS: dict = {"library": cmd_library, "web": cmd_web, "album": cmd_album, "loop": cmd_loop, "clean": cmd_clean, "new-video": cmd_new_video, "typecheck": cmd_typecheck, "studio": _remotion("studio"),
                   "render": _remotion("render"), "still": _remotion("still"), "stills": _tool("stills.ts", 1),
                   "blur": _tool("blur.ts", 1), "board": _tool("board.ts"), "doctor": cmd_doctor, "align": cmd_align, "analyze": cmd_analyze, "preview": cmd_preview, "mux": cmd_mux,
                   "qc": cmd_qc, "version": cmd_version, "review": cmd_review, "paths": cmd_paths, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
@@ -476,6 +513,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--label", help="what the animation shows, for screen readers")
     p.add_argument("--background", help="the page colour behind the animation, e.g. #c9d3e6")
     p.add_argument("--out", help="output folder (default: results/<id>/web)")
+    p = sub.add_parser("library", help="your finished videos, songs and lessons as one page for phones and TVs at home")
+    p.add_argument("action", nargs="?", default="status", choices=["status", "serve", "install", "uninstall"],
+                   help="status (the address), serve (run it now), install (run it from every login), uninstall")
+    p.add_argument("--port", type=int, default=library.PORT)
+    p.add_argument("--host", default="0.0.0.0", help="serve: 0.0.0.0 (the home network) or 127.0.0.1 (this computer only)")
     p = sub.add_parser("paths", help="a video's folders (code, work, public, renders, qc, results, web) as JSON")
     p.add_argument("id")
     p = sub.add_parser("clean", help="delete a video's work folder (renders, timings, checks); finals stay")
