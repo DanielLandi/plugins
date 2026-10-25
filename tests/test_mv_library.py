@@ -1,5 +1,6 @@
 import http.client
 import plistlib
+import subprocess
 import threading
 from pathlib import Path
 
@@ -140,7 +141,10 @@ def test_install_and_uninstall_agent(tmp_path, monkeypatch, results):
     monkeypatch.setattr(library, "agent_file", lambda: agents / f"{library.LABEL}.plist")
     monkeypatch.setattr(library.shutil, "which", lambda name: f"/tools/{name}")
     calls = []
-    run = lambda cmd, **kw: calls.append(cmd)  # noqa: E731
+
+    def run(cmd, **kw):
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 113 if cmd[1] == "print" else 0)  # 113: no such service
     folder = tmp_path / "install" / "library"
     plist = library.install_agent(results, 8700, tmp_path / "cache", folder, run=run)
     data = plistlib.loads(plist.read_bytes())
@@ -177,3 +181,22 @@ def test_a_rebound_domain_is_refused(server):
     assert res.status == 403
     res, _ = get(server, "/", {"Host": "studio-mac.local:8642"})
     assert res.status == 200
+
+
+def test_install_waits_for_the_old_copy_and_retries_the_start(tmp_path, monkeypatch, results):
+    monkeypatch.setattr(library, "agent_file", lambda: tmp_path / f"{library.LABEL}.plist")
+    monkeypatch.setattr(library.shutil, "which", lambda name: f"/tools/{name}")
+    monkeypatch.setattr(library.time, "sleep", lambda s: None)
+    seen = {"print": 0, "bootstrap": 0}
+
+    def run(cmd, check=False, **kw):
+        verb = cmd[1]
+        if verb in seen:
+            seen[verb] += 1
+        if verb == "print":  # the old copy is still there twice, then gone
+            return subprocess.CompletedProcess(cmd, 0 if seen["print"] <= 2 else 113)
+        if verb == "bootstrap" and seen["bootstrap"] == 1:  # the first start fails, as launchd does mid-teardown
+            raise subprocess.CalledProcessError(5, cmd)
+        return subprocess.CompletedProcess(cmd, 0)
+    library.install_agent(results, 8702, tmp_path / "cache", tmp_path / "lib", run=run)
+    assert seen == {"print": 3, "bootstrap": 2}

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.2
+
+- `library install` over a running copy waits for it to stop before starting the new one (launchd refused the
+  start with "Input/output error" and left the library stopped).
+
 ## 0.5.1
 
 - `library` answers only requests addressed to this computer by an IP address, `localhost`, a `.local` name or its
