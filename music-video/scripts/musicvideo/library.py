@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
+import ipaddress
 import json
 import mimetypes
 import os
@@ -363,6 +364,27 @@ class Library:
         return out
 
 
+def trusted_host(header: str | None) -> bool:
+    """Whether a request is addressed to this computer by a name an outside website cannot borrow: an IP address,
+    localhost, a .local (Bonjour) name or the computer's own name. Anything else is refused, so a web page whose
+    domain was pointed at this computer (DNS rebinding) cannot read the library through a visitor's browser."""
+    if not header:
+        return True  # not a browser: browsers always send Host
+    host = header.strip().lower()
+    if host.startswith("["):  # [IPv6]:port
+        host = host[1:].split("]", 1)[0]
+    elif host.count(":") == 1:
+        host = host.split(":", 1)[0]
+    host = host.rstrip(".")
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        pass
+    own = socket.gethostname().lower().rstrip(".")
+    return host in ("localhost", own, own.split(".")[0]) or host.endswith(".local")
+
+
 def make_handler(lib: Library, verbose: bool = False):
     class Handler(BaseHTTPRequestHandler):
         server_version = "music-video-library"
@@ -379,6 +401,9 @@ def make_handler(lib: Library, verbose: bool = False):
 
         def route(self, head: bool) -> None:
             path = unquote(urlsplit(self.path).path)
+            if not trusted_host(self.headers.get("Host")):
+                self.send_error(HTTPStatus.FORBIDDEN, "open the library by this computer's address")
+                return
             try:
                 if path in ("/", "/index.html"):
                     self.send_bytes(render_page(lib.shelves()).encode("utf-8"), "text/html; charset=utf-8", head)

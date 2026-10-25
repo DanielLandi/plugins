@@ -93,7 +93,8 @@ project in the results folder, newest first, with its thumbnail, subtitles, a Lo
 on a TV) and Play all; songs play in the page; a live web page is linked. AirPlay or cast from the player to send a
 video to the TV. Working folders (any folder whose name starts with `_` or `.`, such as a lesson's `_source`) are
 never listed or served. It is open to anyone on your home network, with no password: do not forward its port to
-the internet. `library` prints the address, `library serve` runs it in the foreground (any platform), `library
+the internet. It answers only requests addressed to the computer by its address or its `.local` name (so a website
+cannot read it through a browser at home). `library` prints the address, `library serve` runs it in the foreground (any platform), `library
 uninstall` stops it starting at login. After a plugin update, run `library install` again to refresh its copy.
 
 ## The live web page

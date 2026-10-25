@@ -159,3 +159,21 @@ def test_cli_status_says_how_to_start_it(mv_ws, capsys, monkeypatch):
     monkeypatch.setattr(library, "answering", lambda port, timeout=1.0: False)
     assert main(["library", "status", "--port", "8701"]) == 1
     assert "library install" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("host,ok", [
+    (None, True), ("192.168.1.20:8642", True), ("127.0.0.1", True), ("[::1]:8642", True), ("localhost:8642", True),
+    ("studio-mac.local:8642", True), ("STUDIO-MAC.LOCAL.", True),
+    ("evil.example.com", False), ("evil.example.com:8642", False), ("192.168.1.20.nip.io", False),
+])
+def test_trusted_host(host, ok):
+    assert library.trusted_host(host) is ok
+
+
+def test_a_rebound_domain_is_refused(server):
+    res, body = get(server, "/library.json", {"Host": "attacker.example:8642"})
+    assert res.status == 403 and b"night-drive" not in body
+    res, _ = get(server, "/m/night-drive/Night%20Drive.mp4", {"Host": "attacker.example"})
+    assert res.status == 403
+    res, _ = get(server, "/", {"Host": "studio-mac.local:8642"})
+    assert res.status == 200
