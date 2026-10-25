@@ -23,6 +23,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 from dataclasses import asdict, dataclass, field
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -538,8 +539,20 @@ def install_agent(root: Path, port: int, cache: Path, folder: Path, run=subproce
     plist.parent.mkdir(parents=True, exist_ok=True)
     domain = f"gui/{os.getuid()}"
     run(["launchctl", "bootout", f"{domain}/{LABEL}"], capture_output=True)  # an older copy, if any
+    # bootout returns before the old copy has stopped; starting again too soon fails with "Input/output error".
+    for _ in range(20):
+        if run(["launchctl", "print", f"{domain}/{LABEL}"], capture_output=True).returncode != 0:
+            break
+        time.sleep(0.25)
     plist.write_bytes(agent_plist(program, path_env, cache / "library.log"))
-    run(["launchctl", "bootstrap", domain, str(plist)], check=True, capture_output=True)
+    for attempt in range(3):
+        try:
+            run(["launchctl", "bootstrap", domain, str(plist)], check=True, capture_output=True)
+            break
+        except subprocess.CalledProcessError:
+            if attempt == 2:
+                raise
+            time.sleep(1)
     return plist
 
 
