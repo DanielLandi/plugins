@@ -1,6 +1,7 @@
 import http.client
 import plistlib
 import subprocess
+import sys
 import threading
 from pathlib import Path
 
@@ -8,6 +9,9 @@ import pytest
 
 from musicvideo import library
 from musicvideo.cli import main
+
+# Starting the library at login goes through launchd (`launchctl ... gui/<uid>`); Windows has no os.getuid.
+macos_only = pytest.mark.skipif(sys.platform != "darwin", reason="the login item is a macOS launchd agent")
 
 
 @pytest.fixture
@@ -136,6 +140,7 @@ def test_agent_plist_starts_at_login_with_tools_on_path(tmp_path):
     assert data["ProgramArguments"][0] == "/bin/uv"
 
 
+@macos_only
 def test_install_and_uninstall_agent(tmp_path, monkeypatch, results):
     agents = tmp_path / "LaunchAgents"
     monkeypatch.setattr(library, "agent_file", lambda: agents / f"{library.LABEL}.plist")
@@ -157,6 +162,21 @@ def test_install_and_uninstall_agent(tmp_path, monkeypatch, results):
     assert library.uninstall_agent(folder, run=run) is True
     assert not plist.exists() and not script.exists()
     assert any(c[:2] == ["launchctl", "bootout"] for c in calls)
+
+
+@pytest.mark.parametrize("platform", ["win32", "linux"])
+@pytest.mark.parametrize("action", ["install", "uninstall"])
+def test_cli_login_item_is_refused_off_macos(mv_ws, capsys, monkeypatch, tmp_path, platform, action):
+    monkeypatch.setenv("MV_INSTALL_DIR", str(tmp_path / "install"))
+    monkeypatch.setattr(sys, "platform", platform)
+
+    def never(*a, **kw):
+        raise AssertionError("launchctl must not be reached off macOS")
+    monkeypatch.setattr(library, "install_agent", never)
+    monkeypatch.setattr(library, "uninstall_agent", never)
+    assert main(["library", action]) == 2
+    err = capsys.readouterr().err
+    assert "macOS-only" in err and "library serve" in err and "getuid" not in err
 
 
 def test_cli_status_says_how_to_start_it(mv_ws, capsys, monkeypatch):
@@ -183,6 +203,7 @@ def test_a_rebound_domain_is_refused(server):
     assert res.status == 200
 
 
+@macos_only
 def test_install_waits_for_the_old_copy_and_retries_the_start(tmp_path, monkeypatch, results):
     monkeypatch.setattr(library, "agent_file", lambda: tmp_path / f"{library.LABEL}.plist")
     monkeypatch.setattr(library.shutil, "which", lambda name: f"/tools/{name}")
