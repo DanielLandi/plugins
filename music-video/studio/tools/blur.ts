@@ -1,7 +1,8 @@
 // Render a song composition with motion blur: render at `steps` sub-frames per output frame, then average `samples`
 // sub-frames centred on each frame's time (the shutter: samples / steps of the frame, 8 of 16 = 180°), so the blurred
 // cut stays in sync with the sharp one.
-//   music-video blur <video-id> <composition> <out.mp4> [--samples=8] [--shutter=180] [--frames=a-b] [--crf=16] [--props='{"lyrics":"none"}']
+//   music-video blur <video-id> <composition> <out.mp4> [--samples=8] [--shutter=180] [--frames=a-b] [--crf=16] [--scale=1] [--props='{"lyrics":"none"}']
+// --scale renders at that multiple of the composition's size (2: a 1920×1080 composition comes out 3840×2160).
 // --frames are output (30 fps) frames, inclusive. The result is silent: music-video mux adds the song as usual.
 // The scene must read time in seconds (the kit's useSongTime), never in frames.
 import { spawnSync } from 'node:child_process';
@@ -18,7 +19,7 @@ const flags: Record<string, string> = Object.fromEntries(args.filter((a) => a.st
 }));
 const [id, composition, outArg] = args.filter((a) => !a.startsWith('--'));
 if (!id || !composition || !outArg) {
-  console.error('usage: music-video blur <video-id> <composition> <out.mp4> [--samples=8] [--shutter=180] [--frames=a-b] [--crf=16]');
+  console.error('usage: music-video blur <video-id> <composition> <out.mp4> [--samples=8] [--shutter=180] [--frames=a-b] [--crf=16] [--scale=1]');
   process.exit(1);
 }
 const out = resolve(process.env.INIT_CWD ?? process.cwd(), outArg);
@@ -37,6 +38,7 @@ const renderArgs = [cli, 'render', entry, composition, sub, '--muted', '--crf=8'
   `--props=${JSON.stringify({ ...(flags.props ? JSON.parse(flags.props) : {}), subframes: steps })}`,
   // A long render meets heavy first frames (a world's canvas created mid-song): allow 5 min per frame, not 30 s.
   `--timeout=${flags.timeout ?? 300000}`];
+if (flags.scale) renderArgs.push(`--scale=${flags.scale}`);
 // Output frame k averages sub-frames k·steps − half … k·steps + half − 1 (the first frame gets the later half only).
 const half = Math.floor(samples / 2);
 let first = 0;
