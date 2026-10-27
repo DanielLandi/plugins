@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.3
+
+- `blur --scale=<n>` renders at that multiple of the composition's size, like `render --scale` (a 4K cut of a
+  1080p composition).
+
 ## 0.5.2
 
 - `library install` over a running copy waits for it to stop before starting the new one (launchd refused the
