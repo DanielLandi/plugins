@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.4
+
+- Security: the studio's locked dependencies move past open advisories. `zod` 4.5.4 -> 4.6.7 (high; Remotion still
+  pins 4.5.4, so an override forces it), vitest 3 -> 4.1.12, which drops `tinypool` (critical) for good, and
+  `@vitest/mocker` 4.1.12 (medium). `doctor` installs them on the next run.
+
 ## 0.5.3
 
 - `blur --scale=<n>` renders at that multiple of the composition's size, like `render --scale` (a 4K cut of a
