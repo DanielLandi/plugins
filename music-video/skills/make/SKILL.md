@@ -126,6 +126,14 @@ chorus → bridge → final chorus). Wait for approval. Nothing is written to di
    sections, and ask them to watch the preview. Its bottom panel shows the vocal waveform 10 s at a time with a
    moving playhead, 0.1 s ticks and a mark at each word's start: a word's true start is where the waveform rises
    after a dip, so a fix can be read off it to the tenth of a second.
+   - Many words to move → offer the timing editor, where the user drags each word's mark onto the waveform and
+     saves (it writes the `timing-fixes.yaml` entries and re-runs align and analyze). Run it in the background
+     and give the user its address; it keeps serving until stopped:
+
+     ```bash
+     uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" edit-timing <id> --open
+     ```
+
    - Bad words → write `<video>/timing-fixes.yaml` entries (`- at: "1:13"` / `word: thunder` / `shift: 0.2`, or
      `start:`/`end:`), re-run align and preview.
    - A word sung one way but written another (a number sung as words: "nine-to-five" shown as "9-to-5") → a

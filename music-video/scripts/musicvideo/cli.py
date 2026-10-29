@@ -28,6 +28,7 @@ from .video.qc import run_qc
 from .video.review import build_page, load_versions, record_version
 from .video.songfix import lifted_song
 from .video.timing import clock
+from .video import timing_editor
 from .workspace import cache_dir, init_workspace, install_dir, load_private_names, load_workspace, workspace_home
 
 
@@ -184,6 +185,17 @@ def cmd_preview(args) -> int:
         print("no beat dots: run music-video analyze first to see them")
     if args.open:
         open_file(path)
+    return 0
+
+
+def cmd_edit_timing(args) -> int:
+    ws = load_workspace()
+    lang = args.lang
+    if not lang:
+        meta_file = ws.video_dir(args.id) / "video.yaml"
+        meta = (yaml.safe_load(meta_file.read_text(encoding="utf-8")) or {}) if meta_file.is_file() else {}
+        lang = str(meta.get("lang") or "en")
+    timing_editor.serve(ws, args.id, lang, port=args.port, open_page=args.open)
     return 0
 
 
@@ -420,7 +432,7 @@ def cmd_library(args) -> int:
 
 HANDLERS: dict = {"library": cmd_library, "web": cmd_web, "album": cmd_album, "loop": cmd_loop, "clean": cmd_clean, "new-video": cmd_new_video, "typecheck": cmd_typecheck, "studio": _remotion("studio"),
                   "render": _remotion("render"), "still": _remotion("still"), "stills": _tool("stills.ts", 1),
-                  "blur": _tool("blur.ts", 1), "board": _tool("board.ts"), "doctor": cmd_doctor, "align": cmd_align, "analyze": cmd_analyze, "preview": cmd_preview, "mux": cmd_mux,
+                  "blur": _tool("blur.ts", 1), "board": _tool("board.ts"), "doctor": cmd_doctor, "align": cmd_align, "analyze": cmd_analyze, "preview": cmd_preview, "edit-timing": cmd_edit_timing, "mux": cmd_mux,
                   "qc": cmd_qc, "version": cmd_version, "review": cmd_review, "paths": cmd_paths, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
                   "downloaded": cmd_downloaded, "status": cmd_status}
 
@@ -467,6 +479,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("preview", help="full-song karaoke preview to check word and beat sync")
     p.add_argument("id")
     p.add_argument("--open", action="store_true", help="open the preview when it is ready")
+    p = sub.add_parser("edit-timing", help="drag each word to where it is sung on the vocal waveform, then save")
+    p.add_argument("id")
+    p.add_argument("--lang", help="sung language for the re-align (default: the video's lang, else en)")
+    p.add_argument("--port", type=int, default=timing_editor.PORT)
+    p.add_argument("--open", action="store_true", help="open the page in the browser")
     p = sub.add_parser("mux", help="put the song's audio under a silent render")
     p.add_argument("video")
     p.add_argument("--spec", required=True)

@@ -71,6 +71,7 @@ The skills run these for you; each is `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/mus
 | `new`, `validate`, `round`, `downloaded`, `status` | song specs, Create rounds, the download budget |
 | `ingest`, `album` | file a downloaded MP3, tagged, into its results or album folder; rebuild an album's `manifest.json` |
 | `align`, `analyze`, `preview` | word timings, the song map, a karaoke preview |
+| `edit-timing` | drag words onto the vocal waveform to fix their timing, then save |
 | `new-video`, `typecheck`, `paths`, `clean` | start a video from the template, check its code, print its folders, free its working files |
 | `loop`, `web` | a seamless audio loop of a song; a live web page of a video (looping, optional sound) |
 | `studio`, `still`, `stills`, `render`, `blur`, `board` | Remotion Studio, stills, renders, motion blur, the transition board |

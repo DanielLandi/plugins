@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Timing editor</title>
+<style>
+  :root { color-scheme: dark; --bg: #101418; --panel: #171c22; --text: #e8edf2; --dim: #8a96a3; --mark: #ffe880;
+          --moved: #ff9f43; --wave: #4fa3ff; --accent: #ffd700; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, "Helvetica Neue", sans-serif; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 16px; background: var(--panel); }
+  h1 { font-size: 16px; margin: 0 8px 0 0; }
+  #clock { font: 600 20px/1 ui-monospace, Menlo, monospace; min-width: 120px; }
+  #section, #page { color: var(--dim); }
+  button { background: #26303a; color: var(--text); border: 1px solid #36424e; border-radius: 6px; padding: 6px 10px;
+           font: inherit; cursor: pointer; }
+  button:hover:not(:disabled) { background: #303c48; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: #2f6fd6; border-color: #2f6fd6; }
+  button.on { background: #3d4b59; border-color: var(--accent); }
+  .spacer { flex: 1; }
+  #line { min-height: 64px; padding: 18px 16px 8px; text-align: center; font-size: 28px; font-weight: 700; }
+  #line span { padding: 0 3px; border-radius: 4px; }
+  #line .sel { background: #3a4552; }
+  #line .now { color: var(--accent); }
+  #line .moved { color: var(--moved); }
+  #wrap { padding: 0 16px; }
+  canvas { display: block; width: 100%; height: 300px; cursor: crosshair; touch-action: none; }
+  #status { padding: 8px 16px; color: var(--dim); min-height: 2.4em; white-space: pre-line; }
+  #status.err { color: #ff7a7a; }
+  #help { padding: 0 16px 16px; color: var(--dim); font-size: 12px; }
+  kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid #36424e; border-radius: 3px; padding: 0 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Timing editor</h1>
+  <span id="clock">0:00.000</span>
+  <span id="section"></span>
+  <button id="prev" title="Previous 10 s ([)">◀</button>
+  <span id="page"></span>
+  <button id="next" title="Next 10 s (])">▶</button>
+  <button id="around" class="primary" title="Play 5 s before the cursor and 3 s after (P)">▶ −5 s / +3 s</button>
+  <button id="play" title="Play from the cursor (Space)">Play</button>
+  <button id="source" title="Hear the mix or the vocals alone (V)">Mix</button>
+  <span class="spacer"></span>
+  <button id="undo" title="Undo (⌘Z)" disabled>Undo</button>
+  <button id="save" class="primary" title="Save and re-align (⌘S)" disabled>Save</button>
+</header>
+<div id="line"></div>
+<div id="wrap"><canvas id="cv"></canvas></div>
+<div id="status">Loading the song…</div>
+<div id="help">
+  Drag a word's mark (or its label) to where the word starts; drag the small handle at the end of its bar to move
+  where it ends. Click the waveform to put the cursor there. <kbd>P</kbd> plays −5 s/+3 s around the cursor,
+  <kbd>Space</kbd> plays from it, <kbd>V</kbd> switches mix/vocals, <kbd>←</kbd>/<kbd>→</kbd> nudge the selected
+  word by 10 ms (<kbd>Shift</kbd> 100 ms, <kbd>Alt</kbd> moves its end), <kbd>[</kbd>/<kbd>]</kbd> change page,
+  <kbd>⌘Z</kbd> undoes, <kbd>⌘S</kbd> saves (moved words become entries in timing-fixes.yaml, then align and analyze run again).
+</div>
+<script>
+const CONFIG = __CONFIG__;
+const PAGE = 10, MIN = 0.06, MIN_LEN = 0.12, ROWS = 3;
+const G = { rowY: 18, rowH: 20, waveTop: 84, waveH: 160, tickH: 6 };   // canvas geometry in CSS px
+G.waveBot = G.waveTop + G.waveH;
+
+const $ = (id) => document.getElementById(id);
+const cv = $("cv"), cx = cv.getContext("2d");
+const S = { words: [], orig: [], lines: [], beats: [], downbeats: new Set(), sections: [], duration: 0,
+            page: 0, cursor: 0, sel: -1, undo: [], drag: null, source: "mix", busy: false,
+            ctx: null, song: null, vocals: null, mono: null, rate: 44100, peak: 1, cols: null, colsKey: "",
+            node: null, playFrom: 0, playAt: 0, playTo: 0 };
+
+const clock = (t) => { t = Math.max(0, t); const m = Math.floor(t / 60), s = t - m * 60;
+  return `${m}:${s.toFixed(3).padStart(6, "0")}`; };
+const status = (text, err = false) => { $("status").textContent = text; $("status").classList.toggle("err", err); };
+const width = () => cv.clientWidth;
+const xOf = (t) => (t - S.page * PAGE) / PAGE * width();
+const tOf = (x) => S.page * PAGE + x / width() * PAGE;
+const moved = (i) => S.words[i].start !== S.orig[i].start || S.words[i].end !== S.orig[i].end;
+const changes = () => S.words.map((w, i) => i).filter(moved);
+const playing = () => S.node !== null;
+const now = () => playing() ? Math.min(S.playTo, S.playFrom + (S.ctx.currentTime - S.playAt)) : S.cursor;
+const r3 = (t) => Math.round(t * 1000) / 1000;
+
+async function load() {
+  $("title").textContent = CONFIG.title;
+  document.title = `${CONFIG.title} · timing`;
+  const timing = await (await fetch("/timing.json")).json();
+  setTiming(timing);
+  try {
+    const a = await (await fetch("/analysis.json")).json();
+    S.beats = a.beats || []; S.downbeats = new Set(a.downbeats || []); S.sections = a.sections || [];
+  } catch { /* no analysis yet: no beat dots */ }
+  S.ctx = new AudioContext();
+  status("Decoding the song and the vocals…");
+  const [song, vocals] = await Promise.all(["/audio/song", "/audio/vocals"].map(async (u) =>
+    S.ctx.decodeAudioData(await (await fetch(u)).arrayBuffer())));
+  S.song = song; S.vocals = vocals; S.rate = vocals.sampleRate;
+  S.duration = Math.max(S.duration, song.duration);
+  const mono = new Float32Array(vocals.length);
+  for (let c = 0; c < vocals.numberOfChannels; c++) {
+    const d = vocals.getChannelData(c);
+    for (let k = 0; k < d.length; k++) mono[k] += d[k] / vocals.numberOfChannels;
+  }
+  let peak = 0;
+  for (let k = 0; k < mono.length; k++) { const v = Math.abs(mono[k]); if (v > peak) peak = v; }
+  S.mono = mono; S.peak = peak || 1;
+  status(`${S.words.length} words. Drag a mark to move a word; P plays around the cursor.`);
+  draw();
+}
+
+function setTiming(timing) {
+  S.orig = timing.words.map((w) => ({ ...w }));
+  S.words = timing.words.map((w) => ({ ...w }));
+  S.lines = timing.lines;
+  S.duration = Math.max(timing.duration || 0, S.words.length ? S.words[S.words.length - 1].end : 0);
+  S.undo = [];
+  S.colsKey = "";
+  refresh();
+}
+
+function refresh() {
+  const n = changes().length;
+  $("save").disabled = S.busy || n === 0;
+  $("save").textContent = n ? `Save ${n}` : "Save";
+  $("undo").disabled = S.busy || S.undo.length === 0;
+  for (const id of ["around", "play", "prev", "next"]) $(id).disabled = S.busy;
+}
+
+// ---- drawing --------------------------------------------------------------------------------------------------
+function columns(w) {
+  const key = `${S.page}:${w}`;
+  if (S.colsKey === key || !S.mono) return S.cols;
+  // per pixel column: the peak (outline) and the loudness (RMS, the brighter core), both on a square-root scale
+  const cols = { peak: new Float32Array(w), rms: new Float32Array(w) }, per = PAGE * S.rate / w, base = S.page * PAGE * S.rate;
+  for (let x = 0; x < w; x++) {
+    let p = 0, sq = 0;
+    const a = Math.floor(base + x * per), b = Math.min(Math.floor(base + (x + 1) * per), S.mono.length);
+    for (let k = a; k < b; k++) { const v = Math.abs(S.mono[k]); if (v > p) p = v; sq += v * v; }
+    cols.peak[x] = Math.sqrt(p / S.peak);
+    cols.rms[x] = b > a ? Math.sqrt(Math.sqrt(sq / (b - a)) / S.peak) : 0;
+  }
+  S.cols = cols; S.colsKey = key;
+  return cols;
+}
+
+function onPage(t) { return t >= S.page * PAGE && t < (S.page + 1) * PAGE; }
+
+function pageWords() {
+  const out = [];
+  S.words.forEach((w, i) => { if (onPage(w.start)) out.push(i); });
+  return out;
+}
+
+function rowOf(i, list) { return list.indexOf(i) % ROWS; }
+
+function draw() {
+  const w = width(), h = cv.clientHeight, dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  }
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cx.clearRect(0, 0, w, h);
+  const t0 = S.page * PAGE;
+  // beats
+  for (const b of S.beats) {
+    if (!onPage(b)) continue;
+    cx.fillStyle = S.downbeats.has(b) ? "#ffd700" : "#5c6773";
+    cx.beginPath(); cx.arc(xOf(b), 6, S.downbeats.has(b) ? 3 : 2, 0, Math.PI * 2); cx.fill();
+  }
+  // grid and ticks
+  for (let k = 0; k <= PAGE * 10; k++) {
+    const x = Math.round(k / (PAGE * 10) * w) + 0.5;
+    if (k % 10 === 0) {
+      cx.fillStyle = "#2a323b"; cx.fillRect(x - 0.5, G.waveTop, 1, G.waveH);
+      cx.fillStyle = "#8a96a3"; cx.font = "11px -apple-system, sans-serif";
+      const s = t0 + k / 10;
+      if (k < PAGE * 10) cx.fillText(`${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`, x + 3, G.waveBot + 16);
+    } else {
+      cx.fillStyle = "#6b7682"; cx.fillRect(x - 0.5, G.waveBot - G.tickH, 1, G.tickH);
+    }
+  }
+  // waveform
+  const cols = columns(w), mid = G.waveTop + G.waveH / 2;
+  if (cols) {
+    for (const [band, color] of [["peak", "#2b5f99"], ["rms", "#6fb6ff"]]) {
+      cx.fillStyle = color;
+      for (let x = 0; x < w; x++) {
+        if (t0 + x / w * PAGE > S.duration) break;
+        const a = cols[band][x] * (G.waveH / 2 - 2);
+        cx.fillRect(x, mid - a, 1, Math.max(1, a * 2));
+      }
+    }
+  }
+  // words: mark line, label and the start→end bar with its end handle
+  const list = pageWords();
+  cx.font = "600 13px -apple-system, sans-serif";
+  for (const i of list) {
+    const wd = S.words[i], row = rowOf(i, list), y = G.rowY + row * G.rowH, x = Math.round(xOf(wd.start)) + 0.5;
+    const color = i === S.sel ? "#ffffff" : moved(i) ? "#ff9f43" : "#ffe880";
+    cx.fillStyle = color; cx.strokeStyle = color; cx.lineWidth = i === S.sel ? 2 : 1;
+    cx.beginPath(); cx.moveTo(x, y - 12); cx.lineTo(x, G.waveBot); cx.stroke();
+    cx.fillText(wd.text, x + 4, y);
+    const xe = Math.min(xOf(wd.end), w);
+    cx.globalAlpha = 0.55; cx.fillRect(x, y + 4, Math.max(1, xe - x), 3); cx.globalAlpha = 1;
+    if (onPage(wd.end) || wd.end === (S.page + 1) * PAGE) cx.fillRect(xe - 3, y + 1, 6, 9);
+  }
+  // the cursor, the play window and the playhead
+  const c = xOf(S.cursor);
+  if (onPage(S.cursor)) { cx.fillStyle = "#c792ea"; cx.fillRect(Math.round(c) - 1, G.waveTop - 6, 2, G.waveH + 6); }
+  if (playing()) {
+    const p = now();
+    if (!onPage(p)) { S.page = Math.floor(p / PAGE); return draw(); }
+    cx.fillStyle = "#ffffff"; cx.fillRect(Math.round(xOf(p)) - 1, 0, 2, G.waveBot);
+  }
+  if (S.drag) {
+    const wd = S.words[S.drag.i], t = S.drag.end ? wd.end : wd.start;
+    cx.fillStyle = "#ffffff"; cx.font = "600 12px ui-monospace, Menlo, monospace";
+    cx.fillText(clock(t), Math.min(xOf(t) + 6, w - 70), G.waveTop + 14);
+  }
+  header();
+}
+
+function header() {
+  const t = now();
+  $("clock").textContent = clock(t);
+  $("page").textContent = `${clock(S.page * PAGE).slice(0, -4)}–${clock((S.page + 1) * PAGE).slice(0, -4)}`;
+  const sec = S.sections.find((s) => t >= s.start && t < s.end);
+  $("section").textContent = sec ? sec.name : "";
+  $("source").textContent = S.source === "mix" ? "Mix" : "Vocals";
+  $("source").classList.toggle("on", S.source === "vocals");
+  // the line around the cursor (or the playhead), from the words as they are now
+  let li = -1;
+  for (let k = 0; k < S.lines.length; k++) {
+    const [a, b] = S.lines[k].words;
+    if (S.words[a].start - 0.6 <= t) li = k;
+    if (S.words[a].start - 0.6 <= t && t <= S.words[b].end + 0.4) break;
+  }
+  const el = $("line");
+  if (li < 0) { el.textContent = ""; return; }
+  const [a, b] = S.lines[li].words;
+  el.replaceChildren(...S.words.slice(a, b + 1).map((wd, k) => {
+    const i = a + k, s = document.createElement("span");
+    s.textContent = wd.text;
+    if (i === S.sel) s.classList.add("sel");
+    if (moved(i)) s.classList.add("moved");
+    if (t >= wd.start && t < wd.end) s.classList.add("now");
+    s.onclick = () => select(i);
+    return s;
+  }));
+}
+
+// ---- editing ----------------------------------------------------------------------------------------------------
+function snapshot() { S.undo.push(S.words.map((w) => [w.start, w.end])); if (S.undo.length > 500) S.undo.shift(); }
+
+function undo() {
+  const snap = S.undo.pop();
+  if (!snap) return;
+  snap.forEach(([a, b], i) => { S.words[i].start = a; S.words[i].end = b; });
+  refresh(); draw();
+}
+
+function setStart(i, t) {
+  const w = S.words[i], prev = S.words[i - 1], next = S.words[i + 1];
+  const lo = prev ? prev.start + MIN : 0, hi = next ? next.start - MIN : S.duration - MIN;
+  t = r3(Math.min(Math.max(t, lo), hi));
+  const keep = S.drag && S.drag.i === i ? S.drag.end0 : w.end;
+  w.start = t;
+  w.end = r3(Math.min(Math.max(keep, t + MIN_LEN), next ? next.start : S.duration));
+  if (prev && prev.end > t) prev.end = t;
+  S.cursor = t;
+}
+
+function setEnd(i, t) {
+  const w = S.words[i], next = S.words[i + 1];
+  w.end = r3(Math.min(Math.max(t, w.start + MIN), next ? next.start : S.duration));
+}
+
+function select(i) {
+  S.sel = i;
+  if (i >= 0) { S.cursor = S.words[i].start; S.page = Math.floor(S.cursor / PAGE); }
+  draw();
+}
+
+function hit(x, y) {
+  const list = pageWords();
+  for (const i of list) {   // end handles first: they sit inside the next word's area
+    const w = S.words[i], ry = G.rowY + rowOf(i, list) * G.rowH;
+    if (Math.abs(x - xOf(w.end)) <= 6 && y >= ry - 2 && y <= ry + 12) return { i, end: true };
+  }
+  let best = null;
+  for (const i of list) {
+    const w = S.words[i], ry = G.rowY + rowOf(i, list) * G.rowH, xs = xOf(w.start);
+    const onLabel = y >= ry - 14 && y <= ry + 4 && x >= xs && x <= xs + cx.measureText(w.text).width + 6;
+    const onLine = Math.abs(x - xs) <= 5 && y >= ry - 12 && y <= G.waveBot;
+    if (onLabel || onLine) {
+      const d = Math.abs(x - xs);
+      if (!best || d < best.d) best = { i, end: false, d };
+    }
+  }
+  return best;
+}
+
+cv.addEventListener("pointerdown", (e) => {
+  if (S.busy) return;
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  cx.font = "600 13px -apple-system, sans-serif";
+  const h = hit(x, y);
+  if (h) {
+    snapshot();
+    S.sel = h.i;
+    S.drag = { i: h.i, end: h.end, end0: S.words[h.i].end, dx: x - xOf(h.end ? S.words[h.i].end : S.words[h.i].start) };
+    cv.setPointerCapture(e.pointerId);
+  } else {
+    S.sel = -1;
+    S.cursor = r3(Math.min(Math.max(tOf(x), 0), S.duration));
+  }
+  refresh(); draw();
+});
+cv.addEventListener("pointermove", (e) => {
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (!S.drag) {
+    cx.font = "600 13px -apple-system, sans-serif";
+    const h = hit(x, y);
+    cv.style.cursor = h ? (h.end ? "ew-resize" : "grab") : "crosshair";
+    return;
+  }
+  const t = tOf(x - S.drag.dx);
+  if (S.drag.end) setEnd(S.drag.i, t); else setStart(S.drag.i, t);
+  refresh(); draw();
+});
+const endDrag = () => {
+  if (!S.drag) return;
+  const i = S.drag.i;
+  S.drag = null;
+  if (S.undo.length && S.undo[S.undo.length - 1].every(([a, b], k) => a === S.words[k].start && b === S.words[k].end)) S.undo.pop();
+  S.sel = i; refresh(); draw();
+};
+cv.addEventListener("pointerup", endDrag);
+cv.addEventListener("pointercancel", endDrag);
+cv.addEventListener("dblclick", () => playAround());
+
+// ---- playing ----------------------------------------------------------------------------------------------------
+function stop() {
+  if (S.node) { S.node.onended = null; try { S.node.stop(); } catch { } S.node = null; }
+  $("play").textContent = "Play";
+}
+
+function play(from, to) {
+  if (!S.song) return;
+  stop();
+  if (S.ctx.state === "suspended") S.ctx.resume();
+  from = Math.max(0, from); to = Math.min(to, S.duration);
+  if (to <= from) return;
+  const node = S.ctx.createBufferSource();
+  node.buffer = S.source === "mix" ? S.song : S.vocals;
+  node.connect(S.ctx.destination);
+  node.onended = () => { if (S.node === node) { S.node = null; $("play").textContent = "Play"; draw(); } };
+  S.playFrom = from; S.playTo = to; S.playAt = S.ctx.currentTime + 0.02;
+  node.start(S.playAt, from, to - from);
+  S.node = node;
+  $("play").textContent = "Stop";
+  S.page = Math.floor(from / PAGE);
+  const tick = () => { if (S.node === node) { draw(); requestAnimationFrame(tick); } };
+  requestAnimationFrame(tick);
+}
+
+function playAround() { play(S.cursor - 5, S.cursor + 3); }
+
+$("around").onclick = playAround;
+$("play").onclick = () => playing() ? (stop(), draw()) : play(S.cursor, S.duration);
+$("source").onclick = () => { S.source = S.source === "mix" ? "vocals" : "mix"; if (playing()) play(now(), S.playTo); else draw(); };
+$("prev").onclick = () => { if (S.page > 0) { S.page--; draw(); } };
+$("next").onclick = () => { if ((S.page + 1) * PAGE < S.duration) { S.page++; draw(); } };
+$("undo").onclick = undo;
+$("save").onclick = save;
+
+document.addEventListener("keydown", (e) => {
+  if (S.busy) return;
+  const cmd = e.metaKey || e.ctrlKey;
+  if (cmd && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); return; }
+  if (cmd && e.key.toLowerCase() === "s") { e.preventDefault(); save(); return; }
+  if (cmd) return;
+  if (e.key === " ") { e.preventDefault(); $("play").onclick(); }
+  else if (e.key === "p" || e.key === "P") playAround();
+  else if (e.key === "v" || e.key === "V") $("source").onclick();
+  else if (e.key === "[" || e.key === "PageUp") $("prev").onclick();
+  else if (e.key === "]" || e.key === "PageDown") $("next").onclick();
+  else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && S.sel >= 0) {
+    e.preventDefault();
+    const step = (e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 0.1 : 0.01), w = S.words[S.sel];
+    snapshot();
+    if (e.altKey) setEnd(S.sel, w.end + step); else setStart(S.sel, w.start + step);
+    S.page = Math.floor(S.cursor / PAGE);
+    refresh(); draw();
+  } else if (e.key === "Escape") { S.sel = -1; draw(); }
+});
+
+async function save() {
+  const idx = changes();
+  if (!idx.length || S.busy) return;
+  stop();
+  S.busy = true; refresh();
+  status(`Saving ${idx.length} word${idx.length > 1 ? "s" : ""} and re-aligning (this takes a little while)…`);
+  try {
+    const res = await fetch("/save", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ moves: idx.map((i) => ({ i, start: S.words[i].start, end: S.words[i].end })) }) });
+    const answer = await res.json();
+    if (!res.ok) throw new Error(answer.error || res.statusText);
+    const keep = { page: S.page, cursor: S.cursor, sel: S.sel };
+    setTiming(answer.timing);
+    Object.assign(S, keep);
+    const off = answer.off && answer.off.length ? `\nNot where you put them:\n${answer.off.join("\n")}` : "";
+    status(`Saved ${answer.saved} word${answer.saved > 1 ? "s" : ""} to timing-fixes.yaml and re-aligned.${off}`, !!off);
+  } catch (err) {
+    status(`Not saved: ${err.message}. Your moves are still here; timing-fixes.yaml is as it was.`, true);
+  } finally {
+    S.busy = false; refresh(); draw();
+  }
+}
+
+window.addEventListener("resize", () => draw());
+window.addEventListener("beforeunload", (e) => { if (changes().length) { e.preventDefault(); e.returnValue = ""; } });
+load().catch((err) => status(`Could not load: ${err.message}`, true));
+</script>
+</body>
+</html>
