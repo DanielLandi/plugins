@@ -18,7 +18,7 @@ def test_versions_agree():
     market = json.loads((REPO / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
     entry = next(p for p in market["plugins"] if p["name"] == "music-video")
     assert plugin["name"] == "music-video"
-    assert plugin["version"] == entry["version"] == musicvideo.__version__ == "0.6.4"
+    assert plugin["version"] == entry["version"] == musicvideo.__version__ == "0.6.5"
     assert entry["source"] == "./music-video"
 
 
