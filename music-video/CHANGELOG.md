@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0
+
+- `edit-timing <id> [--open]`: a local page (this computer only) for fixing word timings by hand. It shows the song
+  10 s at a time like the preview's panel (the vocal waveform with its loudness, 0.1 s ticks, beat dots and a mark
+  at each word's start); drag a word's mark to where it is sung, or the handle at the end of its bar to move its end.
+  ▶ −5 s/+3 s plays around the cursor, from the mix or the vocals alone; arrows nudge by 10 ms; ⌘Z undoes. Saving
+  appends one `timing-fixes.yaml` entry per moved word (hand-written entries and comments stay), re-runs align and
+  analyze, and names any word that did not land where it was put; if align refuses, the file is put back.
+
 ## 0.5.5
 
 - `preview`: the vocal waveform is drawn 10 s at a time with a moving playhead, 0.1 s ticks, a label at every
