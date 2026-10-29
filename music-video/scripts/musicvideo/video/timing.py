@@ -117,6 +117,11 @@ def snap_to_voice(words: list[Word], envelope: np.ndarray, frame_s: float = VOIC
     return out
 
 
+def too_short(start: float, end: float) -> bool:
+    """Shorter than MIN_WORD_S, to the millisecond (128.78 - 128.72 is 0.0599999... in floating point)."""
+    return round(end - start, 3) < MIN_WORD_S
+
+
 def parse_at(value) -> float:
     if isinstance(value, (int, float)):
         return float(value)
@@ -158,7 +163,7 @@ def apply_fixes(words: list[Word], fixes: list[dict]) -> list[Word]:
             start, end = w.start + shift, w.end + shift
         else:
             start, end = number("start", w.start), number("end", w.end)
-        if end - start < MIN_WORD_S:
+        if too_short(start, end):
             raise MVError(f"timing fix {fix['word']!r} at {fix['at']} makes the word too short")
         out[i] = replace(w, start=round(start, 3), end=round(end, 3), source="fixed")
     return out

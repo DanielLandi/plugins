@@ -10,8 +10,9 @@ import yaml
 from musicvideo.errors import MVError
 from musicvideo.video import timing_editor
 from musicvideo.video.paths import video_song
-from musicvideo.video.timing_editor import (Editor, append_entries, fix_entries, landed, make_server, sung_text,
-                                            trusted_host)
+from musicvideo.video.timing import parse_at, too_short
+from musicvideo.video.timing_editor import (Editor, append_entries, clock, fix_entries, landed, make_server,
+                                            sung_text, trusted_host)
 
 
 def word(i, text, start, end, line=0):
@@ -38,14 +39,24 @@ def test_sung_text_maps_a_shown_word_back():
 def test_fix_entries_use_the_shown_start_and_the_sung_word():
     entries = fix_entries(TIMING["words"], [{"i": 1, "start": 1.0004, "end": 1.5}, {"i": 0, "start": 0.5, "end": 0.9}],
                           SHOW)
-    assert entries == [{"at": 0.4, "word": "Rain", "start": 0.5, "end": 0.9},
-                       {"at": 0.9, "word": "Nine-to-five", "start": 1.0, "end": 1.5}]
+    assert entries == [{"at": "0:00.400", "word": "Rain", "start": 0.5, "end": 0.9},
+                       {"at": "0:00.900", "word": "Nine-to-five", "start": 1.0, "end": 1.5}]
+
+
+def test_clock_is_minutes_seconds_and_milliseconds():
+    assert clock(128.72) == "2:08.720" and clock(59.9996) == "1:00.000" and parse_at(clock(128.72)) == 128.72
+
+
+def test_a_word_exactly_the_minimum_long_is_not_too_short():
+    # 128.78 - 128.72 is 0.0599999... in floating point
+    assert not too_short(128.72, 128.78) and too_short(128.72, 128.779)
+    assert fix_entries([word(0, "I", 128.7, 128.8)], [{"i": 0, "start": 128.72, "end": 128.78}], [])[0]["end"] == 128.78
 
 
 def test_fix_entries_refuse_a_bad_word_or_a_too_short_one():
     with pytest.raises(MVError, match="no word number"):
         fix_entries(TIMING["words"], [{"i": 9, "start": 1, "end": 2}], [])
-    with pytest.raises(MVError, match="shorter"):
+    with pytest.raises(MVError, match="at 0:00.400 would be shorter"):
         fix_entries(TIMING["words"], [{"i": 0, "start": 1.0, "end": 1.01}], [])
 
 
@@ -63,7 +74,7 @@ def test_append_entries_keeps_what_was_there(tmp_path):
 
 def test_landed_names_the_words_that_moved_elsewhere():
     assert landed(TIMING, [{"i": 0, "start": 0.4, "end": 0.8}]) == []
-    assert landed(TIMING, [{"i": 0, "start": 0.5, "end": 0.8}]) == ["'Rain': placed 0.500–0.800, now 0.400–0.800"]
+    assert landed(TIMING, [{"i": 0, "start": 0.5, "end": 0.8}]) == ["'Rain': placed 0:00.500–0:00.800, now 0:00.400–0:00.800"]
 
 
 def test_trusted_host_is_this_computer_only():
@@ -86,7 +97,7 @@ def editor_server(mv_ws, filed_song, monkeypatch):
             raise MVError("timing fix 'Rain' at 0.4: no such word within 3 s")
         timing = json.loads(paths.timing.read_text(encoding="utf-8"))
         for fix in yaml.safe_load(paths.fixes.read_text(encoding="utf-8")):
-            w = next(w for w in timing["words"] if abs(w["start"] - fix["at"]) < 1e-6)
+            w = next(w for w in timing["words"] if abs(w["start"] - parse_at(fix["at"])) < 1e-6)
             w["start"], w["end"] = fix["start"], fix["end"]
         paths.timing.write_text(json.dumps(timing), encoding="utf-8")
         return SimpleNamespace(timing=timing)
@@ -132,7 +143,7 @@ def test_save_appends_fixes_and_returns_the_new_timing(editor_server):
     assert status == 200 and answer["saved"] == 1 and answer["off"] == []
     assert answer["timing"]["words"][0]["start"] == 0.5 and calls["align"] == 1
     assert yaml.safe_load(paths.fixes.read_text(encoding="utf-8")) == [
-        {"at": 0.4, "word": "Rain", "start": 0.5, "end": 0.85}]
+        {"at": "0:00.400", "word": "Rain", "start": 0.5, "end": 0.85}]
 
 
 def test_a_failed_save_puts_the_fixes_file_back(editor_server):

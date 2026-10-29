@@ -6,7 +6,7 @@
 <title>Timing editor</title>
 <style>
   :root { color-scheme: dark; --bg: #101418; --panel: #171c22; --text: #e8edf2; --dim: #8a96a3; --mark: #ffe880;
-          --moved: #ff9f43; --wave: #4fa3ff; --accent: #ffd700; }
+          --moved: #ff9f43; --wave: #4fa3ff; --accent: #ffd700; --cursor: #c792ea; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, "Helvetica Neue", sans-serif; }
   header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 16px; background: var(--panel); }
@@ -19,14 +19,32 @@
   button:disabled { opacity: .45; cursor: default; }
   button.primary { background: #2f6fd6; border-color: #2f6fd6; }
   button.on { background: #3d4b59; border-color: var(--accent); }
+  /* the button used most: large, bright, and well apart from its neighbours */
+  #play { display: inline-flex; align-items: center; gap: 8px; margin: 0 22px; padding: 9px 22px; min-width: 116px;
+          justify-content: center; background: var(--accent); border-color: var(--accent); color: #15181c;
+          font-size: 17px; font-weight: 700; }
+  #play:hover:not(:disabled) { background: #ffe34d; }
+  #play svg { width: 16px; height: 16px; fill: currentColor; }
+  label.check { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); cursor: pointer; }
   .spacer { flex: 1; }
   #line { min-height: 64px; padding: 18px 16px 8px; text-align: center; font-size: 28px; font-weight: 700; }
-  #line span { padding: 0 3px; border-radius: 4px; }
-  #line .sel { background: #3a4552; }
-  #line .now { color: var(--accent); }
+  #line span { padding: 0 4px; border-radius: 5px; cursor: pointer; }
   #line .moved { color: var(--moved); }
+  #line .sel { outline: 2px solid #ffffff; outline-offset: -1px; }
+  #line .now { background: var(--accent); color: #15181c; }
+  #line .now.moved { box-shadow: inset 0 -4px 0 var(--moved); }
   #wrap { padding: 0 16px; }
   canvas { display: block; width: 100%; height: 300px; cursor: crosshair; touch-action: none; }
+  /* the word being sung, alone, speed-reader style: its pivot letter stays on the centre line */
+  #word { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; height: 76px; padding: 4px 16px;
+          font: 700 52px/1.2 -apple-system, "Helvetica Neue", sans-serif; border-top: 1px solid #222a33;
+          border-bottom: 1px solid #222a33; background: #0c0f12; }
+  #word .l { text-align: right; } #word .r { text-align: left; } #word .p { color: #ff5a5a; }
+  #legend { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 16px 0; color: var(--dim); font-size: 12px; }
+  #legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -2px; }
+  #legend i.bar { width: 3px; height: 14px; }
+  #legend i.grad { width: 80px; background: linear-gradient(90deg, hsl(260 85% 60%), hsl(130 85% 55%), hsl(0 85% 60%)); }
+  #legend .freq { display: none; } body.freq #legend .freq { display: inline; }
   #status { padding: 8px 16px; color: var(--dim); min-height: 2.4em; white-space: pre-line; }
   #status.err { color: #ff7a7a; }
   #help { padding: 0 16px 16px; color: var(--dim); font-size: 12px; }
@@ -41,34 +59,50 @@
   <button id="prev" title="Previous 10 s ([)">◀</button>
   <span id="page"></span>
   <button id="next" title="Next 10 s (])">▶</button>
-  <button id="around" class="primary" title="Play 5 s before the cursor and 3 s after (P)">▶ −5 s / +3 s</button>
-  <button id="play" title="Play from the cursor (Space)">Play</button>
-  <button id="source" title="Hear the mix or the vocals alone (V)">Mix</button>
+  <button id="back" title="Back to the first word of this line; again for the line before (B)">⏮ Line start</button>
+  <button id="play" title="Play from the cursor, or stop (Space)"></button>
+  <button id="source" title="Hear and see the mix or the vocals alone (V)">Mix</button>
+  <label class="check" title="Colour the waveform by its brightness: dark vowels (oo) blue, bright ones (ee) and s sounds red (F)">
+    <input type="checkbox" id="freq"> Colour by frequency</label>
   <span class="spacer"></span>
   <button id="undo" title="Undo (⌘Z)" disabled>Undo</button>
   <button id="save" class="primary" title="Save and re-align (⌘S)" disabled>Save</button>
 </header>
 <div id="line"></div>
 <div id="wrap"><canvas id="cv"></canvas></div>
+<div id="word"><span class="l"></span><span class="p"></span><span class="r"></span></div>
+<div id="legend">
+  <span><i style="background: var(--mark)"></i>a word's start mark</span>
+  <span><i style="background: var(--moved)"></i>moved, not saved yet</span>
+  <span><i style="background: #ffffff"></i>selected word</span>
+  <span><i class="bar" style="background: var(--cursor)"></i>cursor</span>
+  <span><i class="bar" style="background: #ffffff"></i>playhead</span>
+  <span><i style="background: var(--accent)"></i>the word being sung (in the line above)</span>
+  <span class="freq"><i class="grad"></i>low → high frequency</span>
+</div>
 <div id="status">Loading the song…</div>
 <div id="help">
-  Drag a word's mark (or its label) to where the word starts; drag the small handle at the end of its bar to move
-  where it ends. Click the waveform to put the cursor there. <kbd>P</kbd> plays −5 s/+3 s around the cursor,
-  <kbd>Space</kbd> plays from it, <kbd>V</kbd> switches mix/vocals, <kbd>←</kbd>/<kbd>→</kbd> nudge the selected
-  word by 10 ms (<kbd>Shift</kbd> 100 ms, <kbd>Alt</kbd> moves its end), <kbd>[</kbd>/<kbd>]</kbd> change page,
-  <kbd>⌘Z</kbd> undoes, <kbd>⌘S</kbd> saves (moved words become entries in timing-fixes.yaml, then align and analyze run again).
+  Drag a word's mark (or its label) to where the word starts: the word keeps its length, and shortens only where it
+  would run into the next one. Drag the small handle at the end of its bar to move where it ends. Click the waveform
+  to put the cursor there (double-click plays from there). <kbd>Space</kbd> plays or stops, <kbd>B</kbd> goes back to
+  the line's first word, <kbd>V</kbd> switches mix/vocals, <kbd>F</kbd> colours by frequency, <kbd>←</kbd>/<kbd>→</kbd>
+  nudge the selected word by 10 ms (<kbd>Shift</kbd> 100 ms, <kbd>Alt</kbd> moves its end), <kbd>[</kbd>/<kbd>]</kbd>
+  change page, <kbd>⌘Z</kbd> undoes, <kbd>⌘S</kbd> saves (moved words become entries in timing-fixes.yaml, then align
+  and analyze run again).
 </div>
 <script>
 const CONFIG = __CONFIG__;
-const PAGE = 10, MIN = 0.06, MIN_LEN = 0.12, ROWS = 3;
-const G = { rowY: 18, rowH: 20, waveTop: 84, waveH: 160, tickH: 6 };   // canvas geometry in CSS px
+const PAGE = 10, MIN = 0.06, ROWS = 3, FFT = 1024, HOLD = 1.0;
+const G = { rowY: 18, rowH: 20, waveTop: 84, waveH: 160, tickH: 6, midRow: 30 };   // canvas geometry in CSS px
 G.waveBot = G.waveTop + G.waveH;
+const ICON = { play: '<svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg>Play',
+               stop: '<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/></svg>Stop' };
 
 const $ = (id) => document.getElementById(id);
 const cv = $("cv"), cx = cv.getContext("2d");
 const S = { words: [], orig: [], lines: [], beats: [], downbeats: new Set(), sections: [], duration: 0,
-            page: 0, cursor: 0, sel: -1, undo: [], drag: null, source: "mix", busy: false,
-            ctx: null, song: null, vocals: null, mono: null, rate: 44100, peak: 1, cols: null, colsKey: "",
+            page: 0, cursor: 0, sel: -1, undo: [], drag: null, source: "mix", freq: false, busy: false,
+            ctx: null, audio: {}, mono: {}, peak: {}, rate: 44100, cols: null, colsKey: "",
             node: null, playFrom: 0, playAt: 0, playTo: 0 };
 
 const clock = (t) => { t = Math.max(0, t); const m = Math.floor(t / 60), s = t - m * 60;
@@ -82,10 +116,15 @@ const changes = () => S.words.map((w, i) => i).filter(moved);
 const playing = () => S.node !== null;
 const now = () => playing() ? Math.min(S.playTo, S.playFrom + (S.ctx.currentTime - S.playAt)) : S.cursor;
 const r3 = (t) => Math.round(t * 1000) / 1000;
+const remember = (k, v) => { try { localStorage.setItem(`timing-editor.${k}`, v); } catch { } };
+const recall = (k) => { try { return localStorage.getItem(`timing-editor.${k}`); } catch { return null; } };
 
 async function load() {
   $("title").textContent = CONFIG.title;
   document.title = `${CONFIG.title} · timing`;
+  S.source = recall("source") === "vocals" ? "vocals" : "mix";
+  S.freq = recall("freq") === "1";
+  $("freq").checked = S.freq; document.body.classList.toggle("freq", S.freq);
   const timing = await (await fetch("/timing.json")).json();
   setTiming(timing);
   try {
@@ -94,19 +133,21 @@ async function load() {
   } catch { /* no analysis yet: no beat dots */ }
   S.ctx = new AudioContext();
   status("Decoding the song and the vocals…");
-  const [song, vocals] = await Promise.all(["/audio/song", "/audio/vocals"].map(async (u) =>
+  const [mix, vocals] = await Promise.all(["/audio/song", "/audio/vocals"].map(async (u) =>
     S.ctx.decodeAudioData(await (await fetch(u)).arrayBuffer())));
-  S.song = song; S.vocals = vocals; S.rate = vocals.sampleRate;
-  S.duration = Math.max(S.duration, song.duration);
-  const mono = new Float32Array(vocals.length);
-  for (let c = 0; c < vocals.numberOfChannels; c++) {
-    const d = vocals.getChannelData(c);
-    for (let k = 0; k < d.length; k++) mono[k] += d[k] / vocals.numberOfChannels;
+  S.audio = { mix, vocals }; S.rate = mix.sampleRate;
+  S.duration = Math.max(S.duration, mix.duration);
+  for (const [name, buf] of Object.entries(S.audio)) {
+    const mono = new Float32Array(buf.length);
+    for (let c = 0; c < buf.numberOfChannels; c++) {
+      const d = buf.getChannelData(c);
+      for (let k = 0; k < d.length; k++) mono[k] += d[k] / buf.numberOfChannels;
+    }
+    let peak = 0;
+    for (let k = 0; k < mono.length; k++) { const v = Math.abs(mono[k]); if (v > peak) peak = v; }
+    S.mono[name] = mono; S.peak[name] = peak || 1;
   }
-  let peak = 0;
-  for (let k = 0; k < mono.length; k++) { const v = Math.abs(mono[k]); if (v > peak) peak = v; }
-  S.mono = mono; S.peak = peak || 1;
-  status(`${S.words.length} words. Drag a mark to move a word; P plays around the cursor.`);
+  status(`${S.words.length} words. Drag a mark to move a word; Space plays.`);
   draw();
 }
 
@@ -125,21 +166,56 @@ function refresh() {
   $("save").disabled = S.busy || n === 0;
   $("save").textContent = n ? `Save ${n}` : "Save";
   $("undo").disabled = S.busy || S.undo.length === 0;
-  for (const id of ["around", "play", "prev", "next"]) $(id).disabled = S.busy;
+  for (const id of ["back", "play", "prev", "next"]) $(id).disabled = S.busy;
 }
+
+// ---- frequency: the spectral centroid of a Hann-windowed FFT around each pixel column -----------------------------
+const HANN = Float32Array.from({ length: FFT }, (_, k) => 0.5 - 0.5 * Math.cos(2 * Math.PI * k / (FFT - 1)));
+const REV = (() => {
+  const bits = Math.log2(FFT), rev = new Uint32Array(FFT);
+  for (let k = 0; k < FFT; k++) { let r = 0; for (let b = 0; b < bits; b++) r |= ((k >> b) & 1) << (bits - 1 - b); rev[k] = r; }
+  return rev;
+})();
+const RE = new Float32Array(FFT), IM = new Float32Array(FFT);
+
+function centroid(mono, mid) {
+  for (let k = 0; k < FFT; k++) {
+    const j = mid - FFT / 2 + REV[k];
+    RE[k] = j >= 0 && j < mono.length ? mono[j] * HANN[REV[k]] : 0; IM[k] = 0;
+  }
+  for (let size = 2; size <= FFT; size *= 2) {
+    const half = size / 2, step = -2 * Math.PI / size;
+    for (let s = 0; s < FFT; s += size) {
+      for (let k = 0; k < half; k++) {
+        const c = Math.cos(step * k), d = Math.sin(step * k), a = s + k, b = a + half;
+        const tr = RE[b] * c - IM[b] * d, ti = RE[b] * d + IM[b] * c;
+        RE[b] = RE[a] - tr; IM[b] = IM[a] - ti; RE[a] += tr; IM[a] += ti;
+      }
+    }
+  }
+  const hz = S.rate / FFT, lo = Math.ceil(80 / hz), hi = Math.min(FFT / 2, Math.floor(8000 / hz));
+  let sum = 0, weighted = 0;
+  for (let k = lo; k < hi; k++) { const m = Math.hypot(RE[k], IM[k]); sum += m; weighted += m * k * hz; }
+  return sum > 0 ? weighted / sum : 0;
+}
+
+// 200 Hz (dark) → violet, 4 kHz (bright) → red, on a log scale
+const hueOf = (f) => f > 0 ? 260 * (1 - Math.min(1, Math.max(0, Math.log2(f / 200) / Math.log2(20)))) : 210;
 
 // ---- drawing --------------------------------------------------------------------------------------------------
 function columns(w) {
-  const key = `${S.page}:${w}`;
-  if (S.colsKey === key || !S.mono) return S.cols;
+  const mono = S.mono[S.source], key = `${S.page}:${w}:${S.source}:${S.freq}`;
+  if (S.colsKey === key || !mono) return S.cols;
   // per pixel column: the peak (outline) and the loudness (RMS, the brighter core), both on a square-root scale
-  const cols = { peak: new Float32Array(w), rms: new Float32Array(w) }, per = PAGE * S.rate / w, base = S.page * PAGE * S.rate;
+  const peak = S.peak[S.source], per = PAGE * S.rate / w, base = S.page * PAGE * S.rate;
+  const cols = { peak: new Float32Array(w), rms: new Float32Array(w), hue: S.freq ? new Float32Array(w) : null };
   for (let x = 0; x < w; x++) {
     let p = 0, sq = 0;
-    const a = Math.floor(base + x * per), b = Math.min(Math.floor(base + (x + 1) * per), S.mono.length);
-    for (let k = a; k < b; k++) { const v = Math.abs(S.mono[k]); if (v > p) p = v; sq += v * v; }
-    cols.peak[x] = Math.sqrt(p / S.peak);
-    cols.rms[x] = b > a ? Math.sqrt(Math.sqrt(sq / (b - a)) / S.peak) : 0;
+    const a = Math.floor(base + x * per), b = Math.min(Math.floor(base + (x + 1) * per), mono.length);
+    for (let k = a; k < b; k++) { const v = Math.abs(mono[k]); if (v > p) p = v; sq += v * v; }
+    cols.peak[x] = Math.sqrt(p / peak);
+    cols.rms[x] = b > a ? Math.sqrt(Math.sqrt(sq / (b - a)) / peak) : 0;
+    if (cols.hue) cols.hue[x] = cols.rms[x] > 0.04 ? hueOf(centroid(mono, Math.floor((a + b) / 2))) : -1;
   }
   S.cols = cols; S.colsKey = key;
   return cols;
@@ -154,6 +230,14 @@ function pageWords() {
 }
 
 function rowOf(i, list) { return list.indexOf(i) % ROWS; }
+
+// the word being sung at t: the last one started, until the next starts (or a second after it ends)
+function current(t) {
+  let i = -1;
+  for (let k = 0; k < S.words.length && S.words[k].start <= t; k++) i = k;
+  if (i < 0 || t > S.words[i].end + HOLD) return -1;
+  return i;
+}
 
 function draw() {
   const w = width(), h = cv.clientHeight, dpr = window.devicePixelRatio || 1;
@@ -181,30 +265,35 @@ function draw() {
       cx.fillStyle = "#6b7682"; cx.fillRect(x - 0.5, G.waveBot - G.tickH, 1, G.tickH);
     }
   }
-  // waveform
+  // waveform: blue, or coloured by frequency (grey where it is too quiet to tell)
   const cols = columns(w), mid = G.waveTop + G.waveH / 2;
   if (cols) {
-    for (const [band, color] of [["peak", "#2b5f99"], ["rms", "#6fb6ff"]]) {
+    for (const [band, color, light] of [["peak", "#2b5f99", 32], ["rms", "#6fb6ff", 60]]) {
       cx.fillStyle = color;
       for (let x = 0; x < w; x++) {
         if (t0 + x / w * PAGE > S.duration) break;
+        if (cols.hue) cx.fillStyle = cols.hue[x] < 0 ? `hsl(210 10% ${light - 8}%)` : `hsl(${cols.hue[x]} 85% ${light}%)`;
         const a = cols[band][x] * (G.waveH / 2 - 2);
         cx.fillRect(x, mid - a, 1, Math.max(1, a * 2));
       }
     }
   }
-  // words: mark line, label and the start→end bar with its end handle
+  // words: mark line, label and the start→end bar with its end handle; the label again inside the waveform
   const list = pageWords();
-  cx.font = "600 13px -apple-system, sans-serif";
   for (const i of list) {
     const wd = S.words[i], row = rowOf(i, list), y = G.rowY + row * G.rowH, x = Math.round(xOf(wd.start)) + 0.5;
     const color = i === S.sel ? "#ffffff" : moved(i) ? "#ff9f43" : "#ffe880";
     cx.fillStyle = color; cx.strokeStyle = color; cx.lineWidth = i === S.sel ? 2 : 1;
     cx.beginPath(); cx.moveTo(x, y - 12); cx.lineTo(x, G.waveBot); cx.stroke();
+    cx.font = "600 13px -apple-system, sans-serif";
     cx.fillText(wd.text, x + 4, y);
     const xe = Math.min(xOf(wd.end), w);
     cx.globalAlpha = 0.55; cx.fillRect(x, y + 4, Math.max(1, xe - x), 3); cx.globalAlpha = 1;
     if (onPage(wd.end) || wd.end === (S.page + 1) * PAGE) cx.fillRect(xe - 3, y + 1, 6, 9);
+    const ym = mid + (row - 1) * G.midRow + 5;
+    cx.font = "700 15px -apple-system, sans-serif";
+    cx.lineWidth = 4; cx.strokeStyle = "rgba(8, 10, 13, 0.85)"; cx.lineJoin = "round";
+    cx.strokeText(wd.text, x + 4, ym); cx.fillText(wd.text, x + 4, ym);
   }
   // the cursor, the play window and the playhead
   const c = xOf(S.cursor);
@@ -222,22 +311,36 @@ function draw() {
   header();
 }
 
-function header() {
-  const t = now();
-  $("clock").textContent = clock(t);
-  $("page").textContent = `${clock(S.page * PAGE).slice(0, -4)}–${clock((S.page + 1) * PAGE).slice(0, -4)}`;
-  const sec = S.sections.find((s) => t >= s.start && t < s.end);
-  $("section").textContent = sec ? sec.name : "";
-  $("source").textContent = S.source === "mix" ? "Mix" : "Vocals";
-  $("source").classList.toggle("on", S.source === "vocals");
-  // the line around the cursor (or the playhead), from the words as they are now
+// the line to show at t: the sung word's line, else the line about to start or just ended
+function lineAt(t, cur) {
+  if (cur >= 0) {
+    const k = S.lines.findIndex((l) => cur >= l.words[0] && cur <= l.words[1]);
+    if (k >= 0) return k;
+  }
   let li = -1;
   for (let k = 0; k < S.lines.length; k++) {
     const [a, b] = S.lines[k].words;
     if (S.words[a].start - 0.6 <= t) li = k;
     if (S.words[a].start - 0.6 <= t && t <= S.words[b].end + 0.4) break;
   }
-  const el = $("line");
+  return li;
+}
+
+// the speed-reading pivot: a little left of the middle, as such readers place it
+const pivot = (n) => n <= 1 ? 0 : n <= 5 ? 1 : n <= 9 ? 2 : n <= 13 ? 3 : 4;
+
+function header() {
+  const t = now(), cur = current(t);
+  $("clock").textContent = clock(t);
+  $("page").textContent = `${clock(S.page * PAGE).slice(0, -4)}–${clock((S.page + 1) * PAGE).slice(0, -4)}`;
+  const sec = S.sections.find((s) => t >= s.start && t < s.end);
+  $("section").textContent = sec ? sec.name : "";
+  $("source").textContent = S.source === "mix" ? "Mix" : "Vocals";
+  $("source").classList.toggle("on", S.source === "vocals");
+  $("play").innerHTML = playing() ? ICON.stop : ICON.play;
+  const [l, p, r] = $("word").children, text = cur >= 0 ? S.words[cur].text : "", k = pivot(text.length);
+  l.textContent = text.slice(0, k); p.textContent = text.slice(k, k + 1); r.textContent = text.slice(k + 1);
+  const li = lineAt(t, cur), el = $("line");
   if (li < 0) { el.textContent = ""; return; }
   const [a, b] = S.lines[li].words;
   el.replaceChildren(...S.words.slice(a, b + 1).map((wd, k) => {
@@ -245,7 +348,7 @@ function header() {
     s.textContent = wd.text;
     if (i === S.sel) s.classList.add("sel");
     if (moved(i)) s.classList.add("moved");
-    if (t >= wd.start && t < wd.end) s.classList.add("now");
+    if (i === cur) s.classList.add("now");
     s.onclick = () => select(i);
     return s;
   }));
@@ -261,14 +364,16 @@ function undo() {
   refresh(); draw();
 }
 
+// Moving a start carries the whole word: it keeps its length, and only shortens where it would run into the next
+// word. The word before it is cut back to the new start if they would overlap (and gets its end back on a drag back).
 function setStart(i, t) {
-  const w = S.words[i], prev = S.words[i - 1], next = S.words[i + 1];
+  const w = S.words[i], prev = S.words[i - 1], next = S.words[i + 1], drag = S.drag && S.drag.i === i ? S.drag : null;
   const lo = prev ? prev.start + MIN : 0, hi = next ? next.start - MIN : S.duration - MIN;
   t = r3(Math.min(Math.max(t, lo), hi));
-  const keep = S.drag && S.drag.i === i ? S.drag.end0 : w.end;
+  const len = drag ? drag.len0 : w.end - w.start;
   w.start = t;
-  w.end = r3(Math.min(Math.max(keep, t + MIN_LEN), next ? next.start : S.duration));
-  if (prev && prev.end > t) prev.end = t;
+  w.end = r3(Math.max(t + MIN, Math.min(t + len, next ? next.start : S.duration)));
+  if (prev) prev.end = r3(Math.min(drag ? drag.prevEnd0 : prev.end, t));
   S.cursor = t;
 }
 
@@ -309,8 +414,10 @@ cv.addEventListener("pointerdown", (e) => {
   const h = hit(x, y);
   if (h) {
     snapshot();
+    const w = S.words[h.i], prev = S.words[h.i - 1];
     S.sel = h.i;
-    S.drag = { i: h.i, end: h.end, end0: S.words[h.i].end, dx: x - xOf(h.end ? S.words[h.i].end : S.words[h.i].start) };
+    S.drag = { i: h.i, end: h.end, len0: w.end - w.start, prevEnd0: prev ? prev.end : 0,
+               dx: x - xOf(h.end ? w.end : w.start) };
     cv.setPointerCapture(e.pointerId);
   } else {
     S.sel = -1;
@@ -339,38 +446,59 @@ const endDrag = () => {
 };
 cv.addEventListener("pointerup", endDrag);
 cv.addEventListener("pointercancel", endDrag);
-cv.addEventListener("dblclick", () => playAround());
+cv.addEventListener("dblclick", () => play(S.cursor, S.duration));
 
 // ---- playing ----------------------------------------------------------------------------------------------------
 function stop() {
   if (S.node) { S.node.onended = null; try { S.node.stop(); } catch { } S.node = null; }
-  $("play").textContent = "Play";
+  $("play").innerHTML = ICON.play;
 }
 
 function play(from, to) {
-  if (!S.song) return;
+  if (!S.audio.mix) return;
   stop();
   if (S.ctx.state === "suspended") S.ctx.resume();
   from = Math.max(0, from); to = Math.min(to, S.duration);
   if (to <= from) return;
   const node = S.ctx.createBufferSource();
-  node.buffer = S.source === "mix" ? S.song : S.vocals;
+  node.buffer = S.audio[S.source];
   node.connect(S.ctx.destination);
-  node.onended = () => { if (S.node === node) { S.node = null; $("play").textContent = "Play"; draw(); } };
+  node.onended = () => { if (S.node === node) { S.node = null; $("play").innerHTML = ICON.play; draw(); } };
   S.playFrom = from; S.playTo = to; S.playAt = S.ctx.currentTime + 0.02;
   node.start(S.playAt, from, to - from);
   S.node = node;
-  $("play").textContent = "Stop";
+  $("play").innerHTML = ICON.stop;
   S.page = Math.floor(from / PAGE);
   const tick = () => { if (S.node === node) { draw(); requestAnimationFrame(tick); } };
   requestAnimationFrame(tick);
 }
 
-function playAround() { play(S.cursor - 5, S.cursor + 3); }
+// Back to the first word of the line at the cursor (or the playhead); pressed again right there, the line before.
+function back() {
+  const t = now(), li = lineAt(t, current(t));
+  if (li < 0) return;
+  let k = li;
+  if (t - S.words[S.lines[k].words[0]].start < 0.25 && k > 0) k--;
+  const start = S.words[S.lines[k].words[0]].start;
+  S.cursor = start; S.page = Math.floor(start / PAGE);
+  if (playing()) play(start, S.duration); else draw();
+}
 
-$("around").onclick = playAround;
+function setSource(name) {
+  S.source = name; remember("source", name);
+  if (playing()) play(now(), S.playTo); else draw();
+}
+
+function setFreq(on) {
+  S.freq = on; $("freq").checked = on; remember("freq", on ? "1" : "0");
+  document.body.classList.toggle("freq", on);
+  draw();
+}
+
+$("back").onclick = back;
 $("play").onclick = () => playing() ? (stop(), draw()) : play(S.cursor, S.duration);
-$("source").onclick = () => { S.source = S.source === "mix" ? "vocals" : "mix"; if (playing()) play(now(), S.playTo); else draw(); };
+$("source").onclick = () => setSource(S.source === "mix" ? "vocals" : "mix");
+$("freq").onchange = (e) => setFreq(e.target.checked);
 $("prev").onclick = () => { if (S.page > 0) { S.page--; draw(); } };
 $("next").onclick = () => { if ((S.page + 1) * PAGE < S.duration) { S.page++; draw(); } };
 $("undo").onclick = undo;
@@ -383,8 +511,9 @@ document.addEventListener("keydown", (e) => {
   if (cmd && e.key.toLowerCase() === "s") { e.preventDefault(); save(); return; }
   if (cmd) return;
   if (e.key === " ") { e.preventDefault(); $("play").onclick(); }
-  else if (e.key === "p" || e.key === "P") playAround();
+  else if (e.key === "b" || e.key === "B" || e.key === "Home") { e.preventDefault(); back(); }
   else if (e.key === "v" || e.key === "V") $("source").onclick();
+  else if (e.key === "f" || e.key === "F") setFreq(!S.freq);
   else if (e.key === "[" || e.key === "PageUp") $("prev").onclick();
   else if (e.key === "]" || e.key === "PageDown") $("next").onclick();
   else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && S.sel >= 0) {
@@ -396,6 +525,8 @@ document.addEventListener("keydown", (e) => {
     refresh(); draw();
   } else if (e.key === "Escape") { S.sel = -1; draw(); }
 });
+// a focused button would take Space as its own click too: keep Space for play
+for (const b of document.querySelectorAll("button, input")) b.addEventListener("keydown", (e) => { if (e.key === " ") e.preventDefault(); });
 
 async function save() {
   const idx = changes();
