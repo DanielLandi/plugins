@@ -24,7 +24,7 @@
           justify-content: center; background: var(--accent); border-color: var(--accent); color: #15181c;
           font-size: 17px; font-weight: 700; }
   #play:hover:not(:disabled) { background: #ffe34d; }
-  #play svg { width: 16px; height: 16px; fill: currentColor; }
+  #play svg { width: 16px; height: 16px; fill: currentColor; pointer-events: none; }
   label.check { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); cursor: pointer; }
   .spacer { flex: 1; }
   #line { min-height: 64px; padding: 18px 16px 8px; text-align: center; font-size: 28px; font-weight: 700; }
@@ -93,7 +93,7 @@
 <script>
 const CONFIG = __CONFIG__;
 const PAGE = 10, MIN = 0.06, ROWS = 3, FFT = 1024, HOLD = 1.0;
-const G = { rowY: 18, rowH: 20, waveTop: 84, waveH: 160, tickH: 6, midRow: 30 };   // canvas geometry in CSS px
+const G = { rowY: 18, rowH: 20, waveTop: 84, waveH: 160, tickH: 6 };   // canvas geometry in CSS px
 G.waveBot = G.waveTop + G.waveH;
 const ICON = { play: '<svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg>Play',
                stop: '<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/></svg>Stop' };
@@ -103,7 +103,7 @@ const cv = $("cv"), cx = cv.getContext("2d");
 const S = { words: [], orig: [], lines: [], beats: [], downbeats: new Set(), sections: [], duration: 0,
             page: 0, cursor: 0, sel: -1, undo: [], drag: null, source: "mix", freq: false, busy: false,
             ctx: null, audio: {}, mono: {}, peak: {}, rate: 44100, cols: null, colsKey: "",
-            node: null, playFrom: 0, playAt: 0, playTo: 0 };
+            node: null, playFrom: 0, playAt: 0, playTo: 0, shown: {} };
 
 const clock = (t) => { t = Math.max(0, t); const m = Math.floor(t / 60), s = t - m * 60;
   return `${m}:${s.toFixed(3).padStart(6, "0")}`; };
@@ -117,6 +117,9 @@ const playing = () => S.node !== null;
 const now = () => playing() ? Math.min(S.playTo, S.playFrom + (S.ctx.currentTime - S.playAt)) : S.cursor;
 const r3 = (t) => Math.round(t * 1000) / 1000;
 const remember = (k, v) => { try { localStorage.setItem(`timing-editor.${k}`, v); } catch { } };
+// Set an element's content only when it changes: the page redraws every frame while playing, and replacing the
+// element under the pointer between mouse-down and mouse-up swallows the click (Stop, a word in the line).
+const show = (key, value, put) => { if (S.shown[key] !== value) { S.shown[key] = value; put(value); } };
 const recall = (k) => { try { return localStorage.getItem(`timing-editor.${k}`); } catch { return null; } };
 
 async function load() {
@@ -290,10 +293,13 @@ function draw() {
     const xe = Math.min(xOf(wd.end), w);
     cx.globalAlpha = 0.55; cx.fillRect(x, y + 4, Math.max(1, xe - x), 3); cx.globalAlpha = 1;
     if (onPage(wd.end) || wd.end === (S.page + 1) * PAGE) cx.fillRect(xe - 3, y + 1, 6, 9);
-    const ym = mid + (row - 1) * G.midRow + 5;
+    // one line across the middle, each label cut where the next word starts so none overlap
+    const next = S.words[i + 1], xn = next ? Math.min(xOf(next.start), w) : w;
+    cx.save(); cx.beginPath(); cx.rect(x, G.waveTop, Math.max(0, xn - x - 1), G.waveH); cx.clip();
     cx.font = "700 15px -apple-system, sans-serif";
     cx.lineWidth = 4; cx.strokeStyle = "rgba(8, 10, 13, 0.85)"; cx.lineJoin = "round";
-    cx.strokeText(wd.text, x + 4, ym); cx.fillText(wd.text, x + 4, ym);
+    cx.strokeText(wd.text, x + 4, mid + 5); cx.fillText(wd.text, x + 4, mid + 5);
+    cx.restore();
   }
   // the cursor, the play window and the playhead
   const c = xOf(S.cursor);
@@ -337,13 +343,16 @@ function header() {
   $("section").textContent = sec ? sec.name : "";
   $("source").textContent = S.source === "mix" ? "Mix" : "Vocals";
   $("source").classList.toggle("on", S.source === "vocals");
-  $("play").innerHTML = playing() ? ICON.stop : ICON.play;
-  const [l, p, r] = $("word").children, text = cur >= 0 ? S.words[cur].text : "", k = pivot(text.length);
-  l.textContent = text.slice(0, k); p.textContent = text.slice(k, k + 1); r.textContent = text.slice(k + 1);
-  const li = lineAt(t, cur), el = $("line");
-  if (li < 0) { el.textContent = ""; return; }
-  const [a, b] = S.lines[li].words;
-  el.replaceChildren(...S.words.slice(a, b + 1).map((wd, k) => {
+  playIcon();
+  show("word", cur >= 0 ? S.words[cur].text : "", (text) => {
+    const [l, p, r] = $("word").children, k = pivot(text.length);
+    l.textContent = text.slice(0, k); p.textContent = text.slice(k, k + 1); r.textContent = text.slice(k + 1);
+  });
+  const li = lineAt(t, cur);
+  if (li < 0) { show("line", "", () => { $("line").textContent = ""; }); return; }
+  const [a, b] = S.lines[li].words, idx = Array.from({ length: b - a + 1 }, (_, k) => a + k);
+  const key = idx.map((i) => `${i}:${S.words[i].text}:${i === S.sel}:${moved(i)}:${i === cur}`).join("|");
+  show("line", key, () => $("line").replaceChildren(...S.words.slice(a, b + 1).map((wd, k) => {
     const i = a + k, s = document.createElement("span");
     s.textContent = wd.text;
     if (i === S.sel) s.classList.add("sel");
@@ -351,8 +360,10 @@ function header() {
     if (i === cur) s.classList.add("now");
     s.onclick = () => select(i);
     return s;
-  }));
+  })));
 }
+
+function playIcon() { show("play", playing() ? "stop" : "play", (state) => { $("play").innerHTML = ICON[state]; }); }
 
 // ---- editing ----------------------------------------------------------------------------------------------------
 function snapshot() { S.undo.push(S.words.map((w) => [w.start, w.end])); if (S.undo.length > 500) S.undo.shift(); }
@@ -451,7 +462,7 @@ cv.addEventListener("dblclick", () => play(S.cursor, S.duration));
 // ---- playing ----------------------------------------------------------------------------------------------------
 function stop() {
   if (S.node) { S.node.onended = null; try { S.node.stop(); } catch { } S.node = null; }
-  $("play").innerHTML = ICON.play;
+  playIcon();
 }
 
 function play(from, to) {
@@ -463,11 +474,11 @@ function play(from, to) {
   const node = S.ctx.createBufferSource();
   node.buffer = S.audio[S.source];
   node.connect(S.ctx.destination);
-  node.onended = () => { if (S.node === node) { S.node = null; $("play").innerHTML = ICON.play; draw(); } };
+  node.onended = () => { if (S.node === node) { S.node = null; draw(); } };
   S.playFrom = from; S.playTo = to; S.playAt = S.ctx.currentTime + 0.02;
   node.start(S.playAt, from, to - from);
   S.node = node;
-  $("play").innerHTML = ICON.stop;
+  playIcon();
   S.page = Math.floor(from / PAGE);
   const tick = () => { if (S.node === node) { draw(); requestAnimationFrame(tick); } };
   requestAnimationFrame(tick);

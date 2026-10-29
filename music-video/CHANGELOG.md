@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2
+
+- `edit-timing`: Stop answers every click while playing (the button, and the line's words, were rebuilt on every
+  frame, which swallowed a click whose press and release fell on different frames). The labels inside the waveform
+  sit on one line, each cut where the next word starts.
+
 ## 0.6.1
 
 - `edit-timing`: Play/Stop is the large bright button (with an icon for each state), set apart from its neighbours;
