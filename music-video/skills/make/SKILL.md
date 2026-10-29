@@ -126,9 +126,12 @@ chorus → bridge → final chorus). Wait for approval. Nothing is written to di
    sections, and ask them to watch the preview. Its bottom panel shows the vocal waveform 10 s at a time with a
    moving playhead, 0.1 s ticks and a mark at each word's start: a word's true start is where the waveform rises
    after a dip, so a fix can be read off it to the tenth of a second.
-   - Many words to move → offer the timing editor, where the user drags each word's mark onto the waveform and
-     saves (it writes the `timing-fixes.yaml` entries and re-runs align and analyze). Run it in the background
-     and give the user its address; it keeps serving until stopped:
+   - Always offer the timing editor with the preview (users find dragging words easier than writing fixes): a
+     local page where the user drags each word's mark onto the waveform, plays the song around it, and saves (it
+     writes the `timing-fixes.yaml` entries and re-runs align and analyze). Run it in the background and give the
+     user its address (`http://127.0.0.1:8644/`); it keeps serving until stopped. After each save, check the
+     entries landed and commit `timing-fixes.yaml`. Stop it when the timing is approved (it can be started again
+     at any time):
 
      ```bash
      uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" edit-timing <id> --open

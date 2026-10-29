@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.5
+
+- make skill, timing step: the timing editor is offered with every preview (not only when many words are off), with
+  its address; the skill commits the fixes after each save and stops the editor once the timing is approved.
+
 ## 0.6.4
 
 - `edit-timing`: the status line (saving, saved, errors) is larger, white, and marked while work is under way; the
