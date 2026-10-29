@@ -1,6 +1,6 @@
 {
   "name": "music-video",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "Turn a theme into a finished music video: lyrics, a song made in your own Suno account (driven in your Chrome through Claude in Chrome, no unofficial APIs), word-level timings, and a code-rendered 2D/3D video with subtitles.",
   "author": { "name": "Daniel Landi" },
   "homepage": "https://github.com/DanielLandi/plugins/tree/main/music-video",

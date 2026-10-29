@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.4
+
+- `edit-timing`: the status line (saving, saved, errors) is larger, white, and marked while work is under way; the
+  help is two short tables (how to, keys) instead of a paragraph.
+
 ## 0.6.3
 
 - `edit-timing`: the playhead and the highlighted word follow the sound as heard, not as handed to the audio device:

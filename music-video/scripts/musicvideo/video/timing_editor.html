@@ -47,9 +47,15 @@
   #legend i.bar { width: 3px; height: 14px; }
   #legend i.grad { width: 80px; background: linear-gradient(90deg, hsl(260 85% 60%), hsl(130 85% 55%), hsl(0 85% 60%)); }
   #legend .freq { display: none; } body.freq #legend .freq { display: inline; }
-  #status { padding: 8px 16px; color: var(--dim); min-height: 2.4em; white-space: pre-line; }
-  #status.err { color: #ff7a7a; }
-  #help { padding: 0 16px 16px; color: var(--dim); font-size: 12px; }
+  #status { margin: 10px 16px; padding: 8px 12px; color: #ffffff; font-size: 17px; font-weight: 600; min-height: 2.4em;
+            white-space: pre-line; border-left: 4px solid transparent; }
+  #status.busy { border-left-color: var(--accent); background: #1d242c; }
+  #status.err { color: #ff7a7a; border-left-color: #ff7a7a; background: #2a1a1d; }
+  #help { padding: 0 16px 16px; color: var(--dim); font-size: 13px; }
+  #help h2 { font-size: 13px; color: var(--text); margin: 14px 0 6px; }
+  #help table { border-collapse: collapse; }
+  #help td { padding: 3px 18px 3px 0; vertical-align: top; }
+  #help td:first-child { white-space: nowrap; color: var(--text); }
   kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid #36424e; border-radius: 3px; padding: 0 4px; }
 </style>
 </head>
@@ -86,13 +92,24 @@
 </div>
 <div id="status">Loading the song…</div>
 <div id="help">
-  Drag a word's mark (or its label) to where the word starts: the word keeps its length, and shortens only where it
-  would run into the next one. Drag the small handle at the end of its bar to move where it ends. Click the waveform
-  to put the cursor there (double-click plays from there). <kbd>Space</kbd> plays or stops, <kbd>B</kbd> goes back to
-  the line's first word, <kbd>V</kbd> switches mix/vocals, <kbd>F</kbd> colours by frequency, <kbd>←</kbd>/<kbd>→</kbd>
-  nudge the selected word by 10 ms (<kbd>Shift</kbd> 100 ms, <kbd>Alt</kbd> moves its end), <kbd>[</kbd>/<kbd>]</kbd>
-  change page, <kbd>⌘Z</kbd> undoes, <kbd>⌘S</kbd> saves (moved words become entries in timing-fixes.yaml, then align
-  and analyze run again).
+  <h2>How to</h2>
+  <table>
+    <tr><td>Move a word's start</td><td>drag its mark or its label: the word keeps its length, and shortens only where it would run into the next one</td></tr>
+    <tr><td>Move a word's end</td><td>drag the small handle at the end of its bar</td></tr>
+    <tr><td>Put the cursor</td><td>click the waveform (double-click plays from there); click a word in the line above to select it</td></tr>
+    <tr><td>Save</td><td>moved words become entries in timing-fixes.yaml, then align and analyze run again</td></tr>
+  </table>
+  <h2>Keys</h2>
+  <table>
+    <tr><td><kbd>Space</kbd></td><td>play from the cursor, or stop</td></tr>
+    <tr><td><kbd>B</kbd></td><td>back to the line's first word (again: the line before)</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>nudge the selected word's start by 10 ms (<kbd>Shift</kbd> 100 ms, <kbd>Alt</kbd> moves its end)</td></tr>
+    <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next 10 s</td></tr>
+    <tr><td><kbd>V</kbd></td><td>hear and see the mix or the vocals alone</td></tr>
+    <tr><td><kbd>F</kbd></td><td>colour the waveform by frequency</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>deselect</td></tr>
+    <tr><td><kbd>⌘Z</kbd> / <kbd>⌘S</kbd></td><td>undo / save</td></tr>
+  </table>
 </div>
 <script>
 const CONFIG = __CONFIG__;
@@ -111,7 +128,8 @@ const S = { words: [], orig: [], lines: [], beats: [], downbeats: new Set(), sec
 
 const clock = (t) => { t = Math.max(0, t); const m = Math.floor(t / 60), s = t - m * 60;
   return `${m}:${s.toFixed(3).padStart(6, "0")}`; };
-const status = (text, err = false) => { $("status").textContent = text; $("status").classList.toggle("err", err); };
+const status = (text, err = false, busy = false) => {
+  $("status").textContent = text; $("status").classList.toggle("err", err); $("status").classList.toggle("busy", busy); };
 const width = () => cv.clientWidth;
 const xOf = (t) => (t - S.page * PAGE) / PAGE * width();
 const tOf = (x) => S.page * PAGE + x / width() * PAGE;
@@ -148,7 +166,7 @@ async function load() {
     S.beats = a.beats || []; S.downbeats = new Set(a.downbeats || []); S.sections = a.sections || [];
   } catch { /* no analysis yet: no beat dots */ }
   S.ctx = new AudioContext();
-  status("Decoding the song and the vocals…");
+  status("Decoding the song and the vocals…", false, true);
   const [mix, vocals] = await Promise.all(["/audio/song", "/audio/vocals"].map(async (u) =>
     S.ctx.decodeAudioData(await (await fetch(u)).arrayBuffer())));
   S.audio = { mix, vocals }; S.rate = mix.sampleRate;
@@ -566,7 +584,7 @@ async function save() {
   if (!idx.length || S.busy) return;
   stop();
   S.busy = true; refresh();
-  status(`Saving ${idx.length} word${idx.length > 1 ? "s" : ""} and re-aligning (this takes a little while)…`);
+  status(`Saving ${idx.length} word${idx.length > 1 ? "s" : ""} and re-aligning (this takes a little while)…`, false, true);
   try {
     const res = await fetch("/save", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ moves: idx.map((i) => ({ i, start: S.words[i].start, end: S.words[i].end })) }) });
