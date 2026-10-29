@@ -14,7 +14,7 @@ timings, and a code-rendered 2D/3D video with subtitles, a 9:16 cut and a thumbn
 - **A song:** 2–3 lyric options in chat, 2–3 musical directions created in Suno, a table of takes to listen to.
   Only the take you name is downloaded.
 - **Timings:** every sung word timed (vocal separation + forced alignment, repaired against a transcription), plus
-  tempo, beats, sections and big moments. A karaoke preview lets you check sync before any video work.
+  tempo, beats, sections and big moments. A karaoke preview (with the vocal waveform 10 s at a time and a mark at each word) lets you check sync before any video work.
 - **A video:** a written look, a storyboard with a reason for every cut, real scenes in React (2D, or 3D with the
   bundled kit: camera rigs on the song clock, extruded 3D lyrics, CC0 models), motion blur by sub-frame averaging,
   subtitles, and automatic checks (black, flash or frozen frames, sync, size) before you see anything.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.5
+
+- `preview`: the vocal waveform is drawn 10 s at a time with a moving playhead, 0.1 s ticks, a label at every
+  second and a mark with the word at each word's start, plus a clock to the millisecond, so a word's start can be
+  read against the voice (the old strip scrolled past the playhead and showed only the current instant).
+
 ## 0.5.4
 
 - Security: the studio's locked dependencies move past open advisories. `zod` 4.5.4 -> 4.6.7 (high; Remotion still
