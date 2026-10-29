@@ -19,11 +19,17 @@ from ..workspace import Workspace
 from .align import align
 from .analyze import analyze
 from .paths import video_song
-from .timing import MIN_WORD_S, is_show_only
+from .timing import MIN_WORD_S, is_show_only, too_short
 
 PORT = 8644
 TEMPLATE = Path(__file__).with_name("timing_editor.html")
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
+
+
+def clock(t: float) -> str:
+    """m:ss.mmm, as the page shows times."""
+    ms = round(t * 1000)
+    return f"{ms // 60000}:{ms % 60000 / 1000:06.3f}"
 
 
 def sung_text(text: str, fixes: list) -> str:
@@ -35,7 +41,7 @@ def sung_text(text: str, fixes: list) -> str:
 
 
 def fix_entries(words: list[dict], moves: list[dict], fixes: list) -> list[dict]:
-    """One entry per moved word: `at` its start as the page showed it, and its new start and end."""
+    """One entry per moved word: `at` its start as the page showed it (m:ss.mmm), and its new start and end."""
     entries = []
     for move in sorted(moves, key=lambda m: m["i"]):
         i = move["i"]
@@ -43,9 +49,9 @@ def fix_entries(words: list[dict], moves: list[dict], fixes: list) -> list[dict]
             raise MVError(f"no word number {i!r} in this song's timing")
         w = words[i]
         start, end = round(float(move["start"]), 3), round(float(move["end"]), 3)
-        if end - start < MIN_WORD_S:
-            raise MVError(f"{w['text']!r} at {w['start']:.3f} would be shorter than {MIN_WORD_S} s")
-        entries.append({"at": round(float(w["start"]), 3), "word": sung_text(w["text"], fixes),
+        if too_short(start, end):
+            raise MVError(f"{w['text']!r} at {clock(w['start'])} would be shorter than {MIN_WORD_S} s")
+        entries.append({"at": clock(float(w["start"])), "word": sung_text(w["text"], fixes),
                         "start": start, "end": end})
     return entries
 
@@ -67,8 +73,8 @@ def landed(timing: dict, moves: list[dict]) -> list[str]:
             continue
         w = timing["words"][move["i"]]
         if abs(w["start"] - move["start"]) > 0.002 or abs(w["end"] - move["end"]) > 0.002:
-            off.append(f"{w['text']!r}: placed {move['start']:.3f}–{move['end']:.3f}, "
-                       f"now {w['start']:.3f}–{w['end']:.3f}")
+            off.append(f"{w['text']!r}: placed {clock(move['start'])}–{clock(move['end'])}, "
+                       f"now {clock(w['start'])}–{clock(w['end'])}")
     return off
 
 

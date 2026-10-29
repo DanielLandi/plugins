@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.1
+
+- `edit-timing`: Play/Stop is the large bright button (with an icon for each state), set apart from its neighbours;
+  ⏮ Line start (`B`) replaces −5 s/+3 s and goes back to the first word of the line (again: the line before). Moving
+  a word's start now carries the whole word: it keeps its length and only shortens against the next word (the word
+  before gets its end back when a drag returns). The word being sung is highlighted in the line (the last word
+  started, so gaps between words keep it lit) and shown alone under the waveform, speed-reader style; every word's
+  label is also drawn inside the waveform. The waveform shows the source being heard (mix or vocals), and *Colour by
+  frequency* (`F`) colours it by its spectral centroid, so vowels and consonants stand apart. A legend explains the
+  colours; the source and the colour choice are remembered.
+- `edit-timing` and timing fixes: a word exactly 0.06 s long is no longer refused as too short (floating-point
+  rounding); the editor writes `at:` and its messages as m:ss.mmm.
+
 ## 0.6.0
 
 - `edit-timing <id> [--open]`: a local page (this computer only) for fixing word timings by hand. It shows the song
