@@ -112,3 +112,33 @@ def test_render_preview_names_missing_drawtext(tmp_path, monkeypatch):
     monkeypatch.setattr("musicvideo.video.preview.has_filter", lambda name: name != "drawtext")
     with pytest.raises(MVError, match="drawtext"):
         render_preview(tmp_path / "s.mp3", tmp_path / "s.mp3", tmp_path / "p.ass", tmp_path / "o.mp4", 1.0)
+
+
+def test_page_x_wraps_every_page():
+    from musicvideo.video.preview import PAGE_S, WIDTH, page_x
+    assert page_x(0.0) == 0 and page_x(PAGE_S / 2) == WIDTH // 2
+    assert page_x(PAGE_S + 1.0) == page_x(1.0) == round(WIDTH / PAGE_S)
+
+
+def test_build_ass_with_duration_draws_the_waveform_panel():
+    events = [e for e in build_ass(TIMING, ANALYSIS, duration=3.0).splitlines() if e.startswith("Dialogue:")]
+    marks = [e for e in events if ",Mark," in e and "\\p1" not in e]
+    assert [m.rsplit("}", 1)[1] for m in marks] == ["Rain", "(falls)", "soft", "ly"]
+    seconds = [e.rsplit("}", 1)[1] for e in events if ",Tick," in e and "\\p1" not in e]
+    assert seconds == ["0:00", "0:01", "0:02"]
+    assert any(",Grid," in e and "\\p1" in e for e in events)
+
+
+def test_panel_puts_each_word_on_its_own_page():
+    from musicvideo.video.preview import panel_events
+    words = [word(0, "late", 9.9, 10.1, 0), word(1, "early", 10.2, 10.5, 0)]
+    events = panel_events(words, duration=12.0)
+    late = [e for e in events if e.endswith("}late")][0]
+    early = [e for e in events if e.endswith("}early")][0]
+    assert late.split(",")[1] == ass_time(0.0) and late.split(",")[2] == ass_time(10.0)
+    assert early.split(",")[1] == ass_time(10.0) and early.split(",")[2] == ass_time(12.0)
+    assert "\\pos(1270," in late and "\\pos(29," in early
+
+
+def test_build_ass_without_duration_has_no_panel():
+    assert ",Mark," not in build_ass(TIMING, ANALYSIS)
