@@ -25,6 +25,8 @@
           font-size: 17px; font-weight: 700; }
   #play:hover:not(:disabled) { background: #ffe34d; }
   #play svg { width: 16px; height: 16px; fill: currentColor; pointer-events: none; }
+  #delay { width: 120px; accent-color: var(--accent); }
+  #delayMs { min-width: 52px; font: 12px ui-monospace, Menlo, monospace; color: var(--text); }
   label.check { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); cursor: pointer; }
   .spacer { flex: 1; }
   #line { min-height: 64px; padding: 18px 16px 8px; text-align: center; font-size: 28px; font-weight: 700; }
@@ -64,6 +66,8 @@
   <button id="source" title="Hear and see the mix or the vocals alone (V)">Mix</button>
   <label class="check" title="Colour the waveform by its brightness: dark vowels (oo) blue, bright ones (ee) and s sounds red (F)">
     <input type="checkbox" id="freq"> Colour by frequency</label>
+  <label class="check" title="How late the sound reaches you (Bluetooth headphones: about 150–250 ms): the playhead and the highlighted word wait this long. Slide it while playing until the bar meets the sound.">
+    Audio delay <input type="range" id="delay" min="0" max="500" step="10"> <span id="delayMs"></span></label>
   <span class="spacer"></span>
   <button id="undo" title="Undo (⌘Z)" disabled>Undo</button>
   <button id="save" class="primary" title="Save and re-align (⌘S)" disabled>Save</button>
@@ -103,7 +107,7 @@ const cv = $("cv"), cx = cv.getContext("2d");
 const S = { words: [], orig: [], lines: [], beats: [], downbeats: new Set(), sections: [], duration: 0,
             page: 0, cursor: 0, sel: -1, undo: [], drag: null, source: "mix", freq: false, busy: false,
             ctx: null, audio: {}, mono: {}, peak: {}, rate: 44100, cols: null, colsKey: "",
-            node: null, playFrom: 0, playAt: 0, playTo: 0, shown: {} };
+            node: null, playFrom: 0, playAt: 0, playTo: 0, shown: {}, delay: null };
 
 const clock = (t) => { t = Math.max(0, t); const m = Math.floor(t / 60), s = t - m * 60;
   return `${m}:${s.toFixed(3).padStart(6, "0")}`; };
@@ -114,7 +118,13 @@ const tOf = (x) => S.page * PAGE + x / width() * PAGE;
 const moved = (i) => S.words[i].start !== S.orig[i].start || S.words[i].end !== S.orig[i].end;
 const changes = () => S.words.map((w, i) => i).filter(moved);
 const playing = () => S.node !== null;
-const now = () => playing() ? Math.min(S.playTo, S.playFrom + (S.ctx.currentTime - S.playAt)) : S.cursor;
+// where the listener is: the sound handed to the audio device reaches the ears S.delay later (Bluetooth: ~0.2 s)
+const now = () => playing()
+  ? Math.min(S.playTo, Math.max(S.playFrom, S.playFrom + (S.ctx.currentTime - S.playAt) - delay())) : S.cursor;
+const reported = () => S.ctx ? (S.ctx.baseLatency || 0) + (S.ctx.outputLatency || 0) : 0;
+const delay = () => S.delay !== null ? S.delay : reported();
+// until set by hand, the slider shows what the browser reports
+const showDelay = () => { const ms = Math.round(delay() * 1000); $("delay").value = ms; $("delayMs").textContent = `${ms} ms`; };
 const r3 = (t) => Math.round(t * 1000) / 1000;
 const remember = (k, v) => { try { localStorage.setItem(`timing-editor.${k}`, v); } catch { } };
 // Set an element's content only when it changes: the page redraws every frame while playing, and replacing the
@@ -128,6 +138,9 @@ async function load() {
   S.source = recall("source") === "vocals" ? "vocals" : "mix";
   S.freq = recall("freq") === "1";
   $("freq").checked = S.freq; document.body.classList.toggle("freq", S.freq);
+  const ms = parseFloat(recall("delay"));
+  S.delay = Number.isFinite(ms) ? ms / 1000 : null;
+  showDelay();
   const timing = await (await fetch("/timing.json")).json();
   setTiming(timing);
   try {
@@ -139,6 +152,7 @@ async function load() {
   const [mix, vocals] = await Promise.all(["/audio/song", "/audio/vocals"].map(async (u) =>
     S.ctx.decodeAudioData(await (await fetch(u)).arrayBuffer())));
   S.audio = { mix, vocals }; S.rate = mix.sampleRate;
+  showDelay();
   S.duration = Math.max(S.duration, mix.duration);
   for (const [name, buf] of Object.entries(S.audio)) {
     const mono = new Float32Array(buf.length);
@@ -479,6 +493,7 @@ function play(from, to) {
   node.start(S.playAt, from, to - from);
   S.node = node;
   playIcon();
+  showDelay();   // the reported latency is known only once the device is playing
   S.page = Math.floor(from / PAGE);
   const tick = () => { if (S.node === node) { draw(); requestAnimationFrame(tick); } };
   requestAnimationFrame(tick);
@@ -510,6 +525,12 @@ $("back").onclick = back;
 $("play").onclick = () => playing() ? (stop(), draw()) : play(S.cursor, S.duration);
 $("source").onclick = () => setSource(S.source === "mix" ? "vocals" : "mix");
 $("freq").onchange = (e) => setFreq(e.target.checked);
+$("delay").oninput = (e) => {
+  S.delay = parseFloat(e.target.value) / 1000;
+  remember("delay", String(Math.round(S.delay * 1000)));
+  showDelay(); draw();
+};
+$("delay").onchange = (e) => e.target.blur();   // the keys go back to the editor
 $("prev").onclick = () => { if (S.page > 0) { S.page--; draw(); } };
 $("next").onclick = () => { if ((S.page + 1) * PAGE < S.duration) { S.page++; draw(); } };
 $("undo").onclick = undo;
@@ -521,6 +542,7 @@ document.addEventListener("keydown", (e) => {
   if (cmd && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); return; }
   if (cmd && e.key.toLowerCase() === "s") { e.preventDefault(); save(); return; }
   if (cmd) return;
+  if (e.target.id === "delay" && e.key !== "Escape") return;   // typing a delay: keys are the box's own
   if (e.key === " ") { e.preventDefault(); $("play").onclick(); }
   else if (e.key === "b" || e.key === "B" || e.key === "Home") { e.preventDefault(); back(); }
   else if (e.key === "v" || e.key === "V") $("source").onclick();
@@ -534,10 +556,10 @@ document.addEventListener("keydown", (e) => {
     if (e.altKey) setEnd(S.sel, w.end + step); else setStart(S.sel, w.start + step);
     S.page = Math.floor(S.cursor / PAGE);
     refresh(); draw();
-  } else if (e.key === "Escape") { S.sel = -1; draw(); }
+  } else if (e.key === "Escape") { S.sel = -1; document.activeElement.blur(); draw(); }
 });
 // a focused button would take Space as its own click too: keep Space for play
-for (const b of document.querySelectorAll("button, input")) b.addEventListener("keydown", (e) => { if (e.key === " ") e.preventDefault(); });
+for (const b of document.querySelectorAll("button, input[type=checkbox]")) b.addEventListener("keydown", (e) => { if (e.key === " ") e.preventDefault(); });
 
 async function save() {
   const idx = changes();

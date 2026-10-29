@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.3
+
+- `edit-timing`: the playhead and the highlighted word follow the sound as heard, not as handed to the audio device:
+  they wait the output latency the browser reports, or what the *Audio delay* slider is set to (0–500 ms,
+  remembered). Browsers do not see the delay of Bluetooth headphones and some speakers (about 150–250 ms), so set it
+  by ear there.
+
 ## 0.6.2
 
 - `edit-timing`: Stop answers every click while playing (the button, and the line's words, were rebuilt on every
