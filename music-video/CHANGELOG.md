@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.6
+
+- `blur`: a render that shows no new progress for 15 minutes (a hung browser, every process idle, which Remotion's
+  per-frame timeout does not catch) is killed with everything it started and started again, up to twice; the pixels
+  are the same as an uninterrupted render. `--stall=<minutes>` changes the limit (0 turns it off), `--retries=<n>` the
+  number of restarts.
+- make skill: when asked how a long render is going, check that its progress count moves and that it is using the CPU,
+  not only its last line.
+
 ## 0.6.5
 
 - make skill, timing step: the timing editor is offered with every preview (not only when many words are off), with

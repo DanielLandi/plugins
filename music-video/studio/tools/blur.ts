@@ -1,15 +1,18 @@
 // Render a song composition with motion blur: render at `steps` sub-frames per output frame, then average `samples`
 // sub-frames centred on each frame's time (the shutter: samples / steps of the frame, 8 of 16 = 180°), so the blurred
 // cut stays in sync with the sharp one.
-//   music-video blur <video-id> <composition> <out.mp4> [--samples=8] [--shutter=180] [--frames=a-b] [--crf=16] [--scale=1] [--props='{"lyrics":"none"}']
+//   music-video blur <video-id> <composition> <out.mp4> [--samples=8] [--shutter=180] [--frames=a-b] [--crf=16] [--scale=1] [--stall=15] [--retries=2] [--props='{"lyrics":"none"}']
 // --scale renders at that multiple of the composition's size (2: a 1920×1080 composition comes out 3840×2160).
 // --frames are output (30 fps) frames, inclusive. The result is silent: music-video mux adds the song as usual.
+// --stall=15: a render that shows no new progress for that many minutes is killed and started again (--retries=2
+// times); 0 turns the watch off.
 // The scene must read time in seconds (the kit's useSongTime), never in frames.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { watchedRun } from './stall';
 
 const studio = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -19,7 +22,7 @@ const flags: Record<string, string> = Object.fromEntries(args.filter((a) => a.st
 }));
 const [id, composition, outArg] = args.filter((a) => !a.startsWith('--'));
 if (!id || !composition || !outArg) {
-  console.error('usage: music-video blur <video-id> <composition> <out.mp4> [--samples=8] [--shutter=180] [--frames=a-b] [--crf=16] [--scale=1]');
+  console.error('usage: music-video blur <video-id> <composition> <out.mp4> [--samples=8] [--shutter=180] [--frames=a-b] [--crf=16] [--scale=1] [--stall=15] [--retries=2]');
   process.exit(1);
 }
 const out = resolve(process.env.INIT_CWD ?? process.cwd(), outArg);
@@ -49,8 +52,17 @@ if (flags.frames) {
 }
 console.log(`motion blur: ${samples} samples over a ${shutter}° shutter (${steps} sub-frames per frame, ${30 * steps} fps)`);
 const t0 = performance.now();
-const render = spawnSync(process.execPath, renderArgs, { stdio: 'inherit', cwd: studio, env: process.env });
-if (render.status !== 0) process.exit(render.status ?? 1);
+const stallMin = Number(flags.stall ?? 15), tries = 1 + Math.max(0, Number(flags.retries ?? 2));
+let render = await watchedRun(process.execPath, renderArgs, { cwd: studio, env: process.env, stallMs: stallMin * 60000 });
+for (let n = 2; render.stalled && n <= tries; n++) {
+  console.error(`blur: no progress for ${stallMin} min (at "${render.line}"): stopped it; starting again (try ${n} of ${tries})`);
+  render = await watchedRun(process.execPath, renderArgs, { cwd: studio, env: process.env, stallMs: stallMin * 60000 });
+}
+if (render.stalled) console.error(`blur: no progress for ${stallMin} min (at "${render.line}") on the last try: giving up`);
+if (render.status !== 0) {
+  rmSync(work, { recursive: true, force: true });
+  process.exit(render.status || 1);
+}
 console.log(`rendered sub-frames in ${((performance.now() - t0) / 1000).toFixed(0)} s`);
 
 // tmix averages each sub-frame with the samples-1 before it; keep the one that closes each frame's shutter.
