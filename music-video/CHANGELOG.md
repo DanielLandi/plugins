@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.7
+
+- `mux --tail <s>` and `qc --tail <s>`: a full video that runs on past the song, silent, for that many seconds (room
+  for a YouTube end screen, 5–20 s). mux pads the song with silence; qc expects the longer video and audio.
+- make skill, delivery: how to add an end-screen tail (the last scene carried on past the song, rendered or blurred
+  like the rest, joined to the final).
+
 ## 0.6.6
 
 - `blur`: a render that shows no new progress for 15 minutes (a hung browser, every process idle, which Remotion's

@@ -287,6 +287,12 @@ is the user's. When they ask for a description to post with it, draft:
 - how it was made (the song generator, the engine, no generated images if true) and the credits;
 - a one-line caption for the vertical cut.
 
+**YouTube end screen** (cards for other videos need 5–20 s at the end): when the song ends too soon after its last
+picture, add a silent tail. Carry the last scene on past the song in its own composition (an `Excerpt` from the song's
+end, 10 s; check the scene still moves sensibly there, and stop anything that follows the beat), render or blur it
+like the final, join it to the final's silent render (`ffmpeg -f concat -c copy`, same settings), then
+`mux ... --tail 10` and `qc ... --tail 10`. Keep the song-length final too: the tail is for YouTube only.
+
 Point out the platform's AI-content disclosure (an AI-generated voice counts on most platforms).
 
 The finished video and song also appear on the user's library page (any phone or TV at home): run
