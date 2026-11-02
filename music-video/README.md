@@ -111,7 +111,8 @@ sung word), extruded lyrics (`<Text3D>`, `<Letters>`), a `<SkyDome>`, a `<Model>
 a NaN-safe post chain, and a finishing pass: a film-print post (`FinishPost`), paper with thickness, carved frames
 and relief maps that give flat things depth. Lyrics drawn on things (letters, signs, screens) use canvas surfaces
 whose fonts are loaded before a frame is captured. `blur` renders sub-frames and averages them with a centred shutter (32 samples gives
-film-like blur on camera moves).
+film-like blur on camera moves); a render that shows no progress for 15 minutes is killed and started again
+(`--stall`, `--retries`).
 
 ## Licence
 
