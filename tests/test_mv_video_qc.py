@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from musicvideo.cli import main
+from musicvideo.errors import MVError
 from musicvideo.workspace import load_workspace
 from musicvideo.video.mux import mux
 from musicvideo.video.paths import video_song
@@ -121,6 +122,29 @@ def test_cli_mux_and_qc(mv_ws, filed_song, media, capsys):
     assert (video_song(load_workspace(), spec_id).paths.qc / "cli-final-sheet.png").is_file()
     assert main(["qc", str(final), "--spec", spec_id, "--size", "1920x1080"]) == 1
     assert main(["qc", str(final), "--spec", spec_id, "--excerpt", "3-1"]) == 2  # a bad argument is an error; a failed check is 1
+
+
+def test_a_tail_runs_silent_past_the_song(media):
+    # an end screen: the video runs 2 s past the 4 s song; mux pads the song with silence, qc expects the longer length
+    song, video, tmp = media
+    out = mux(video("tail.mp4", src="testsrc2=size=320x240:rate=30:duration=6"), song, tmp / "tail-out.mp4", tail=2.0)
+    report = run_qc(out, song, tmp / "qc", size=(320, 240), tail=2.0)
+    assert report["result"] == "PASS", report
+    assert {"duration", "audio"} <= failed(run_qc(out, song, tmp / "qc"))
+    with pytest.raises(MVError):
+        mux(video("tail.mp4"), song, tmp / "x.mp4", excerpt=(1.0, 3.0), tail=2.0)
+    with pytest.raises(MVError):
+        run_qc(out, song, tmp / "qc", excerpt=(1.0, 3.0), tail=2.0)
+
+
+def test_cli_tail(mv_ws, filed_song, media):
+    spec_id, _ = filed_song(seconds=4.0)
+    song, video, tmp = media
+    final = tmp / "cli-tail.mp4"
+    clip = video("cli-tail-silent.mp4", src="testsrc2=size=320x240:rate=30:duration=7")
+    assert main(["mux", str(clip), "--spec", spec_id, "--out", str(final), "--tail", "3"]) == 0
+    assert main(["qc", str(final), "--spec", spec_id, "--tail", "3"]) == 0
+    assert main(["qc", str(final), "--spec", spec_id]) == 1
 
 
 def test_silent_excerpt_track_fails(media):

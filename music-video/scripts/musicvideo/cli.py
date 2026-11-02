@@ -220,7 +220,7 @@ def _size(text: str) -> tuple[int, int]:
 def cmd_mux(args) -> int:
     song = video_song(load_workspace(), args.spec)
     excerpt = _range(args.excerpt) if args.excerpt else None
-    print(mux(Path(args.video), lifted_song(song.paths), Path(args.out), excerpt))
+    print(mux(Path(args.video), lifted_song(song.paths), Path(args.out), excerpt, args.tail))
     return 0
 
 
@@ -243,7 +243,7 @@ def cmd_qc(args) -> int:
     report = run_qc(Path(args.video), lifted_song(song.paths), song.paths.qc,
                     size=_size(args.size) if args.size else None, fps=args.fps,
                     excerpt=_range(args.excerpt) if args.excerpt else None,
-                    holds=[_range(h) for h in args.hold or []])
+                    holds=[_range(h) for h in args.hold or []], tail=args.tail)
     for check in report["checks"]:
         print(f"{'PASS' if check['ok'] else 'FAIL'}  {check['id']:<9} {check['detail']}")
     print(f"sheet: {report['sheet']} (look at it)")
@@ -489,11 +489,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--spec", required=True)
     p.add_argument("--out", required=True)
     p.add_argument("--excerpt", help="start-end in seconds, for the sample and the vertical cut")
+    p.add_argument("--tail", type=float, default=0.0, help="seconds of silence after the song, for a video that runs on past it (an end screen)")
     p = sub.add_parser("qc", help="check a render: format, black/flash/frozen frames, audio, frame sheet")
     p.add_argument("video")
     p.add_argument("--spec", required=True)
     p.add_argument("--excerpt", help="start-end in seconds when the video is an excerpt")
     p.add_argument("--hold", action="append", help="a designed still or black stretch, start-end in song time (as in video.yaml holds); repeatable")
+    p.add_argument("--tail", type=float, default=0.0, help="seconds the video runs on past the song, silent (as given to mux)")
     p.add_argument("--size", help="expected WIDTHxHEIGHT")
     p.add_argument("--fps", type=float, default=30)
     p = sub.add_parser("version", help="keep a checked render (or a still) as the next version of a scene, for review")

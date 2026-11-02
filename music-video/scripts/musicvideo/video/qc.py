@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
+from ..errors import MVError
 from .media import audio_duration_s, decode_mono, duration_s, need, probe, run
 
 EDGE_S = 0.6           # a fade from or to black at the very start or end is fine
@@ -139,12 +140,13 @@ def detect_flash(video: Path, total: float, holds, fps: float) -> Check:
                  or "no blank or flash frames outside the edges and declared holds")
 
 
-def check_audio(video: Path, song: Path, excerpt, fps: float) -> Check:
+def check_audio(video: Path, song: Path, excerpt, fps: float, tail: float = 0.0) -> Check:
     if excerpt is None:
         # The full song is AAC (mux): check it is the song, in sync, and not cut short, rather than bit for bit.
         song_s, video_s = duration_s(song), audio_duration_s(video)
-        if abs(video_s - song_s) > 1.0 / fps + 0.05:
-            return Check("audio", False, f"audio is {video_s:.3f} s, the song is {song_s:.3f} s")
+        if abs(video_s - (song_s + tail)) > 1.0 / fps + 0.05:
+            return Check("audio", False, f"audio is {video_s:.3f} s, the song is {song_s:.3f} s"
+                         + (f" + a {tail:g} s tail" if tail else ""))
         check = _sync(video, song, 0.0, song_s, fps)
         return Check("audio", check.ok, check.detail.replace("excerpt offset", "offset"))
     return _sync(video, song, excerpt[0], excerpt[1], fps)
@@ -213,16 +215,19 @@ def frame_sheet(video: Path, total: float, out_png: Path) -> Path:
 
 
 def run_qc(video: Path, song: Path, out_dir: Path, *, size=None, fps: float = 30,
-           excerpt: tuple[float, float] | None = None, holds=()) -> dict:
+           excerpt: tuple[float, float] | None = None, holds=(), tail: float = 0.0) -> dict:
+    """`tail`: seconds the full video runs on past the song, silent (mux --tail)."""
+    if tail and excerpt:
+        raise MVError("--tail is for the full song only, not an excerpt")
     info = probe(video)
     total = float(info["format"]["duration"])
-    expected = excerpt[1] - excerpt[0] if excerpt else float(probe(song)["format"]["duration"])
+    expected = excerpt[1] - excerpt[0] if excerpt else float(probe(song)["format"]["duration"]) + tail
     holds = _clip_holds(holds, excerpt, total)
     checks = check_format(info, size, fps, expected)
     checks += [detect_black(video, total, holds), detect_flash(video, total, holds, fps),
                detect_frozen(video, total, holds)]
     has_audio = any(s["codec_type"] == "audio" for s in info["streams"])
-    checks.append(check_audio(video, song, excerpt, fps) if has_audio else Check("audio", False, "no audio stream"))
+    checks.append(check_audio(video, song, excerpt, fps, tail) if has_audio else Check("audio", False, "no audio stream"))
     out_dir.mkdir(parents=True, exist_ok=True)
     sheet = frame_sheet(video, total, out_dir / f"{video.stem}-sheet.png")
     pages = paged_sheets(video, total, out_dir)

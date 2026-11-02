@@ -1,20 +1,26 @@
 """music-video mux: put the song's audio under a silent Remotion render."""
 from pathlib import Path
 
+from ..errors import MVError
 from .media import need, run
 
 FADE_S = 0.05
 
 
-def mux(video: Path, song: Path, out: Path, excerpt: tuple[float, float] | None = None) -> Path:
-    """Full song: the whole song as AAC 320 kbps. Excerpt: cut, 50 ms fades, AAC 320 kbps.
+def mux(video: Path, song: Path, out: Path, excerpt: tuple[float, float] | None = None, tail: float = 0.0) -> Path:
+    """Full song: the whole song as AAC 320 kbps, then `tail` seconds of silence (a video that runs on past the song,
+    e.g. for a YouTube end screen). Excerpt: cut, 50 ms fades, AAC 320 kbps.
 
     Never the MP3 stream copied as is: MP3 inside MP4 plays silent in QuickTime (found 2026-10-10, draft v1).
     """
+    if tail and excerpt is not None:
+        raise MVError("--tail is for the full song only, not an excerpt")
     out.parent.mkdir(parents=True, exist_ok=True)
     cmd = [need("ffmpeg"), "-y", "-nostdin", "-loglevel", "error", "-i", str(video)]
     if excerpt is None:
         cmd += ["-i", str(song), "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-b:a", "320k"]
+        if tail:
+            cmd += ["-af", f"apad=pad_dur={tail:.3f}"]
     else:
         start, end = excerpt
         length = end - start
