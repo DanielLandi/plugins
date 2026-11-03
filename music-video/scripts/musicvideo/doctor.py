@@ -43,6 +43,8 @@ def run_doctor(install: bool = True) -> int:
     rt = studio.sync_runtime()
     studio.touch_owner(rt)
     checkout = studio.plugin_checkout()
+    if not studio.is_installed(rt) and (seed := studio.seed_modules(rt)):
+        print(f"ok   video engine seeded from {seed}")
     if studio.is_installed(rt):
         print(f"ok   video engine for the checkout {checkout} in {rt}" if checkout else f"ok   video engine installed in {rt}")
     elif install:

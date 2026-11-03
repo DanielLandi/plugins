@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +22,7 @@ PLUGIN_STUDIO = Path(__file__).resolve().parents[2] / "studio"
 KEEP = {"node_modules", ".entries"}  # runtime-only folders, never synced or pruned
 LOCK_STAMP = ".installed-lock"
 SYNCED = ".synced.json"  # what the last sync copied: the only files a sync may delete
+SEED_SKIP = {".cache", ".vite", ".vite-temp"}  # tool caches written in place: never shared between engines
 OWNER = ".owner.json"  # a checkout's engine: which checkout it serves, when it was last used
 ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 WEB_MARK = "<!-- built by music-video web -->"  # first line of a web build's README (tools/web-out.ts)
@@ -157,8 +159,56 @@ def install(rt: Path) -> None:
     (rt / LOCK_STAMP).write_text(lock_hash(rt), encoding="utf-8")
 
 
+def find_seed(rt: Path) -> Path | None:
+    """An installed engine with the same packages as rt (same lock), to seed rt's node_modules from."""
+    others = install_dir() / "engines"
+    candidates = [install_dir() / "engine", *(sorted(others.iterdir()) if others.is_dir() else [])]
+    want = lock_hash(rt)
+    return next((c for c in candidates if c != rt and is_installed(c)
+                 and (c / LOCK_STAMP).read_text(encoding="utf-8") == want), None)
+
+
+def link_tree(src: Path, dest: Path, skip: frozenset[str] | set[str] = frozenset()) -> None:
+    """dest as a tree of hard links to src's files (symlinks re-created), leaving out the top-level names in skip.
+    npm ci replaces files rather than rewriting them, so a later install in src never changes dest. Where hard
+    links fail (another volume, an odd file system), dest becomes a full copy instead."""
+    def link(s: Path, d: Path, top: bool) -> None:
+        d.mkdir(parents=True, exist_ok=True)
+        with os.scandir(s) as entries:
+            for e in entries:
+                if top and e.name in skip:
+                    continue
+                target = d / e.name
+                if e.is_symlink():
+                    os.symlink(os.readlink(e.path), target)
+                elif e.is_dir():
+                    link(Path(e.path), target, False)
+                else:
+                    os.link(e.path, target)
+    try:
+        link(src, dest, True)
+    except OSError:
+        shutil.rmtree(dest, ignore_errors=True)
+        shutil.copytree(src, dest, symlinks=True, ignore=lambda folder, names: [
+            n for n in names if Path(folder) == src and n in skip])
+
+
+def seed_modules(rt: Path) -> Path | None:
+    """Give rt the packages of an engine with the same lock, by hard links: seconds, and almost no disk. Returns the
+    engine it seeded from, or None when there is none (then doctor installs them)."""
+    seed = find_seed(rt)
+    if seed is None:
+        return None
+    shutil.rmtree(rt / "node_modules", ignore_errors=True)  # an earlier seed may have stopped half-way
+    link_tree(seed / "node_modules", rt / "node_modules", SEED_SKIP)
+    (rt / LOCK_STAMP).write_text(lock_hash(rt), encoding="utf-8")
+    return seed
+
+
 def ensure_ready() -> Path:
     rt = sync_runtime()
+    if not is_installed(rt) and (seed := seed_modules(rt)):
+        print(f"seeded the engine for this checkout from {seed}", file=sys.stderr)
     if not is_installed(rt):
         raise MVError("the video engine's packages are not installed or are out of date: run music-video doctor")
     touch_owner(rt)

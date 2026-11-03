@@ -1,8 +1,12 @@
 """The engine per plugin copy: the installed plugin keeps today's engine, each git checkout of the plugin gets its own."""
 import json
+import os
 import re
 
+import pytest
+
 from musicvideo import studio
+from musicvideo.errors import MVError
 from musicvideo.workspace import folder_key
 
 
@@ -78,3 +82,104 @@ def test_old_cache_engine_migrates_to_the_installed_engine_only(tmp_path, monkey
     (tmp_path / "cache" / "studio" / "node_modules").mkdir(parents=True)
     assert studio.migrate_old_runtime() is True
     assert (tmp_path / "install" / "engine" / "node_modules").is_dir()
+
+
+def installed_engine(root, lock_text):
+    """An engine whose packages doctor installed: modules, Remotion's browser, tool caches and a .bin link."""
+    for rel, text in {"package-lock.json": lock_text, "node_modules/remotion/index.js": "remotion",
+                      "node_modules/.remotion/chrome/bin": "browser", "node_modules/.cache/w.json": "{}",
+                      "node_modules/.vite/deps.json": "{}"}.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text, encoding="utf-8")
+    try:
+        (root / "node_modules/.bin").mkdir()
+        os.symlink("../remotion/index.js", root / "node_modules/.bin/remotion")
+    except OSError:  # Windows without Developer Mode: no symlinks
+        pass
+    (root / studio.LOCK_STAMP).write_text(studio.lock_hash(root), encoding="utf-8")
+    return root
+
+
+def test_seed_hard_links_modules_when_locks_match(tmp_path, monkeypatch):
+    src = installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 1}'))
+    rt = studio.ensure_ready()  # no doctor needed
+    assert rt != src
+    a, b = src / "node_modules/remotion/index.js", rt / "node_modules/remotion/index.js"
+    assert os.stat(a).st_ino == os.stat(b).st_ino
+    assert (rt / "node_modules/.remotion/chrome/bin").read_text(encoding="utf-8") == "browser"
+    assert not (rt / "node_modules/.cache").exists() and not (rt / "node_modules/.vite").exists()
+    if (src / "node_modules/.bin/remotion").is_symlink():
+        assert (rt / "node_modules/.bin/remotion").is_symlink()
+        assert (rt / "node_modules/.bin/remotion").read_text(encoding="utf-8") == "remotion"
+    assert studio.is_installed(rt)
+
+
+def test_seed_falls_back_to_doctor_when_locks_differ(tmp_path, monkeypatch):
+    installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 2}'))
+    with pytest.raises(MVError, match="music-video doctor"):
+        studio.ensure_ready()
+    assert not (studio.runtime_dir() / "node_modules").exists()
+
+
+def test_no_installed_engine_says_doctor(tmp_path, monkeypatch):
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins"))
+    with pytest.raises(MVError, match="music-video doctor"):
+        studio.ensure_ready()
+
+
+def test_seed_from_another_checkouts_engine(tmp_path, monkeypatch):
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "a", lock='{"v": 3}'))
+    installed_engine(studio.runtime_dir(), '{"v": 3}')
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "b", lock='{"v": 3}'))
+    assert studio.is_installed(studio.ensure_ready())
+
+
+def test_seeded_engine_survives_a_reinstall_of_its_source(tmp_path, monkeypatch):
+    src = installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 1}'))
+    rt = studio.ensure_ready()
+    f = src / "node_modules/remotion/index.js"
+    f.unlink()  # npm ci removes and re-extracts: new files, new inodes
+    f.write_text("reinstalled", encoding="utf-8")
+    assert (rt / "node_modules/remotion/index.js").read_text(encoding="utf-8") == "remotion"
+
+
+def test_seed_copies_when_links_fail(tmp_path, monkeypatch):
+    src = installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 1}'))
+
+    def no_links(*_a, **_k):
+        raise OSError("hard links not supported")
+    monkeypatch.setattr(os, "link", no_links)
+    rt = studio.ensure_ready()
+    a, b = src / "node_modules/remotion/index.js", rt / "node_modules/remotion/index.js"
+    assert b.read_text(encoding="utf-8") == "remotion" and os.stat(a).st_ino != os.stat(b).st_ino
+    assert not (rt / "node_modules/.cache").exists()
+
+
+def test_interrupted_seed_is_redone(tmp_path, monkeypatch):
+    installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 1}'))
+    half = studio.runtime_dir() / "node_modules" / "half.js"  # a seed stopped mid-way: no lock stamp
+    half.parent.mkdir(parents=True)
+    half.write_text("x", encoding="utf-8")
+    rt = studio.ensure_ready()
+    assert not half.exists() and (rt / "node_modules/remotion/index.js").is_file()
+
+
+def test_doctor_seeds_a_checkouts_engine_instead_of_installing(tmp_path, monkeypatch, capsys):
+    from musicvideo import doctor
+    installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 1}'))
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(doctor, "_node_major", lambda: 22)
+
+    def no_install(rt):
+        raise AssertionError("npm ci must not run when a seed exists")
+    monkeypatch.setattr(studio, "install", no_install)
+    assert doctor.run_doctor() == 0
+    out = capsys.readouterr().out
+    assert "seeded from" in out and f"for the checkout {tmp_path / 'plugins'}" in out
+    assert studio.is_installed(studio.runtime_dir())
