@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -15,6 +16,7 @@ from pathlib import Path
 
 import yaml
 
+from . import __version__
 from .errors import MVError
 from .spec import is_instrumental
 from .workspace import Workspace, cache_dir, folder_key, install_dir
@@ -24,6 +26,8 @@ KEEP = {"node_modules", ".entries"}  # runtime-only folders, never synced or pru
 LOCK_STAMP = ".installed-lock"
 SYNCED = ".synced.json"  # what the last sync copied: the only files a sync may delete
 SEED_SKIP = {".cache", ".vite", ".vite-temp"}  # tool caches written in place: never shared between engines
+LEASES = ".leases"  # one file per command using the engine (removed when it ends)
+LEASE_MAX_AGE = 48 * 3600  # a lease older than this is stale whatever its pid says (pids get reused)
 OWNER = ".owner.json"  # a checkout's engine: which checkout it serves, when it was last used
 ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 WEB_MARK = "<!-- built by music-video web -->"  # first line of a web build's README (tools/web-out.ts)
@@ -89,33 +93,109 @@ def migrate_old_runtime() -> bool:
     return True
 
 
+def _plan(src: Path, dest: Path) -> tuple[list[str], list[str], list[str]]:
+    wanted, copy = [], []
+    for f in sorted(src.rglob("*")):
+        rel = f.relative_to(src)
+        if rel.parts[0] in KEEP or not f.is_file():
+            continue
+        wanted.append(rel.as_posix())
+        target, st = dest / rel, f.stat()
+        if not target.is_file() or target.stat().st_size != st.st_size or target.stat().st_mtime_ns != st.st_mtime_ns:
+            copy.append(rel.as_posix())
+    manifest = dest / SYNCED
+    before = set(json.loads(manifest.read_text(encoding="utf-8"))) if manifest.is_file() else set()
+    return wanted, copy, sorted(before - set(wanted))
+
+
+def sync_plan(src: Path, dest: Path) -> tuple[list[str], list[str]]:
+    """What a sync of src into dest would copy and delete (relative POSIX paths)."""
+    _, copy, delete = _plan(src, dest)
+    return copy, delete
+
+
 def sync_runtime(src: Path | None = None, dest: Path | None = None) -> Path:
     """Copy the plugin's engine into the runtime folder (only files that changed). Files a previous sync copied
     and the plugin no longer has are removed; nothing else in the folder is ever touched."""
     src = src or PLUGIN_STUDIO
     dest = dest or runtime_dir()
-    wanted = set()
-    for f in src.rglob("*"):
-        rel = f.relative_to(src)
-        if rel.parts[0] in KEEP or not f.is_file():
-            continue
-        wanted.add(rel.as_posix())
+    wanted, copy, delete = _plan(src, dest)
+    for rel in copy:
         target = dest / rel
-        st = f.stat()
-        if not target.is_file() or target.stat().st_size != st.st_size or target.stat().st_mtime_ns != st.st_mtime_ns:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(f, target)
-    manifest = dest / SYNCED
-    before = set(json.loads(manifest.read_text(encoding="utf-8"))) if manifest.is_file() else set()
-    for rel in sorted(before - wanted):
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src / rel, target)
+    for rel in delete:
         gone = dest / rel
         gone.unlink(missing_ok=True)
         for parent in gone.parents:
             if parent == dest or not parent.is_dir() or any(parent.iterdir()):
                 break
             parent.rmdir()
-    manifest.write_text(json.dumps(sorted(wanted)), encoding="utf-8")
+    dest.mkdir(parents=True, exist_ok=True)
+    (dest / SYNCED).write_text(json.dumps(wanted), encoding="utf-8")
     return dest
+
+
+def pid_alive(pid: int) -> bool:
+    if sys.platform == "win32":  # never os.kill here: on Windows it terminates the process
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259  # STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+_held: list[Path] = []
+
+
+def take_lease(rt: Path, video_id: str) -> Path:
+    """Mark the engine as in use by this command until it ends (release_leases), so that another plugin copy does
+    not sync over it or reinstall its packages mid-render."""
+    folder = rt / LEASES
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{os.getpid()}-{secrets.token_hex(4)}.json"
+    path.write_text(json.dumps({"pid": os.getpid(), "started": time.time(), "version": __version__,
+                                "source": str(PLUGIN_STUDIO), "video": video_id}), encoding="utf-8")
+    _held.append(path)
+    return path
+
+
+def release_leases() -> None:
+    while _held:
+        _held.pop().unlink(missing_ok=True)
+
+
+def live_leases(rt: Path) -> list[dict]:
+    """Leases of commands still running; dead, stale or unreadable ones are deleted on sight."""
+    live = []
+    for path in sorted((rt / LEASES).glob("*.json")) if (rt / LEASES).is_dir() else []:
+        try:
+            lease = json.loads(path.read_text(encoding="utf-8"))
+            ok = time.time() - float(lease["started"]) < LEASE_MAX_AGE and pid_alive(int(lease["pid"]))
+        except (OSError, ValueError, KeyError, TypeError):
+            ok = False
+        if ok:
+            live.append(lease)
+        else:
+            path.unlink(missing_ok=True)
+    return live
+
+
+def _in_use(lease: dict) -> str:
+    return (f"the engine is in use by music-video {lease.get('version')} (pid {lease.get('pid')}, "
+            f"video {lease.get('video')}): wait for it to finish, then run again")
 
 
 def lock_hash(rt: Path) -> str:
@@ -153,6 +233,8 @@ def install(rt: Path) -> None:
     if not npm:
         raise MVError("Node.js (npm) not found: install Node 20 or newer, then run music-video doctor")
     # --include=dev: the build tools (tsx, typescript) are dev dependencies, which an npm set to omit them would skip.
+    if leases := live_leases(rt):
+        raise MVError(_in_use(leases[0]))
     if subprocess.run([npm, "ci", "--include=dev", "--no-audit", "--no-fund"], cwd=rt).returncode:
         raise MVError(f"npm ci failed in {rt}")
     if subprocess.run([*tool(rt, "remotion"), "browser", "ensure"], cwd=rt).returncode:
@@ -255,6 +337,11 @@ def _unlock(fd) -> None:
 
 def ensure_ready() -> Path:
     with engine_lock(runtime_dir()) as rt:
+        if any(sync_plan(PLUGIN_STUDIO, rt)):
+            # Another plugin copy (another version, across an update) may be rendering from these files.
+            for lease in live_leases(rt):
+                if lease.get("source") != str(PLUGIN_STUDIO):
+                    raise MVError(_in_use(lease))
         sync_runtime(dest=rt)
         if not is_installed(rt) and (seed := seed_modules(rt)):
             print(f"seeded the engine for this checkout from {seed}", file=sys.stderr)

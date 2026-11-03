@@ -104,3 +104,13 @@ def test_a_foreign_folder_with_a_binary_readme_is_refused_cleanly(mv_ws, web_vid
     (foreign / "README.md").write_bytes(b"\xff\xfe not utf-8")
     assert main(["web", "night-drive", "--out", str(foreign)]) == 2
     assert "not a web build" in capsys.readouterr().err
+
+
+def test_a_command_holds_a_lease_while_it_runs(mv_ws, web_video, monkeypatch):
+    calls, rt = web_video
+    seen = []
+    monkeypatch.setattr(studio, "run_node", lambda cmd, cwd, env: seen.append(studio.live_leases(rt)) or 0)
+    assert main(["web", "night-drive"]) == 0
+    assert len(seen[0]) == 1 and seen[0][0]["video"] == "night-drive"
+    assert seen[0][0]["source"] == str(studio.PLUGIN_STUDIO)
+    assert studio.live_leases(rt) == [] and not list((rt / studio.LEASES).iterdir())

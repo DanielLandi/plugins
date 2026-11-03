@@ -248,3 +248,79 @@ def test_doctor_moves_an_old_cache_engine_before_taking_the_lock(tmp_path, monke
     assert doctor.run_doctor(install=False) == 0
     assert f"moved the engine from the cache to {tmp_path / 'install' / 'engine'}" in capsys.readouterr().out
     assert studio.is_installed(tmp_path / "install" / "engine")
+
+
+@pytest.fixture
+def sleeper():
+    """A live process to hold a lease (as a render running in another session would)."""
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    yield child
+    child.kill()
+    child.wait()
+
+
+def write_lease(rt, pid, source, started=None, version="0.6.7", video="night-drive"):
+    (rt / studio.LEASES).mkdir(parents=True, exist_ok=True)
+    path = rt / studio.LEASES / f"{pid}-test.json"
+    path.write_text(json.dumps({"pid": pid, "started": time.time() if started is None else started,
+                                "version": version, "source": str(source), "video": video}), encoding="utf-8")
+    return path
+
+
+@pytest.fixture
+def shared_engine(tmp_path, monkeypatch):
+    """One engine used by two plugin copies (two installed versions across an update share install/engine)."""
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", installed_copy(tmp_path, lock='{"v": 1}'))
+    rt = installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    studio.ensure_ready()  # synced: nothing left to copy
+    return rt
+
+
+def test_sync_from_another_source_refuses_while_leased(shared_engine, sleeper):
+    write_lease(shared_engine, sleeper.pid, "/other/studio")
+    (studio.PLUGIN_STUDIO / "kit.ts").write_text("changed", encoding="utf-8")
+    with pytest.raises(MVError, match=r"in use by music-video 0\.6\.7 \(pid \d+, video night-drive\)"):
+        studio.ensure_ready()
+    assert not (shared_engine / "kit.ts").exists()
+
+
+def test_same_source_or_empty_plan_proceeds_while_leased(shared_engine, sleeper):
+    other = write_lease(shared_engine, sleeper.pid, "/other/studio")
+    assert studio.ensure_ready() == shared_engine  # nothing to sync: the other copy's render is not touched
+    other.unlink()
+    write_lease(shared_engine, sleeper.pid, studio.PLUGIN_STUDIO)
+    (studio.PLUGIN_STUDIO / "kit.ts").write_text("mine", encoding="utf-8")
+    assert studio.ensure_ready() == shared_engine  # my own edits under my own render: proceed, as today
+    assert (shared_engine / "kit.ts").read_text(encoding="utf-8") == "mine"
+
+
+def test_dead_or_old_lease_is_ignored_and_removed(shared_engine, sleeper):
+    gone = subprocess.Popen([sys.executable, "-c", "pass"])
+    gone.wait()
+    dead = write_lease(shared_engine, gone.pid, "/other/studio")
+    old = write_lease(shared_engine, sleeper.pid, "/other/studio", started=time.time() - 49 * 3600)
+    (shared_engine / studio.LEASES / "junk.json").write_text("{", encoding="utf-8")
+    assert studio.live_leases(shared_engine) == []
+    assert not dead.exists() and not old.exists() and not list((shared_engine / studio.LEASES).iterdir())
+
+
+def test_install_refuses_while_leased(shared_engine, sleeper, monkeypatch):
+    write_lease(shared_engine, sleeper.pid, "/other/studio")
+    ran = []
+    monkeypatch.setattr(studio.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(studio.subprocess, "run", lambda *a, **k: ran.append(a))
+    with pytest.raises(MVError, match="in use by music-video"):
+        studio.install(shared_engine)
+    assert ran == []
+
+
+def test_sync_plan_matches_sync_runtime(tmp_path):
+    src, dest = tmp_path / "src", tmp_path / "rt"
+    for rel in ("kit/a.ts", "kit/gone.ts", "node_modules/x.js"):
+        (src / rel).parent.mkdir(parents=True, exist_ok=True)
+        (src / rel).write_text(rel, encoding="utf-8")
+    assert studio.sync_plan(src, dest) == (["kit/a.ts", "kit/gone.ts"], [])
+    studio.sync_runtime(src, dest)
+    assert studio.sync_plan(src, dest) == ([], [])
+    (src / "kit/gone.ts").unlink()
+    assert studio.sync_plan(src, dest) == ([], ["kit/gone.ts"])
