@@ -14,7 +14,7 @@ def _studio_dir(folder, lock):
 
 def installed_copy(tmp_path, lock="{}"):
     """The plugin as Claude Code runs it: a versioned copy in its plugin cache, in no git repo."""
-    return _studio_dir(tmp_path / "plugins" / "cache" / "daniellandi" / "music-video" / "0.6.8" / "studio", lock)
+    return _studio_dir(tmp_path / "plugins" / "cache" / "some-marketplace" / "music-video" / "0.6.8" / "studio", lock)
 
 
 def dev_copy(tmp_path, name, worktree=False, lock="{}"):
