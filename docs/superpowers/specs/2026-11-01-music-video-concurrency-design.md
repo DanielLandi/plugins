@@ -102,7 +102,7 @@ never listed or served.
 - **Lane key:** `<slug>-<hash8>`: `slug` = the worktree folder's name, lowercased, reduced to `[a-z0-9-]`, at most 24
   characters; `hash8` = the first 8 hex of sha256 of `os.path.normcase(str(worktree_root.resolve()))`. Readable in a
   folder listing, stable for the life of the worktree, distinct for two worktrees with the same folder name.
-- **Installed plugin:** a plugin copy whose repository root (`PLUGIN_STUDIO.parents[1]`) has no `.git`. That is the
+- **Installed plugin:** a plugin copy with no `.git` at its plugin root or that root's parent (`PLUGIN_STUDIO.parent`, `PLUGIN_STUDIO.parents[1]`). That is the
   Claude Code plugin cache layout (`…/<marketplace>/music-video/<version>/studio`). **Dev checkout:** a plugin copy
   inside a git working tree (`<repo>/music-video/studio` with `<repo>/.git`, a directory or a file).
 
@@ -382,6 +382,14 @@ pass unchanged: they are the "no change" contract for a main checkout.
 ## 10. Open questions
 
 Each was decided conservatively for this draft; the reviewer may overturn any.
+
+**Settled 2026-11-03.**
+- Item 1 is decided by the maintainer: lane finals go under `results_dir/.lanes/<key>/`.
+- Item 2 is decided by the maintainer: song steps are allowed in a lane, and the budget is counted across worktrees.
+- Item 3 is checked: Claude Code runs a plugin from its cache copy (`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`), which is in no git repo. Only the marketplace clone has a `.git`. Detection therefore looks for `.git` only at the plugin root and its parent (`PLUGIN_STUDIO.parent`, `PLUGIN_STUDIO.parents[1]`), never further up, so a home folder kept in git cannot turn the installed plugin into a dev checkout.
+- Item 4 is checked: Remotion's browser lives in `node_modules/.remotion` (about 570 MB), so the hard-link seed covers it.
+
+The other items stay as drafted.
 
 1. **Lane finals location.** Chosen: `results_dir/.lanes/<key>/` (hidden from the library, next to the real finals).
    Alternative: under the work cache. If `results_dir` is synced to a NAS or cloud drive, lane drafts get synced too.
