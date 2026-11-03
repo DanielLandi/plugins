@@ -43,6 +43,11 @@ def run_doctor(install: bool = True) -> int:
         print(f"ok   moved the engine from the cache to {install_dir() / 'engine'}")
     checkout = studio.plugin_checkout()
     with studio.engine_lock(studio.runtime_dir()) as rt:
+        try:
+            studio.refuse_other_source(rt)
+        except MVError as e:
+            print(f"fix  {e}")
+            return 1
         studio.sync_runtime(dest=rt)
         studio.touch_owner(rt)
         if not studio.is_installed(rt) and (seed := studio.seed_modules(rt)):

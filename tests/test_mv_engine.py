@@ -324,3 +324,45 @@ def test_sync_plan_matches_sync_runtime(tmp_path):
     assert studio.sync_plan(src, dest) == ([], [])
     (src / "kit/gone.ts").unlink()
     assert studio.sync_plan(src, dest) == ([], ["kit/gone.ts"])
+
+
+def test_doctor_refuses_to_sync_over_another_sources_render(shared_engine, sleeper, monkeypatch, capsys):
+    # The make skill runs doctor first in every session: after a plugin update it must not sync over a render
+    # still running from the previous version.
+    from musicvideo import doctor
+    write_lease(shared_engine, sleeper.pid, "/other/studio")
+    (studio.PLUGIN_STUDIO / "kit.ts").write_text("changed", encoding="utf-8")
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(doctor, "_node_major", lambda: 22)
+    assert doctor.run_doctor() == 1
+    assert "in use by music-video 0.6.7" in capsys.readouterr().out
+    assert not (shared_engine / "kit.ts").exists()
+
+
+def test_seed_refuses_while_the_engine_is_in_use(tmp_path, monkeypatch, sleeper):
+    # A pull changed this checkout's lock while one of its own renders runs: re-seeding would replace node_modules
+    # under it, as npm ci would.
+    installed_engine(tmp_path / "install" / "engine", '{"v": 2}')
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 2}'))
+    mine = installed_engine(studio.runtime_dir(), '{"v": 1}')
+    before = os.stat(mine / "node_modules/remotion/index.js").st_ino
+    write_lease(mine, sleeper.pid, studio.PLUGIN_STUDIO)
+    with pytest.raises(MVError, match="in use by music-video"):
+        studio.ensure_ready()
+    assert os.stat(mine / "node_modules/remotion/index.js").st_ino == before
+
+
+def test_install_clears_the_stamp_before_npm_runs(tmp_path, monkeypatch):
+    # npm ci deletes and re-extracts node_modules: while it runs, the engine must not look installed (a checkout
+    # seeding from it then would link a half-extracted tree).
+    rt = installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    seen = []
+    monkeypatch.setattr(studio.shutil, "which", lambda name: f"/usr/bin/{name}")
+
+    def npm(cmd, cwd):
+        seen.append(studio.is_installed(rt))
+        return subprocess.CompletedProcess(cmd, 1)
+    monkeypatch.setattr(studio.subprocess, "run", npm)
+    with pytest.raises(MVError, match="npm ci failed"):
+        studio.install(rt)
+    assert seen == [False] and not studio.is_installed(rt)

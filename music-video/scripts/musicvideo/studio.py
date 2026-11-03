@@ -235,6 +235,9 @@ def install(rt: Path) -> None:
     # --include=dev: the build tools (tsx, typescript) are dev dependencies, which an npm set to omit them would skip.
     if leases := live_leases(rt):
         raise MVError(_in_use(leases[0]))
+    # npm ci deletes and re-extracts node_modules: until it is done, the engine must not look installed (a checkout
+    # seeding from it then would link a half-extracted tree).
+    (rt / LOCK_STAMP).unlink(missing_ok=True)
     if subprocess.run([npm, "ci", "--include=dev", "--no-audit", "--no-fund"], cwd=rt).returncode:
         raise MVError(f"npm ci failed in {rt}")
     if subprocess.run([*tool(rt, "remotion"), "browser", "ensure"], cwd=rt).returncode:
@@ -282,10 +285,21 @@ def seed_modules(rt: Path) -> Path | None:
     seed = find_seed(rt)
     if seed is None:
         return None
+    if leases := live_leases(rt):  # replacing node_modules under a running command breaks it, as npm ci would
+        raise MVError(_in_use(leases[0]))
     shutil.rmtree(rt / "node_modules", ignore_errors=True)  # an earlier seed may have stopped half-way
     link_tree(seed / "node_modules", rt / "node_modules", SEED_SKIP)
     (rt / LOCK_STAMP).write_text(lock_hash(rt), encoding="utf-8")
     return seed
+
+
+def refuse_other_source(rt: Path) -> None:
+    """Before a sync that would change files: another plugin copy (another version, across an update) may be
+    rendering from them. The same copy's own edits proceed, as always. Call under engine_lock."""
+    if any(sync_plan(PLUGIN_STUDIO, rt)):
+        for lease in live_leases(rt):
+            if lease.get("source") != str(PLUGIN_STUDIO):
+                raise MVError(_in_use(lease))
 
 
 @contextlib.contextmanager
@@ -337,11 +351,7 @@ def _unlock(fd) -> None:
 
 def ensure_ready() -> Path:
     with engine_lock(runtime_dir()) as rt:
-        if any(sync_plan(PLUGIN_STUDIO, rt)):
-            # Another plugin copy (another version, across an update) may be rendering from these files.
-            for lease in live_leases(rt):
-                if lease.get("source") != str(PLUGIN_STUDIO):
-                    raise MVError(_in_use(lease))
+        refuse_other_source(rt)
         sync_runtime(dest=rt)
         if not is_installed(rt) and (seed := seed_modules(rt)):
             print(f"seeded the engine for this checkout from {seed}", file=sys.stderr)
