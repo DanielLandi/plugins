@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.8
+
+- A git checkout of the plugin (a clone or a worktree, for working on the plugin itself) uses its own engine in
+  `engines/<checkout>/` under the install folder. Its packages are hard links to an installed engine with the same
+  lock, so setting one up takes seconds and almost no disk. The installed plugin keeps `engine/` as before.
+- Only one command at a time updates an engine (sync, packages): the others wait, with a message after two seconds.
+  Renders still run side by side.
+- A running command marks the engine as in use: another plugin version no longer syncs over it, and `doctor` no
+  longer reinstalls its packages, mid-render. It says which version and video hold it instead.
+- `web`: two builds at once, even of different videos, no longer swap song data (each build stages it in a folder
+  of its own).
+
 ## 0.6.7
 
 - `mux --tail <s>` and `qc --tail <s>`: a full video that runs on past the song, silent, for that many seconds (room
