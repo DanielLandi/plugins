@@ -97,7 +97,7 @@ def installed_engine(root, lock_text):
         (root / rel).write_text(text, encoding="utf-8")
     try:
         (root / "node_modules/.bin").mkdir()
-        os.symlink("../remotion/index.js", root / "node_modules/.bin/remotion")
+        os.symlink(os.path.join("..", "remotion", "index.js"), root / "node_modules/.bin/remotion")
     except OSError:  # Windows without Developer Mode: no symlinks
         pass
     (root / studio.LOCK_STAMP).write_text(studio.lock_hash(root), encoding="utf-8")
@@ -344,7 +344,8 @@ def test_seed_refuses_while_the_engine_is_in_use(tmp_path, monkeypatch, sleeper)
     # under it, as npm ci would.
     installed_engine(tmp_path / "install" / "engine", '{"v": 2}')
     monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 2}'))
-    mine = installed_engine(studio.runtime_dir(), '{"v": 1}')
+    # A different size from the new lock: sync compares size and mtime, and Windows file times are coarse.
+    mine = installed_engine(studio.runtime_dir(), '{"v": "old"}')
     before = os.stat(mine / "node_modules/remotion/index.js").st_ino
     write_lease(mine, sleeper.pid, studio.PLUGIN_STUDIO)
     with pytest.raises(MVError, match="in use by music-video"):
