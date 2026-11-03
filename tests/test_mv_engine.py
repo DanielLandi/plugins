@@ -2,6 +2,10 @@
 import json
 import os
 import re
+import subprocess
+import sys
+import time
+from pathlib import Path
 
 import pytest
 
@@ -183,3 +187,64 @@ def test_doctor_seeds_a_checkouts_engine_instead_of_installing(tmp_path, monkeyp
     out = capsys.readouterr().out
     assert "seeded from" in out and f"for the checkout {tmp_path / 'plugins'}" in out
     assert studio.is_installed(studio.runtime_dir())
+
+
+SCRIPTS = Path(studio.__file__).resolve().parents[1]
+HOLD = """
+import sys, time
+sys.path.insert(0, sys.argv[1])
+from pathlib import Path
+from musicvideo import studio
+with studio.engine_lock(Path(sys.argv[2])):
+    print("held", flush=True)
+    time.sleep(float(sys.argv[3]))
+"""
+
+
+def hold_lock(rt, seconds):
+    """Another music-video process holding the engine lock for a while."""
+    child = subprocess.Popen([sys.executable, "-c", HOLD, str(SCRIPTS), str(rt), str(seconds)],
+                             stdout=subprocess.PIPE, text=True, encoding="utf-8")
+    assert child.stdout.readline().strip() == "held"
+    return child
+
+
+def test_engine_lock_serialises_two_commands(tmp_path):
+    rt = tmp_path / "install é" / "engine"
+    child = hold_lock(rt, seconds=1.5)
+    t = time.monotonic()
+    with studio.engine_lock(rt, notice_after=0.2):
+        assert time.monotonic() - t > 1.0
+    child.wait()
+
+
+def test_engine_lock_gives_up_with_a_message(tmp_path, capsys):
+    rt = tmp_path / "install é" / "engine"
+    child = hold_lock(rt, seconds=5)
+    try:
+        with pytest.raises(MVError, match="updating the engine"):
+            with studio.engine_lock(rt, timeout=0.5, notice_after=0.1):
+                pass
+        assert "waiting for another music-video command" in capsys.readouterr().err
+    finally:
+        child.kill()
+        child.wait()
+
+
+def test_engine_lock_is_free_again_after_use(tmp_path):
+    rt = tmp_path / "install é" / "engine"
+    with studio.engine_lock(rt):
+        pass
+    with studio.engine_lock(rt, timeout=0.5):
+        pass
+
+
+def test_doctor_moves_an_old_cache_engine_before_taking_the_lock(tmp_path, monkeypatch, capsys):
+    from musicvideo import doctor
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", installed_copy(tmp_path, lock='{"v": 1}'))
+    installed_engine(tmp_path / "cache" / "studio", '{"v": 1}')  # where 0.1.0 installed it
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(doctor, "_node_major", lambda: 22)
+    assert doctor.run_doctor(install=False) == 0
+    assert f"moved the engine from the cache to {tmp_path / 'install' / 'engine'}" in capsys.readouterr().out
+    assert studio.is_installed(tmp_path / "install" / "engine")

@@ -1,6 +1,7 @@
 """The Remotion engine runs from a writable copy in the OS cache (the plugin folder is read-only and replaced on
 update); its npm packages are installed there by `music-video doctor`. User videos stay in the workspace and are
 rendered through a generated entry file."""
+import contextlib
 import hashlib
 import json
 import os
@@ -205,10 +206,58 @@ def seed_modules(rt: Path) -> Path | None:
     return seed
 
 
+@contextlib.contextmanager
+def engine_lock(rt: Path, timeout: float = 600.0, notice_after: float = 2.0):
+    """Only one command at a time changes an engine (sync, seed, install). Renders do not hold it, so they still
+    run side by side. Not re-entrant: taken by ensure_ready() and doctor only."""
+    rt.mkdir(parents=True, exist_ok=True)
+    with open(rt / ".lock", "a+b") as fd:
+        start, told = time.monotonic(), False
+        while not _try_lock(fd):
+            waited = time.monotonic() - start
+            if waited >= timeout:
+                raise MVError(f"another music-video command has been updating the engine in {rt} for "
+                              f"{max(1, round(timeout / 60))} minutes: try again when it ends")
+            if waited >= notice_after and not told:
+                print("waiting for another music-video command to finish updating the engine…", file=sys.stderr,
+                      flush=True)
+                told = True
+            time.sleep(0.1)
+        try:
+            yield rt
+        finally:
+            _unlock(fd)
+
+
+def _try_lock(fd) -> bool:
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+            fd.seek(0)
+            msvcrt.locking(fd.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except OSError:
+        return False
+
+
+def _unlock(fd) -> None:
+    if sys.platform == "win32":
+        import msvcrt
+        fd.seek(0)
+        msvcrt.locking(fd.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(fd.fileno(), fcntl.LOCK_UN)
+
+
 def ensure_ready() -> Path:
-    rt = sync_runtime()
-    if not is_installed(rt) and (seed := seed_modules(rt)):
-        print(f"seeded the engine for this checkout from {seed}", file=sys.stderr)
+    with engine_lock(runtime_dir()) as rt:
+        sync_runtime(dest=rt)
+        if not is_installed(rt) and (seed := seed_modules(rt)):
+            print(f"seeded the engine for this checkout from {seed}", file=sys.stderr)
     if not is_installed(rt):
         raise MVError("the video engine's packages are not installed or are out of date: run music-video doctor")
     touch_owner(rt)
