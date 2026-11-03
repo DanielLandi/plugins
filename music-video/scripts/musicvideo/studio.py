@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,12 +15,13 @@ import yaml
 
 from .errors import MVError
 from .spec import is_instrumental
-from .workspace import Workspace, cache_dir, install_dir
+from .workspace import Workspace, cache_dir, folder_key, install_dir
 
 PLUGIN_STUDIO = Path(__file__).resolve().parents[2] / "studio"
 KEEP = {"node_modules", ".entries"}  # runtime-only folders, never synced or pruned
 LOCK_STAMP = ".installed-lock"
 SYNCED = ".synced.json"  # what the last sync copied: the only files a sync may delete
+OWNER = ".owner.json"  # a checkout's engine: which checkout it serves, when it was last used
 ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 WEB_MARK = "<!-- built by music-video web -->"  # first line of a web build's README (tools/web-out.ts)
 
@@ -35,13 +37,48 @@ def check_web_out(out: Path) -> None:
                           "refusing to empty it; pick an empty folder")
 
 
+def plugin_checkout(studio_dir: Path | None = None) -> Path | None:
+    """The git working tree this plugin copy runs from, or None for the installed plugin. Claude Code runs a plugin
+    from its cache copy, which is in no git repo; only the plugin root and the repo root above it are looked at, so
+    a home folder kept in git never makes the installed plugin look like a checkout."""
+    studio_dir = studio_dir or PLUGIN_STUDIO
+    return next((d for d in (studio_dir.parent, studio_dir.parents[1]) if (d / ".git").exists()), None)
+
+
 def runtime_dir() -> Path:
-    return install_dir() / "engine"
+    """The installed plugin's engine is install/engine, as always; each git checkout of the plugin (a clone, a
+    worktree) gets install/engines/<checkout>, so two copies never sync over each other's engine."""
+    if value := os.environ.get("MV_ENGINE_DIR"):
+        return Path(value).expanduser().resolve()
+    checkout = plugin_checkout()
+    return install_dir() / "engine" if checkout is None else install_dir() / "engines" / folder_key(checkout)
+
+
+def touch_owner(rt: Path) -> None:
+    """A checkout's engine records which checkout it serves and when it was last used (at most hourly), so stale
+    engines can be found later. The installed engine has none."""
+    checkout = plugin_checkout()
+    if checkout is None:
+        return
+    path, now = rt / OWNER, time.time()
+    try:
+        owner = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        owner = {"created": _iso(now)}
+    if owner.get("checkout") == str(checkout) and now - owner.get("used_at", 0) < 3600:
+        return
+    owner.update(checkout=str(checkout), last_used=_iso(now), used_at=now)
+    rt.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(owner), encoding="utf-8")
+
+
+def _iso(t: float) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t))
 
 
 def migrate_old_runtime() -> bool:
     """0.1.0 installed the engine in the cache folder; move it (with its packages) instead of reinstalling."""
-    old, new = cache_dir() / "studio", runtime_dir()
+    old, new = cache_dir() / "studio", install_dir() / "engine"
     if not old.is_dir() or new.exists():
         return False
     new.parent.mkdir(parents=True, exist_ok=True)
@@ -124,6 +161,7 @@ def ensure_ready() -> Path:
     rt = sync_runtime()
     if not is_installed(rt):
         raise MVError("the video engine's packages are not installed or are out of date: run music-video doctor")
+    touch_owner(rt)
     return rt
 
 

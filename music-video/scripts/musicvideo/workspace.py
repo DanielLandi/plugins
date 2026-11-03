@@ -1,8 +1,10 @@
 """Where a user's songs and videos live. The plugin folder is replaced on every update, so nothing personal is kept
 there: specs, albums and video code go in the project folder, finals in results_dir, working files in work_dir (the
 OS cache by default), the engine in the install folder."""
+import hashlib
 import json
 import os
+import re
 import shutil
 import sys
 from dataclasses import dataclass
@@ -27,6 +29,14 @@ def cache_dir() -> Path:
     if sys.platform == "win32":
         return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "music-video" / "Cache"
     return Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "music-video"
+
+
+def folder_key(root: Path) -> str:
+    """A folder's name as a short readable slug plus a hash of its full path: stable for the folder's life, and
+    distinct for two folders with the same name (two clones, two worktrees)."""
+    slug = re.sub(r"[^a-z0-9]+", "-", root.name.lower()).strip("-")[:24].strip("-") or "x"
+    path = os.path.normcase(str(root.resolve()))
+    return f"{slug}-{hashlib.sha256(path.encode('utf-8')).hexdigest()[:8]}"
 
 
 def install_dir() -> Path:
