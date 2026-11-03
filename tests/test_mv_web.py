@@ -114,3 +114,12 @@ def test_a_command_holds_a_lease_while_it_runs(mv_ws, web_video, monkeypatch):
     assert len(seen[0]) == 1 and seen[0][0]["video"] == "night-drive"
     assert seen[0][0]["source"] == str(studio.PLUGIN_STUDIO)
     assert studio.live_leases(rt) == [] and not list((rt / studio.LEASES).iterdir())
+
+
+def test_web_stages_song_data_per_run():
+    # Two web builds at once (different videos) once shared <engine>/web/.data/score.json and swapped pages (#18).
+    ts = (studio.PLUGIN_STUDIO / "tools" / "web.ts").read_text(encoding="utf-8")
+    page = (studio.PLUGIN_STUDIO / "web" / "main.tsx").read_text(encoding="utf-8")
+    assert "join(web, '.data')" not in ts and "mkdtempSync(join(dirname(entryFile), 'web-data-'))" in ts
+    assert "finally" in ts and "rmSync(stage" in ts
+    assert "from '@mv/web-data/score.json?url'" in page and "./.data/" not in page
