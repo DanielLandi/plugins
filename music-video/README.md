@@ -14,11 +14,40 @@ timings, and a code-rendered 2D/3D video with subtitles, a 9:16 cut and a thumbn
 - **A song:** 2–3 lyric options in chat, 2–3 musical directions created in Suno, a table of takes to listen to.
   Only the take you name is downloaded.
 - **Timings:** every sung word timed (vocal separation + forced alignment, repaired against a transcription), plus
-  tempo, beats, sections and big moments. A karaoke preview (with the vocal waveform 10 s at a time and a mark at each word) lets you check sync before any video work.
+  tempo, beats, sections and big moments. A karaoke preview lets you check sync before any video work, and the [timing editor](#fixing-word-timings-by-eye-and-ear) lets you drag any word that is off onto where it is sung.
 - **A video:** a written look, a storyboard with a reason for every cut, real scenes in React (2D, or 3D with the
   bundled kit: camera rigs on the song clock, extruded 3D lyrics, CC0 models), motion blur by sub-frame averaging,
   subtitles, and automatic checks (black, flash or frozen frames, sync, size) before you see anything.
 - **Deliverables:** the 16:9 full song, a 9:16 cut, a thumbnail, and `.lrc`/`.srt`/`.vtt` lyrics.
+
+## Fixing word timings by eye and ear
+
+Subtitles that light up each word as it is sung need every word's start right to about a tenth of a second.
+Alignment gets most words there; the rest (a whispered word, a word after a long held note) you fix in the
+**timing editor**, a page on your own computer. The make skill offers it with the karaoke preview, or run
+`edit-timing <id> --open`.
+
+![The timing editor: the line being sung, each word's mark over the vocal waveform, and a spectrogram underneath](../docs/images/music-video-timing-editor.png)
+
+*A demo line (spoken by macOS `say` over a synth chord), with "flicker," just moved and "Streetlights" selected.*
+
+- **Ten seconds at a time:** the vocal waveform with 0.1 s ticks, the beats as dots along the top, and a mark at
+  each word's start with a bar to its end. The line being sung is shown above, and the word being sung large below.
+- **A spectrogram under the waveform** shows which pitches sound when, so a word's first sound is easy to place:
+  an s, f or sh is a haze high up that can start several frames before the vowel, a p, t or k a thin vertical line,
+  a vowel or an m, n or l a stack of bright bands low down. A breath before a phrase is a faint haze, not the start.
+- **Drag a mark** (in the waveform or the spectrogram) to move a word: it keeps its length. Drag the handle at the
+  end of its bar to move its end. Arrow keys nudge the selected word by 10 ms (Shift: 100 ms).
+- **Listen around it:** Space plays from the cursor, B goes back to the start of the line. **Vocals** switches the
+  sound and the pictures to the separated voice alone, without the band.
+- **Audio delay:** Bluetooth headphones play the sound about 0.2 s late. Slide it while playing until the
+  playhead meets the sound, so you judge words by ear where you hear them.
+- **Save** writes one entry per moved word to the video's `timing-fixes.yaml`, then re-aligns and re-analyses the
+  song with your fixes. The fixes stay with the video, so a new alignment never loses them, and Undo works until you
+  save.
+
+The page only answers requests from your own computer. **S** hides the spectrogram, **F** colours the waveform by
+frequency, and the page's help lists every key.
 
 ## Requirements
 
