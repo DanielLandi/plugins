@@ -37,6 +37,7 @@
   #line .now.moved { box-shadow: inset 0 -4px 0 var(--moved); }
   #wrap { padding: 0 16px; }
   canvas { display: block; width: 100%; height: 300px; cursor: crosshair; touch-action: none; }
+  body.spec canvas { height: 430px; }
   /* the word being sung, alone, speed-reader style: its pivot letter stays on the centre line */
   #word { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; height: 76px; padding: 4px 16px;
           font: 700 52px/1.2 -apple-system, "Helvetica Neue", sans-serif; border-top: 1px solid #222a33;
@@ -46,7 +47,9 @@
   #legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -2px; }
   #legend i.bar { width: 3px; height: 14px; }
   #legend i.grad { width: 80px; background: linear-gradient(90deg, hsl(260 85% 60%), hsl(130 85% 55%), hsl(0 85% 60%)); }
-  #legend .freq { display: none; } body.freq #legend .freq { display: inline; }
+  #legend i.heat { width: 80px; background: linear-gradient(90deg, #000004, #3b0f70, #8c2981, #de4968, #fe9f6d, #fcfdbf); }
+  #legend .freq, #legend .spec { display: none; }
+  body.freq #legend .freq, body.spec #legend .spec { display: inline; }
   #status { margin: 10px 16px; padding: 8px 12px; color: #ffffff; font-size: 17px; font-weight: 600; min-height: 2.4em;
             white-space: pre-line; border-left: 4px solid transparent; }
   #status.busy { border-left-color: var(--accent); background: #1d242c; }
@@ -72,6 +75,8 @@
   <button id="source" title="Hear and see the mix or the vocals alone (V)">Mix</button>
   <label class="check" title="Colour the waveform by its brightness: dark vowels (oo) blue, bright ones (ee) and s sounds red (F)">
     <input type="checkbox" id="freq"> Colour by frequency</label>
+  <label class="check" title="Show which pitches sound when, under the waveform: an s or f is a haze high up, a vowel is stacked bands (S)">
+    <input type="checkbox" id="spec"> Spectrogram</label>
   <label class="check" title="How late the sound reaches you (Bluetooth headphones: about 150–250 ms): the playhead and the highlighted word wait this long. Slide it while playing until the bar meets the sound.">
     Audio delay <input type="range" id="delay" min="0" max="500" step="10"> <span id="delayMs"></span></label>
   <span class="spacer"></span>
@@ -89,6 +94,7 @@
   <span><i class="bar" style="background: #ffffff"></i>playhead</span>
   <span><i style="background: var(--accent)"></i>the word being sung (in the line above)</span>
   <span class="freq"><i class="grad"></i>low → high frequency</span>
+  <span class="spec"><i class="heat"></i>spectrogram: quiet → loud at that pitch (high pitches at the top)</span>
 </div>
 <div id="status">Loading the song…</div>
 <div id="help">
@@ -97,6 +103,7 @@
     <tr><td>Move a word's start</td><td>drag its mark or its label: the word keeps its length, and shortens only where it would run into the next one</td></tr>
     <tr><td>Move a word's end</td><td>drag the small handle at the end of its bar</td></tr>
     <tr><td>Put the cursor</td><td>click the waveform (double-click plays from there); click a word in the line above to select it</td></tr>
+    <tr><td>Read the spectrogram</td><td>a word starts at its first sound: an s, f or sh is a haze high up (it can start 5–8 frames before the vowel), a p, t or k a thin vertical line, a vowel or an m/n/l a stack of bright bands low down; a breath before a phrase is a faint haze and is not the start</td></tr>
     <tr><td>Save</td><td>moved words become entries in timing-fixes.yaml, then align and analyze run again</td></tr>
   </table>
   <h2>Keys</h2>
@@ -107,6 +114,7 @@
     <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next 10 s</td></tr>
     <tr><td><kbd>V</kbd></td><td>hear and see the mix or the vocals alone</td></tr>
     <tr><td><kbd>F</kbd></td><td>colour the waveform by frequency</td></tr>
+    <tr><td><kbd>S</kbd></td><td>show or hide the spectrogram</td></tr>
     <tr><td><kbd>Esc</kbd></td><td>deselect</td></tr>
     <tr><td><kbd>⌘Z</kbd> / <kbd>⌘S</kbd></td><td>undo / save</td></tr>
   </table>
@@ -114,15 +122,18 @@
 <script>
 const CONFIG = __CONFIG__;
 const PAGE = 10, MIN = 0.06, ROWS = 3, FFT = 1024, HOLD = 1.0;
-const G = { rowY: 18, rowH: 20, waveTop: 84, waveH: 160, tickH: 6 };   // canvas geometry in CSS px
+const G = { rowY: 18, rowH: 20, waveTop: 84, waveH: 160, tickH: 6, specGap: 28, specH: 150 };   // canvas geometry in CSS px
 G.waveBot = G.waveTop + G.waveH;
+G.specTop = G.waveBot + G.specGap; G.specBot = G.specTop + G.specH;
+const SPEC = { lo: 60, hi: 16000, range: 80 };   // the spectrogram's pitch range (Hz, log scale) and its loudness range (dB)
 const ICON = { play: '<svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg>Play',
                stop: '<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/></svg>Stop' };
 
 const $ = (id) => document.getElementById(id);
 const cv = $("cv"), cx = cv.getContext("2d");
 const S = { words: [], orig: [], lines: [], beats: [], downbeats: new Set(), sections: [], duration: 0,
-            page: 0, cursor: 0, sel: -1, undo: [], drag: null, source: "mix", freq: false, busy: false,
+            page: 0, cursor: 0, sel: -1, undo: [], drag: null, source: "mix", freq: false, spec: true, busy: false,
+            specImg: null, specKey: "",
             ctx: null, audio: {}, mono: {}, peak: {}, rate: 44100, cols: null, colsKey: "",
             node: null, playFrom: 0, playAt: 0, playTo: 0, shown: {}, delay: null };
 
@@ -156,6 +167,8 @@ async function load() {
   S.source = recall("source") === "vocals" ? "vocals" : "mix";
   S.freq = recall("freq") === "1";
   $("freq").checked = S.freq; document.body.classList.toggle("freq", S.freq);
+  S.spec = recall("spec") !== "0";
+  $("spec").checked = S.spec; document.body.classList.toggle("spec", S.spec);
   const ms = parseFloat(recall("delay"));
   S.delay = Number.isFinite(ms) ? ms / 1000 : null;
   showDelay();
@@ -212,26 +225,81 @@ const REV = (() => {
   return rev;
 })();
 const RE = new Float32Array(FFT), IM = new Float32Array(FFT);
+// the twiddle factors, once: the spectrogram runs an FFT per pixel column
+const COS = Float32Array.from({ length: FFT / 2 }, (_, k) => Math.cos(-2 * Math.PI * k / FFT));
+const SIN = Float32Array.from({ length: FFT / 2 }, (_, k) => Math.sin(-2 * Math.PI * k / FFT));
 
-function centroid(mono, mid) {
+// RE/IM ← the FFT of the FFT samples centred on `mid`
+function spectrum(mono, mid) {
   for (let k = 0; k < FFT; k++) {
     const j = mid - FFT / 2 + REV[k];
     RE[k] = j >= 0 && j < mono.length ? mono[j] * HANN[REV[k]] : 0; IM[k] = 0;
   }
   for (let size = 2; size <= FFT; size *= 2) {
-    const half = size / 2, step = -2 * Math.PI / size;
+    const half = size / 2, stride = FFT / size;
     for (let s = 0; s < FFT; s += size) {
       for (let k = 0; k < half; k++) {
-        const c = Math.cos(step * k), d = Math.sin(step * k), a = s + k, b = a + half;
+        const c = COS[k * stride], d = SIN[k * stride], a = s + k, b = a + half;
         const tr = RE[b] * c - IM[b] * d, ti = RE[b] * d + IM[b] * c;
         RE[b] = RE[a] - tr; IM[b] = IM[a] - ti; RE[a] += tr; IM[a] += ti;
       }
     }
   }
+}
+
+function centroid(mono, mid) {
+  spectrum(mono, mid);
   const hz = S.rate / FFT, lo = Math.ceil(80 / hz), hi = Math.min(FFT / 2, Math.floor(8000 / hz));
   let sum = 0, weighted = 0;
   for (let k = lo; k < hi; k++) { const m = Math.hypot(RE[k], IM[k]); sum += m; weighted += m * k * hz; }
   return sum > 0 ? weighted / sum : 0;
+}
+
+// ---- the spectrogram: one FFT per pixel column, pitch on a log scale, loudness as a heat colour ------------------
+const yOfHz = (f) => G.specTop + G.specH * (1 - Math.log(f / SPEC.lo) / Math.log(SPEC.hi / SPEC.lo));
+const hzOfRow = (y) => SPEC.lo * Math.pow(SPEC.hi / SPEC.lo, 1 - y / G.specH);   // y from the strip's top
+// black → violet → red → orange → pale yellow, like the "inferno" scale: equal steps look equally brighter
+const HEAT = (() => {
+  const stops = [[0, 0, 0, 4], [0.25, 59, 15, 112], [0.45, 140, 41, 129], [0.65, 222, 73, 104], [0.85, 254, 159, 109],
+                 [1, 252, 253, 191]], lut = new Uint8ClampedArray(256 * 3);
+  for (let k = 0; k < 256; k++) {
+    const u = k / 255, j = stops.findIndex((st) => st[0] >= u), [a, b] = j <= 0 ? [stops[0], stops[0]] : [stops[j - 1], stops[j]];
+    const f = b[0] > a[0] ? (u - a[0]) / (b[0] - a[0]) : 0;
+    for (let c = 0; c < 3; c++) lut[k * 3 + c] = a[c + 1] + (b[c + 1] - a[c + 1]) * f;
+  }
+  return lut;
+})();
+
+function specImage(w) {
+  const mono = S.mono[S.source], key = `${S.page}:${w}:${S.source}`;
+  if (S.specKey === key || !mono) return S.specImg;
+  const hz = S.rate / FFT, nyq = FFT / 2, per = PAGE * S.rate / w, base = S.page * PAGE * S.rate;
+  // each row covers the bins between its edges (at least the nearest one); 0 dB is a full-scale sine of the song's peak
+  const rows = Array.from({ length: G.specH }, (_, y) => {
+    const a = hzOfRow(y + 1) / hz, b = hzOfRow(y) / hz;
+    return [Math.max(1, Math.min(nyq - 1, Math.round(a))), Math.max(1, Math.min(nyq - 1, Math.round(b)))];
+  });
+  const ref = 20 * Math.log10(S.peak[S.source] * FFT / 4), mag = new Float32Array(nyq);
+  const img = new ImageData(w, G.specH), px = img.data;
+  for (let x = 0; x < w; x++) {
+    const t = S.page * PAGE + (x + 0.5) / w * PAGE;
+    if (t > S.duration) break;
+    spectrum(mono, Math.floor(base + (x + 0.5) * per));
+    for (let k = 1; k < nyq; k++) mag[k] = RE[k] * RE[k] + IM[k] * IM[k];
+    for (let y = 0; y < G.specH; y++) {
+      const [a, b] = rows[y];
+      let m = 0;
+      for (let k = a; k <= b; k++) if (mag[k] > m) m = mag[k];
+      const db = 10 * Math.log10(m + 1e-20) - ref, u = Math.min(1, Math.max(0, 1 + db / SPEC.range));
+      const c = Math.round(u * 255) * 3, o = (y * w + x) * 4;
+      px[o] = HEAT[c]; px[o + 1] = HEAT[c + 1]; px[o + 2] = HEAT[c + 2]; px[o + 3] = 255;
+    }
+  }
+  const off = document.createElement("canvas");
+  off.width = w; off.height = G.specH;
+  off.getContext("2d").putImageData(img, 0, 0);
+  S.specImg = off; S.specKey = key;
+  return off;
 }
 
 // 200 Hz (dark) → violet, 4 kHz (bright) → red, on a log scale
@@ -313,6 +381,20 @@ function draw() {
       }
     }
   }
+  // the spectrogram, with a few pitch labels on its left
+  const bottom = S.spec ? G.specBot : G.waveBot;
+  if (S.spec && S.mono[S.source]) {
+    const img = specImage(w);
+    cx.imageSmoothingEnabled = false;
+    cx.drawImage(img, 0, G.specTop, w, G.specH);
+    cx.font = "10px -apple-system, sans-serif";
+    for (const [f, label] of [[100, "100"], [500, "500"], [1000, "1k"], [4000, "4k"], [10000, "10k Hz"]]) {
+      const y = Math.round(yOfHz(f)) + 0.5;
+      cx.fillStyle = "rgba(255, 255, 255, 0.35)"; cx.fillRect(0, y, 6, 1);
+      cx.fillStyle = "rgba(8, 10, 13, 0.7)"; cx.fillRect(8, y - 6, label.length * 6 + 4, 12);
+      cx.fillStyle = "#c8d0d8"; cx.fillText(label, 10, y + 4);
+    }
+  }
   // words: mark line, label and the start→end bar with its end handle; the label again inside the waveform
   const list = pageWords();
   for (const i of list) {
@@ -320,6 +402,9 @@ function draw() {
     const color = i === S.sel ? "#ffffff" : moved(i) ? "#ff9f43" : "#ffe880";
     cx.fillStyle = color; cx.strokeStyle = color; cx.lineWidth = i === S.sel ? 2 : 1;
     cx.beginPath(); cx.moveTo(x, y - 12); cx.lineTo(x, G.waveBot); cx.stroke();
+    if (S.spec) {   // through the spectrogram too, fainter, so the mark can be laid on the first sound
+      cx.globalAlpha = 0.8; cx.beginPath(); cx.moveTo(x, G.specTop); cx.lineTo(x, G.specBot); cx.stroke(); cx.globalAlpha = 1;
+    }
     cx.font = "600 13px -apple-system, sans-serif";
     cx.fillText(wd.text, x + 4, y);
     const xe = Math.min(xOf(wd.end), w);
@@ -335,11 +420,11 @@ function draw() {
   }
   // the cursor, the play window and the playhead
   const c = xOf(S.cursor);
-  if (onPage(S.cursor)) { cx.fillStyle = "#c792ea"; cx.fillRect(Math.round(c) - 1, G.waveTop - 6, 2, G.waveH + 6); }
+  if (onPage(S.cursor)) { cx.fillStyle = "#c792ea"; cx.fillRect(Math.round(c) - 1, G.waveTop - 6, 2, bottom - G.waveTop + 6); }
   if (playing()) {
     const p = now();
     if (!onPage(p)) { S.page = Math.floor(p / PAGE); return draw(); }
-    cx.fillStyle = "#ffffff"; cx.fillRect(Math.round(xOf(p)) - 1, 0, 2, G.waveBot);
+    cx.fillStyle = "#ffffff"; cx.fillRect(Math.round(xOf(p)) - 1, 0, 2, bottom);
   }
   if (S.drag) {
     const wd = S.words[S.drag.i], t = S.drag.end ? wd.end : wd.start;
@@ -441,7 +526,7 @@ function hit(x, y) {
   for (const i of list) {
     const w = S.words[i], ry = G.rowY + rowOf(i, list) * G.rowH, xs = xOf(w.start);
     const onLabel = y >= ry - 14 && y <= ry + 4 && x >= xs && x <= xs + cx.measureText(w.text).width + 6;
-    const onLine = Math.abs(x - xs) <= 5 && y >= ry - 12 && y <= G.waveBot;
+    const onLine = Math.abs(x - xs) <= 5 && y >= ry - 12 && y <= (S.spec ? G.specBot : G.waveBot);
     if (onLabel || onLine) {
       const d = Math.abs(x - xs);
       if (!best || d < best.d) best = { i, end: false, d };
@@ -533,6 +618,12 @@ function setSource(name) {
   if (playing()) play(now(), S.playTo); else draw();
 }
 
+function setSpec(on) {
+  S.spec = on; $("spec").checked = on; remember("spec", on ? "1" : "0");
+  document.body.classList.toggle("spec", on);
+  draw();
+}
+
 function setFreq(on) {
   S.freq = on; $("freq").checked = on; remember("freq", on ? "1" : "0");
   document.body.classList.toggle("freq", on);
@@ -543,6 +634,7 @@ $("back").onclick = back;
 $("play").onclick = () => playing() ? (stop(), draw()) : play(S.cursor, S.duration);
 $("source").onclick = () => setSource(S.source === "mix" ? "vocals" : "mix");
 $("freq").onchange = (e) => setFreq(e.target.checked);
+$("spec").onchange = (e) => setSpec(e.target.checked);
 $("delay").oninput = (e) => {
   S.delay = parseFloat(e.target.value) / 1000;
   remember("delay", String(Math.round(S.delay * 1000)));
@@ -565,6 +657,7 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "b" || e.key === "B" || e.key === "Home") { e.preventDefault(); back(); }
   else if (e.key === "v" || e.key === "V") $("source").onclick();
   else if (e.key === "f" || e.key === "F") setFreq(!S.freq);
+  else if (e.key === "s" || e.key === "S") setSpec(!S.spec);
   else if (e.key === "[" || e.key === "PageUp") $("prev").onclick();
   else if (e.key === "]" || e.key === "PageDown") $("next").onclick();
   else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && S.sel >= 0) {
@@ -604,7 +697,7 @@ async function save() {
 
 window.addEventListener("resize", () => draw());
 window.addEventListener("beforeunload", (e) => { if (changes().length) { e.preventDefault(); e.returnValue = ""; } });
-load().catch((err) => status(`Could not load: ${err.message}`, true));
+window.timingEditor = { S, G, yOfHz, ready: load().catch((err) => status(`Could not load: ${err.message}`, true)) };
 </script>
 </body>
 </html>

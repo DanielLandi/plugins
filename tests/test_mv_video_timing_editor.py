@@ -83,8 +83,9 @@ def test_trusted_host_is_this_computer_only():
 
 
 @pytest.fixture
-def editor_server(mv_ws, filed_song, monkeypatch):
-    spec_id, _ = filed_song(seconds=3.0)
+def editor_server(mv_ws, filed_song, monkeypatch, request):
+    # the song is a pure tone; a test can pick its pitch with indirect parametrization
+    spec_id, _ = filed_song(seconds=3.0, freq=getattr(request, "param", 220))
     paths = video_song(mv_ws, spec_id).paths
     paths.public.mkdir(parents=True, exist_ok=True)
     paths.timing.write_text(json.dumps(TIMING), encoding="utf-8")
@@ -165,3 +166,34 @@ def test_cli_edit_timing_reads_the_video_language(mv_ws, monkeypatch):
     (folder / "video.yaml").write_text("id: night-drive\nlang: pt\n", encoding="utf-8")
     assert main(["edit-timing", "night-drive", "--port", "9001"]) == 0
     assert seen == {"lang": "pt", "port": 9001}
+
+
+@pytest.mark.parametrize("editor_server", [2000], indirect=True)
+def test_spectrogram_shows_a_tone_at_its_pitch_and_toggles(editor_server, browser_ok):
+    from playwright.sync_api import sync_playwright
+    url, _, _ = editor_server
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1200, "height": 900})
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(url)
+        page.wait_for_function("window.timingEditor && window.timingEditor.S.mono.mix !== undefined", timeout=20000)
+        page.evaluate("window.timingEditor.ready")
+        # the brightest row of the strip at the middle of the song, against where 2 kHz should be
+        found = page.evaluate("""() => {
+          const { G, yOfHz } = window.timingEditor, cv = document.getElementById("cv");
+          const dpr = window.devicePixelRatio || 1, x = Math.round(cv.clientWidth * 0.15 * dpr);
+          const d = cv.getContext("2d").getImageData(x, Math.round(G.specTop * dpr), 1, Math.round(G.specH * dpr)).data;
+          let best = 0, row = -1;
+          for (let y = 0; y < d.length / 4; y++) { const v = d[y * 4] + d[y * 4 + 1] + d[y * 4 + 2]; if (v > best) { best = v; row = y; } }
+          return { y: G.specTop + row / dpr, want: yOfHz(2000), best, h: cv.clientHeight };
+        }""")
+        assert found["best"] > 600, found          # a pale yellow line, not a dark strip
+        assert abs(found["y"] - found["want"]) <= 3, found
+        assert found["h"] == 430
+        page.keyboard.press("s")
+        assert page.evaluate("document.getElementById('cv').clientHeight") == 300
+        assert page.evaluate("localStorage.getItem('timing-editor.spec')") == "0"
+        browser.close()
+    assert not errors, errors

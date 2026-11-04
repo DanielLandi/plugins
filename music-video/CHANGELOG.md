@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.8
+
+- `edit-timing`: a spectrogram under the waveform (on by default; the S key or its checkbox hides it), drawn from the
+  mix or the vocals, whichever is shown. A word's first sound is easier to place on it than on the waveform: an s or f
+  is a haze high up that can start several frames before the vowel, a p, t or k a thin vertical line, a vowel a stack
+  of bright bands. Each word's mark runs through it and can be dragged there too. The page's help explains how to
+  read it.
+
 ## 0.6.7
 
 - `mux --tail <s>` and `qc --tail <s>`: a full video that runs on past the song, silent, for that many seconds (room

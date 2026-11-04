@@ -1,8 +1,8 @@
 """music-video edit-timing: drag each word's mark on the vocal waveform to where it is sung, then save.
 
-A local page (127.0.0.1 only) shows the song 10 s at a time like the preview's panel: the vocal waveform, 0.1 s
-ticks and a mark at each word's start, which can be dragged (and the end of its bar, for the word's end). Saving
-appends one timing-fixes.yaml entry per moved word, after the ones already there (hand-written entries and their
+A local page (127.0.0.1 only) shows the song 10 s at a time like the preview's panel: the vocal waveform (with a
+spectrogram under it), 0.1 s ticks and a mark at each word's start, which can be dragged (and the end of its bar, for
+the word's end). Saving appends one timing-fixes.yaml entry per moved word, after the ones already there (hand-written entries and their
 comments stay), then re-runs align and analyze. Fixes apply in file order, each to the word nearest its `at`, so an
 entry's `at` is the word's start as the page showed it. If align refuses the new entries the file is put back.
 """
