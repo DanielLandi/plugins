@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.3
+
+- Sections page: a tooltip shows once a page load (quickly, the first time you point at that kind of button); after
+  that, only when the pointer rests on the button for 5 s.
+- No more glimpse of the section played before: a player that jumps to another section stays hidden until the new
+  frame is up (the card's picture, or black, shows meanwhile).
+- A scene's note (from `scenes.ts`) is in italics, so it reads apart from the lyrics.
+- `sections --video draft-v3.mp4` names the render "draft v3", as kept drafts are named.
+- README: screenshots of the sections page and of a section opened, from a demo song.
+
 ## 0.7.2
 
 - Sections page: each section keeps its place. Pause one, play another, and the first carries on where you left it

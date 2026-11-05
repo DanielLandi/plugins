@@ -96,6 +96,8 @@ Claude picks the skill from what you ask; you can also name one.
 Each draft opens on the **sections page** (`sections <id> --open`), a page on your own computer laid out by the
 video's scenes:
 
+![The sections page: a strip with every section to scale on the song, and a card per section with its picture, its scene note in italics and its lyrics, the line being sung lit](../docs/images/music-video-sections-overview.jpg)
+
 - **Every section on one screen**, in song order, with a strip along the top that shows each one to scale on the
   song. Play any section on its own, **Play the flow** to run them in order, or **With neighbours** to see how a
   section joins the ones around it.
@@ -106,6 +108,11 @@ video's scenes:
   on the problem; the drawing is saved with the note.
 - The notes stay in your video's folder (`notes/`). When you are done, Claude reads them (`notes <id>`) as if you had
   typed them in the chat, looking at every frame you drew on, and writes them into the next round.
+
+![A section opened: the frame being drawn on (a box), the drawing tools, the section's filmstrip and lyrics, and the notes panel with a saved note and its circled frame](../docs/images/music-video-sections-detail.jpg)
+
+*A demo song, "Paper Boats", whose five scenes are ffmpeg's own pattern generators (a gradient, a fractal, a game of
+life), with two notes left on it.*
 
 The **review page** (`review <id> --open`) keeps every version of every scene. It plays any two of them together,
 lined up on the song: side by side, with a wipe, or flipping between them, frame by frame if you like. **Copy
