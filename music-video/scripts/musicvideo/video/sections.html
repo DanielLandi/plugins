@@ -600,6 +600,7 @@ function openSection(i, song = null) {
   }
   renderList();
   const t = song ?? s.from;
+  pendingFrame = null;
   seekVeiled(big, atFrame(frameOf(videoOf(t))));
   detailTick(true);
   renderVarChips();
@@ -622,15 +623,18 @@ function backToGrid() {
 }
 
 function seekBig(song) {
+  pendingFrame = null;
   big.currentTime = atFrame(frameOf(videoOf(song)));
 }
-let pendingFrame = null;     // the frame a step is on its way to, so quick presses add up
+// The frame a step is on its way to, so quick presses add up. It stays set until that frame is on screen: a
+// "seeked" is no sign of that, since the one from an earlier seek can arrive after the frame it brought is shown.
+let pendingFrame = null;
 function stepFrame(d) {
   big.pause();
   const s = S[st.cur];
   const from = pendingFrame ?? shownFrame;
   const n = Math.max(frameOf(videoOf(s.from)), Math.min(frameOf(videoOf(s.to) - 1e-3), from + d));
-  pendingFrame = n;
+  pendingFrame = n === shownFrame ? null : n;
   big.currentTime = atFrame(n);
 }
 
@@ -662,7 +666,11 @@ function detailTick(force = false) {
 
 function trackFrames() {
   if (!("requestVideoFrameCallback" in big)) return;
-  const cb = (_, meta) => { shownFrame = Math.round(meta.mediaTime * D.fps); big.requestVideoFrameCallback(cb); };
+  const cb = (_, meta) => {
+    shownFrame = Math.round(meta.mediaTime * D.fps);
+    if (shownFrame === pendingFrame) pendingFrame = null;   // the step has landed
+    big.requestVideoFrameCallback(cb);
+  };
   big.requestVideoFrameCallback(cb);
 }
 
@@ -670,14 +678,22 @@ big.addEventListener("play", () => { $("dplay").textContent = "❚❚ Pause"; })
 big.addEventListener("pause", () => {
   // stay on the frame that is on screen, so the clock, the frame number and a note all agree
   $("dplay").textContent = "▶ Play";
-  requestAnimationFrame(() => { if (big.paused && "requestVideoFrameCallback" in big) big.currentTime = atFrame(shownFrame); detailTick(); });
+  requestAnimationFrame(() => {
+    if (big.paused && pendingFrame == null && "requestVideoFrameCallback" in big) big.currentTime = atFrame(shownFrame);
+    detailTick();
+  });
 });
-big.addEventListener("seeked", () => { requestAnimationFrame(() => { pendingFrame = null; }); detailTick(); });
+big.addEventListener("seeked", () => {
+  // without frame callbacks the frame on screen is the one sought: the step has landed when its own seek has
+  if (!("requestVideoFrameCallback" in big) && frameOf(big.currentTime) === pendingFrame) pendingFrame = null;
+  detailTick();
+});
 $("dplay").addEventListener("click", () => toggleBig());
 function toggleBig() {
   if (st.ink) return;
   if (!big.paused) { big.pause(); return; }
   const s = S[st.cur];
+  pendingFrame = null;
   if (songOf(big.currentTime) >= s.to - 1.5 / D.fps) big.currentTime = videoOf(s.from);
   big.play();
 }

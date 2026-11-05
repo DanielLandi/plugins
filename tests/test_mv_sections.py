@@ -338,6 +338,31 @@ def test_the_page_plays_the_flow_and_saves_notes_on_the_frame_shown(sections_ser
     assert errors == []
 
 
+def test_quick_frame_steps_add_up_whenever_a_seek_reports_back(sections_server, browser_ok):
+    # A "seeked" can arrive after the frame it brought is on screen, so one from an earlier seek may land between two
+    # quick presses of "." (seen as a rare stop on frame 9 in the flow test). It must not make the second press count
+    # from the frame still on screen. The player is emptied after opening, so no new frame shows and the moment holds.
+    from playwright.sync_api import sync_playwright
+    url, _ = sections_server
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1400, "height": 900})
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(url + "/#2")
+        page.evaluate("sections.ready")
+        page.wait_for_function("document.querySelector('#dtime').textContent.includes('frame 8')")
+        page.evaluate("big.removeAttribute('src'); big.load()")
+        page.keyboard.press(".")
+        assert page.evaluate("[shownFrame, pendingFrame]") == [8, 9]                  # frame 9 is not on screen yet
+        page.evaluate("new Promise((done) => { big.dispatchEvent(new Event('seeked')); "
+                      "requestAnimationFrame(() => requestAnimationFrame(done)); })")   # the late one, from opening
+        page.keyboard.press(".")
+        assert page.evaluate("[shownFrame, pendingFrame, frameOf(big.currentTime)]") == [8, 10, 10]
+        browser.close()
+    assert errors == []
+
+
 def test_each_card_keeps_its_place_and_buttons_explain_themselves(sections_server, browser_ok):
     from playwright.sync_api import sync_playwright
     url, app = sections_server

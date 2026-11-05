@@ -23,6 +23,7 @@
   earlier one, a clip, a variant): side by side, wipe or flip, frame by frame, sound from either; a note can go on
   either side and keeps that version's frame. **Make a variant** (V) asks Claude for a second version of the
   section.
+- Sections page: quick presses of `.` and `,` always add up; a late report from an earlier seek could drop one.
 - `version --variant <name>` keeps a render as a named variant of its scene (the review page shows it too).
 - The make skill: the home and its requests; `waiting:` (what you are asked for now) and `topic:` in `video.yaml`;
   the video's folder is made once the concept is approved (the spec takes its id: `new --id`); lyric options on
