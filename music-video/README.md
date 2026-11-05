@@ -11,8 +11,10 @@ timings, and a code-rendered 2D/3D video with subtitles, a 9:16 cut and a thumbn
 
 ## What you get
 
-- **A song:** 2–3 lyric options in chat, 2–3 musical directions created in Suno, a table of takes to listen to.
-  Only the take you name is downloaded.
+- **A home page** for every song and video: where each one is, what is waiting for you, and buttons for your
+  decisions (pick a lyric, send the directions to Suno, use a take, approve a stage) that Claude carries out.
+- **A song:** 2–3 lyric options side by side, 2–3 musical directions created in Suno, a table of takes to listen
+  to. Only the take you name is downloaded.
 - **Timings:** every sung word timed (vocal separation + forced alignment, repaired against a transcription), plus
   tempo, beats, sections and big moments. A karaoke preview lets you check sync before any video work, and the [timing editor](#fixing-word-timings-by-eye-and-ear) lets you drag any word that is off onto where it is sung.
 - **A video:** a written look, a storyboard with a reason for every cut, real scenes in React (2D, or 3D with the
@@ -74,6 +76,32 @@ flowchart TB
 you said, and `NOTES.md` with your notes. Ask Claude to continue the video and it carries on from where it stopped,
 in a new session or on another day.
 
+## The home
+
+`home --open` (Claude starts it for you) is one page on your own computer with every song and video and its
+stage. It is where you decide; Claude, in the terminal, does the work.
+
+![The home: a form to start a new video from a topic, a topic Claude is working on, and a card per video with its stage out of ten and what is waiting for you](../docs/images/music-video-home.jpg)
+
+- **New video:** type what it is about (and anything else: genre, language). Claude writes the concept and two or
+  three lyric options from it.
+- **Each video** opens on its ten stages: which are done, which one is now, what is waiting for you, and the pages
+  that belong to it (the karaoke preview, the timing editor, the look frames, the sections page, the review page,
+  the finals).
+- **Lyrics** side by side: **Use this one**, with a note if you like ("take the chorus from A"), and Claude merges.
+  Or ask for new options.
+- **The song:** tick the musical directions and **Send to Suno**; the takes come back as a table with a link to each
+  in Suno. Listen there, then **Use this take** here: that names the take, and only it is downloaded (counted
+  against your plan's downloads).
+- **Approve** a stage (with a note), or **Tell Claude** anything about the video.
+
+![A video on the home: its ten stages down the side, and the lyrics stage with three options side by side, one being picked with a note](../docs/images/music-video-home-lyrics.jpg)
+
+Every button queues a **request** in the video's folder (`requests/`); nothing runs from the page itself. Claude
+keeps a watch on them while the home is open (`requests --wait`), says in the chat what it picked up, and the page
+shows each one's progress: waiting for Claude, Claude is on it (with what it is doing), done. You can still say
+everything in the chat instead: the page and the chat are two ways to answer the same questions.
+
 ## The skills
 
 | Skill | Use it for |
@@ -118,6 +146,13 @@ video's scenes:
 
 *A demo song, "Paper Boats", whose five scenes are ffmpeg's own pattern generators (a gradient, a fractal, a game of
 life), with two notes left on it.*
+
+**Compare** (C) in an opened section plays it in two versions at once, on one clock: this draft, an earlier draft,
+a clip of the scene, or a **variant**. Claude builds two variants of a risky scene on its own (a new technique, the
+big moment), and **Make a variant** (V) asks it for one, with what to try. Side by side, a wipe, or flipping; frame
+by frame; and a note can go on either side, so Claude knows which version you mean.
+
+![Compare: one section in two versions side by side, the draft and a variant, with a note being written on the variant](../docs/images/music-video-sections-compare.jpg)
 
 The **review page** (`review <id> --open`) keeps every version of every scene. It plays any two of them together,
 lined up on the song: side by side, with a wipe, or flipping between them, frame by frame if you like. **Copy
@@ -213,8 +248,9 @@ The skills run these for you; each is `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/mus
 | `loop`, `web` | a seamless audio loop of a song; a live web page of a video (looping, optional sound) |
 | `studio`, `still`, `stills`, `render`, `blur`, `board` | Remotion Studio, stills, renders, motion blur, the transition board |
 | `mux`, `qc` | add the song to a silent render (with any lifts in the video's `song-fixes.yaml`); check a render |
-| `sections`, `notes` | every section of the newest draft on one page, each playable alone or in order; open one to watch it large and leave notes on its frames, with drawings; `notes` prints them for the next round |
-| `version`, `review` | keep each checked render or still as a numbered version of its scene; a local page that plays any two versions in sync (side by side, wipe, flip) |
+| `home`, `requests` | one page with every song and video, its ten stages and buttons for your decisions; `requests` lists what you asked for there, for Claude to carry out (`--wait` waits for the next one) |
+| `sections`, `notes` | every section of the newest draft on one page, each playable alone or in order; open one to watch it large, leave notes on its frames, with drawings, compare it with another version, or ask for a variant; `notes` prints the notes for the next round |
+| `version`, `review` | keep each checked render or still as a numbered version of its scene (`--variant b` for a variant); a local page that plays any two versions in sync (side by side, wipe, flip) |
 | `library` | everything in your results folder (videos, songs, lessons) as one page any phone, tablet or TV browser on your home network can play from; `library install` keeps it running from login (macOS) |
 
 ## Song generators and albums
