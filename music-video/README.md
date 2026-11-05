@@ -26,9 +26,9 @@ You bring an idea; the `make` skill takes it to a finished video in ten stages. 
 what it made and waits: nothing moves on until you approve, and you can send any stage back with notes.
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph write ["The song"]
-        direction TB
+        direction LR
         concept["✋ 1 · Concept<br/>from your idea"] --> lyrics["✋ 2 · Lyrics<br/>pick from 2–3"]
         lyrics --> directions
         subgraph song ["✋ 3 · Song"]
@@ -39,13 +39,13 @@ flowchart LR
     end
 
     subgraph plan ["The plan"]
-        direction TB
+        direction LR
         timing["✋ 4 · Timing<br/>every word and beat"] --> look["✋ 5 · Look<br/>2–3 style frames"]
         look --> sample["✋ 6 · Sample<br/>storyboard, 10 s: go?"]
     end
 
     subgraph make ["The video"]
-        direction TB
+        direction LR
         subgraph production ["✋ 7 · Production"]
             scenes["Scenes built"] --> draft["Draft checked"]
             draft --> notes["Your notes"]
