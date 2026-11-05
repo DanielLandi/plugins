@@ -26,32 +26,37 @@ You bring an idea; the `make` skill takes it to a finished video in ten stages. 
 what it made and waits: nothing moves on until you approve, and you can send any stage back with notes.
 
 ```mermaid
-flowchart TD
-    idea(["Your idea"]) --> concept
-    concept["✋ 1 · Concept<br/>a paragraph and the story arc"] --> lyrics
-    lyrics["✋ 2 · Lyrics<br/>2–3 options; you pick and merge"] --> directions
-
-    subgraph song ["✋ 3 · Song"]
-        directions["2–3 musical directions,<br/>created in your Suno through your Chrome"] --> create["Form filled, read back, created"]
-        create --> takes["A table of takes to listen to"]
-        takes -- "another round" --> directions
-        takes -- "you name one" --> download["Only that take downloaded,<br/>filed as a tagged MP3"]
+flowchart LR
+    subgraph write ["The song"]
+        direction TB
+        concept["✋ 1 · Concept<br/>from your idea"] --> lyrics["✋ 2 · Lyrics<br/>pick from 2–3"]
+        lyrics --> directions
+        subgraph song ["✋ 3 · Song"]
+            directions["2–3 directions<br/>made in Suno"] --> takes["Takes to compare"]
+            takes -- "again" --> directions
+            takes -- "pick one" --> mp3["Tagged MP3"]
+        end
     end
 
-    download --> timing["✋ 4 · Timing<br/>every word timed, beats and sections;<br/>karaoke preview and timing editor"]
-    timing --> look["✋ 5 · Look<br/>2–3 directions as real style frames,<br/>side by side"]
-    look --> sample["✋ 6 · Sample and storyboard: the go signal<br/>a scene per section, a reason for every cut,<br/>a 10 s sample, the subtitle style"]
-    sample --> scenes
-
-    subgraph production ["✋ 7 · Production"]
-        scenes["Scene agents build each section<br/>and show stills"] --> draft["A full draft, checked"]
-        draft --> review["The review page: any two versions in sync"]
-        review -- "your notes, numbered" --> scenes
+    subgraph plan ["The plan"]
+        direction TB
+        timing["✋ 4 · Timing<br/>every word and beat"] --> look["✋ 5 · Look<br/>2–3 style frames"]
+        look --> sample["✋ 6 · Sample<br/>storyboard, 10 s: go?"]
     end
 
-    review -- "approved" --> delivery["8 · Delivery<br/>16:9 full song, 9:16 cut, thumbnail,<br/>.lrc / .srt / .vtt subtitles"]
-    delivery -.-> web["✋ 9 · Live web page (optional)"]
-    delivery --> clean["10 · Clean up the working files"]
+    subgraph make ["The video"]
+        direction TB
+        subgraph production ["✋ 7 · Production"]
+            scenes["Scenes built"] --> draft["Draft checked"]
+            draft --> notes["Your notes"]
+            notes -- "fix" --> scenes
+        end
+        notes -- "approved" --> delivery["8 · Delivery<br/>16:9, 9:16, subtitles"]
+        delivery -.-> web["✋ 9 · Web page<br/>(optional)"]
+        delivery --> clean["10 · Clean up"]
+    end
+
+    write --> plan --> make
 ```
 
 | Stage | Claude does | You decide |
