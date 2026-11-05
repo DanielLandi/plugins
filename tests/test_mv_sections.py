@@ -132,6 +132,21 @@ def test_notes_are_numbered_placed_in_their_section_and_kept_once_taken(tmp_path
         store.delete("../notes")
 
 
+def test_deleting_a_note_removes_only_its_own_frames(tmp_path):
+    store = Notes(tmp_path / "notes")
+    src = {"file": tmp_path / "d.mp4", "label": "d", "start": 0.0}
+    note = store.add({"frame": 1, "text": "x"}, src, FPS, SECS)
+    (store.folder / "frames").mkdir(parents=True)
+    (store.folder / "frames" / "n1.jpg").write_bytes(b"frame")
+    outside = tmp_path / "keep.txt"
+    outside.write_text("mine", encoding="utf-8")
+    data = json.loads(store.file.read_text(encoding="utf-8"))
+    data["notes"][0]["marked"] = "../../keep.txt"          # a hand-edited notes.json
+    store.file.write_text(json.dumps(data), encoding="utf-8")
+    store.delete(note["id"])
+    assert outside.is_file() and not (store.folder / "frames" / "n1.jpg").exists() and store.all() == []
+
+
 def test_a_frame_image_must_be_a_jpeg_data_url(tmp_path):
     store = Notes(tmp_path / "notes")
     src = {"file": tmp_path / "d.mp4", "label": "d", "start": 0.0}
