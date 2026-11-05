@@ -25,7 +25,7 @@ from .video.mux import mux
 from .video.paths import VideoPaths, open_file, video_song
 from .video.preview import preview
 from .video.qc import run_qc
-from .video.review import build_page, load_versions, record_version
+from .video.review import build_page, load_versions, record_version, version_label
 from .video.songfix import lifted_song
 from .video.timing import clock
 from .video import timing_editor
@@ -255,9 +255,10 @@ def cmd_version(args) -> int:
         raise MVError("give --excerpt (a clip) or --at (a still), not both")
     start = _range(args.excerpt)[0] if args.excerpt else args.at
     ws = load_workspace()
-    v = record_version(ws, args.id, Path(args.file), args.scene, start=start, note=args.note or "")
+    v = record_version(ws, args.id, Path(args.file), args.scene, start=start, note=args.note or "",
+                       variant=args.variant)
     shows = f"{clock(v['start'])}–{clock(v['start'] + v['duration'])}" if v["kind"] == "video" else "a still"
-    print(f"kept {v['scene']} v{v['n']} ({shows}{', code ' + v['code'] if v['code'] else ''})")
+    print(f"kept {version_label(v)} ({shows}{', code ' + v['code'] if v['code'] else ''})")
     print(f"review: {build_page(ws, args.id)}")
     return 0
 
@@ -306,6 +307,53 @@ def cmd_notes(args) -> int:
         return 0
     print(f"{len(notes)} {'' if args.all else 'new '}note(s) for {args.id}, in song order:")
     print(sections.describe(notes, store.folder, order))
+    return 0
+
+
+def cmd_requests(args) -> int:
+    from . import requests as rq
+    ws = load_workspace()
+    acts = [a for a in ("take", "update", "done") if getattr(args, a)]
+    if len(acts) > 1:
+        raise MVError("give one of --take, --update, --done")
+    if acts:
+        act = acts[0]
+        name, rid = rq.parse_ref(getattr(args, act))
+        q = rq.queue(ws, name)
+        if act == "take":
+            req = q.take(rid, args.message or "")
+        elif act == "update":
+            req = q.update(rid, args.message or "")
+        else:
+            if args.video and not studio.ID_RE.match(args.video):
+                raise MVError(f"'{args.video}' is not a video id")
+            req = q.done(rid, args.message or "", args.video)
+        print(f"{name}:{rid} is {req['state']}: {req['text']}")
+        return 0
+    if args.wait:
+        found = rq.wait_for_new(ws, args.timeout)
+        if not found:
+            print("no new requests")
+            return 0
+        print(f"{len(found)} new request(s): take each one (requests --take <ref>) and carry it out")
+        print(rq.describe(found))
+        return 0
+    items = [(q.name, r) for q in rq.queues(ws, args.id) for r in (q.all() if args.all else q.pending())]
+    items.sort(key=lambda x: x[1]["at"])
+    if args.json:
+        print(json.dumps([{"ref": f"{n}:{r['id']}", **r} for n, r in items], indent=1, ensure_ascii=False))
+        return 0
+    if not items:
+        print(f"no open requests{' for ' + args.id if args.id else ''} (the home and the sections page queue them)")
+        return 0
+    print(f"{len(items)} {'' if args.all else 'open '}request(s), oldest first:")
+    print(rq.describe(items))
+    return 0
+
+
+def cmd_home(args) -> int:
+    from .video import home
+    home.serve(load_workspace(), port=args.port, open_page=args.open)
     return 0
 
 
@@ -466,7 +514,7 @@ def cmd_library(args) -> int:
 HANDLERS: dict = {"library": cmd_library, "web": cmd_web, "album": cmd_album, "loop": cmd_loop, "clean": cmd_clean, "new-video": cmd_new_video, "typecheck": cmd_typecheck, "studio": _remotion("studio"),
                   "render": _remotion("render"), "still": _remotion("still"), "stills": _tool("stills.ts", 1),
                   "blur": _tool("blur.ts", 1), "board": _tool("board.ts"), "doctor": cmd_doctor, "align": cmd_align, "analyze": cmd_analyze, "preview": cmd_preview, "edit-timing": cmd_edit_timing, "mux": cmd_mux,
-                  "qc": cmd_qc, "version": cmd_version, "review": cmd_review, "sections": cmd_sections, "notes": cmd_notes, "paths": cmd_paths, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
+                  "qc": cmd_qc, "version": cmd_version, "review": cmd_review, "sections": cmd_sections, "notes": cmd_notes, "requests": cmd_requests, "home": cmd_home, "paths": cmd_paths, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
                   "downloaded": cmd_downloaded, "status": cmd_status}
 
 
@@ -538,6 +586,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--excerpt", help="start-end in song seconds when the render is an excerpt (as for mux and qc)")
     p.add_argument("--at", type=float, help="the song time a still shows, in seconds")
     p.add_argument("--note", help="what changed in this version (the notes it answers)")
+    p.add_argument("--variant", help="keep it as a named variant of the scene (b, from-above…), to compare on the sections page")
     p = sub.add_parser("review", help="the review page: every version of every scene, two at a time in sync")
     p.add_argument("id")
     p.add_argument("--open", action="store_true", help="open the page in the browser")
@@ -552,6 +601,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--all", action="store_true", help="also the notes already taken into a round")
     p.add_argument("--json", action="store_true")
     p.add_argument("--taken", type=int, metavar="ROUND", help="mark every new note as taken into this round")
+    p = sub.add_parser("home", help="one page with every song and video and its stage; its buttons queue requests for Claude")
+    p.add_argument("--port", type=int, default=8646)
+    p.add_argument("--open", action="store_true", help="open the page in the browser")
+    p = sub.add_parser("requests", help="what the user asked for on the home and sections pages, for Claude to carry out")
+    p.add_argument("id", nargs="?", help="only this video's requests")
+    p.add_argument("--all", action="store_true", help="also the requests already done")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--take", metavar="REF", help="start on a request (<video>:r<n>, as listed)")
+    p.add_argument("--update", metavar="REF", help="a progress line for a request (with --message)")
+    p.add_argument("--done", metavar="REF", help="mark a request done (with --message saying what came of it)")
+    p.add_argument("--message", help="what the page shows about the request")
+    p.add_argument("--video", help="with --done on a new-video request: the video it started")
+    p.add_argument("--wait", action="store_true", help="return as soon as a new request is waiting (run it in the background)")
+    p.add_argument("--timeout", type=float, help="with --wait: give up after this many seconds")
     p = sub.add_parser("new-video", help="start a video's code folder from the template")
     p.add_argument("id")
     p = sub.add_parser("typecheck", help="type-check a video's code against the engine")

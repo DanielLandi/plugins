@@ -27,7 +27,7 @@ def _files():
             yield f
     # The plugin's tests are public too, this scanner included.
     tests = REPO / "tests"
-    yield from sorted([*tests.glob("test_mv_*.py"), tests / "mv_fixtures.py"])
+    yield from sorted([*tests.glob("test_mv_*.py"), *tests.glob("mv_*.py")])
 
 
 def _terms():

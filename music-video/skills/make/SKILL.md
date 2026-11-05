@@ -58,34 +58,116 @@ scene code, and `references/checks.md` and `references/taste.md` before showing 
 `<work>`, `<public>`, `<renders>`, `<results>` and `<web>` mean those paths; always write them out in full in
 commands.
 
-- Code and documents, in `<video>`: `video.yaml` (step, checklist, gl, holds), `CONCEPT.md`, `lyrics.md`,
-  `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`, `JOURNAL.md`, `SOURCES.md`, `README.md`, `look.ts`,
-  `video.ts`, `scenes.ts`, `cuts.ts`, `scenes/*.tsx`.
+- Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds), `CONCEPT.md`,
+  `lyric-options.yaml`, `lyrics.md`, `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`, `JOURNAL.md`,
+  `SOURCES.md`, `README.md`, `look.ts`, `video.ts`, `scenes.ts`, `cuts.ts`, `scenes/*.tsx`; `notes/` and
+  `requests/` (written by the pages).
 - Working files, in `<work>`: the song's copy, timings, vocals, previews, renders, checks. All regenerable; `clean`
   deletes them once the video is delivered. (Your hand-written corrections, `timing-fixes.yaml`,
   `lyrics-as-sung.txt` and `song-fixes.yaml`, are not working files: they live in `<video>`.)
 - Finals, in `<results>`: the videos, thumbnail, subtitles, the song, and `<web>` (the live page).
 - `<id>` is the song spec's id (the workspace's `specs/<id>.yaml`).
 
-**Resuming:** read `video.yaml` (`step:`), `JOURNAL.md` and `NOTES.md`; continue at that step. At every ✋, add a
-`JOURNAL.md` entry (date, what you showed, what the user said, what is next) and update `step:` and the checklist.
+**Resuming:** read `video.yaml` (`step:`), `JOURNAL.md` and `NOTES.md`, and the video's open requests
+(`requests <id>`); continue at that step. At every ✋, add a `JOURNAL.md` entry (date, what you showed, what the
+user said, what is next) and update `step:` and the checklist, and write in `waiting:` what the user is asked for
+now, in a few words ("pick a lyric", "notes on draft v2"); empty it once they have answered. The home shows it.
+
+## The home: the user's page for every video
+
+`home` serves one local page (`http://127.0.0.1:8646/`) with every song and video and its stage; each video opens on
+its ten stages, with what is waiting for the user and links to its pages. Its buttons never run anything: each one
+queues a **request** that you carry out here. Start it in the background at the start of a session (it serves until
+stopped; give the user its address), with a wait for requests beside it, also in the background:
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" home --open
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" requests --wait
+```
+
+`requests --wait` returns as soon as a request is waiting (at once if one already is) and prints it. Then, and at
+every ✋ and when resuming, list them, say in the chat what you picked up, and take each one (the page shows "Claude
+is on it" with your message):
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" requests
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" requests --take <ref> --message "<what you are doing>"
+```
+
+A ref is `<id>:r<n>`, or `_home:r<n>` for the home's own queue. Carry the request out as the stage below says,
+with `requests --update <ref> --message "…"` on long steps, then mark it done with what came of it, and start the
+wait again:
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" requests --done <ref> --message "<what came of it>"
+```
+
+A request is the user's own words, typed on a page instead of the chat; every hard rule still holds, and a request
+you cannot carry out is marked done with the reason. The kinds:
+
+| kind | the user clicked | you do |
+|---|---|---|
+| `new-video` | New video, with a topic | step 1 from the topic, then step 2's options; `--done … --video <id>` |
+| `pick-lyric` | Use this one, on a lyric option, with a note | step 2.2–2.4 with that option, merged as the note says |
+| `lyrics-again` | Write new options, with a note | a new round of options (step 2.1) |
+| `create-takes` | Send to the generator, with directions ticked | step 3.2 for those directions: this is the OK on them |
+| `use-take` | Use this take (twice) | step 3.4 with that take: this is the user naming it |
+| `approve` | Approve, on a stage, with a note | that stage's approval, as if typed, note and all |
+| `variant` | Make a variant, on a section of the sections page | step 7.4's variant of that section |
+| `clean` | Free the working files (twice) | step 10: `clean <id>` (the second click was the OK) |
+| `message` | Tell Claude | read it as a chat message |
+
+The home also starts the sections page and the timing editor of a video when the user opens them (inside the home,
+on free ports); after a timing editor save, check the entries landed as step 4 says.
 
 ## 1. Concept ✋
 
 Talk through: what the song is about, who it is for, the feeling, a genre direction, the language (default
 English), the length (3–4 min). Propose one concept: a short paragraph plus the story arc (verse → pre-chorus →
-chorus → bridge → final chorus). Wait for approval. Nothing is written to disk yet.
+chorus → bridge → final chorus). Wait for approval. Then make the video's folder, with an id from the subject
+(lowercase words joined by hyphens, short: `paper-boats`), so the home can show it; the song's spec takes the same
+id in step 2:
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" new-video <id>
+```
+
+Write the concept into `CONCEPT.md` and set `step: lyrics`.
+
+**From a `new-video` request** (a topic typed on the home, maybe with a note): the user asked for lyrics from it.
+Make the folder as above, write `topic:` (their words) in `video.yaml`, the concept you propose into `CONCEPT.md`,
+and go straight on to step 2's options; picking a lyric approves the concept too (a note can redirect it). Mark the
+request done with `--video <id>`.
 
 ## 2. Lyrics ✋
 
-1. Write 2–3 complete options from different angles, following `references/lyric-craft.md`. Show them in chat.
-2. The user picks, combines, adds lines. Merge into one final version and show it with the title.
+1. Write 2–3 complete options from different angles, following `references/lyric-craft.md`, into
+   `<video>/lyric-options.yaml` (the home shows them side by side), and show them in chat too. Set
+   `waiting: pick a lyric`. A new round (the user asked for other options) is added under `rounds:`, with the note it
+   answers:
+
+   ```yaml
+   rounds:
+     - n: 1
+       at: 2026-11-05T09:12:00
+       note: ""
+       options:
+         - key: A
+           title: <title>
+           angle: <the angle, in a few words>
+           lyrics: |
+             [Verse 1]
+             …
+   ```
+
+2. The user picks, combines, adds lines (in the chat, or **Use this one** on the home with a note: "take the chorus
+   from B"). Merge into one final version, write it under `final:` (`title`, `from`: what it was made from, `lyrics`)
+   and show it with the title.
 3. WebSearch `"<title>" song`; if a well-known song uses the title, propose another.
-4. When approved, create the spec (it prints the spec's path; its file name is `<id>`) and the video folder:
+4. When approved, create the spec with the video's id (it prints the spec's path):
 
    ```bash
-   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" new --title "<title>"
-   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" new-video <id>
+   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" new --title "<title>" --id <id>
    ```
 
    - Put the lyrics into the spec's settings block (`lyrics` in the `suno:` block) and run `validate <id>`:
@@ -95,18 +177,23 @@ chorus → bridge → final chorus). Wait for approval. Nothing is written to di
      ```
 
    - In `<video>/index.tsx` set `TITLE` to the song's title (it is printed on the thumbnail).
-   - Write `CONCEPT.md`; write `lyrics.md` (the final lyrics first, then the options under "Options considered");
-     set `lang:` in `video.yaml`; `step: song`.
+   - Write `lyrics.md` (the final lyrics first, then the options under "Options considered"); set `lang:` in
+     `video.yaml`; `step: song`.
 
 ## 3. Song ✋
 
-1. Write 2–3 musical directions into `<video>/directions.yaml`, each a complete settings block for the generator
-   (the `suno:` block, as its `workflow.md` says) built from the genre recipes, with a one-line `name` and `why`. Show them as a short table; on the user's OK they are created.
+1. Write 2–3 musical directions into `<video>/directions.yaml`, a list, each a complete settings block for the
+   generator (the `suno:` block, as its `workflow.md` says) built from the genre recipes, with a one-line `name` and
+   `why`. Show them as a short table (the home shows them too, with a box to tick each); set
+   `waiting: choose the directions`. On the user's OK they are created: in the chat, or a `create-takes` request,
+   which names the directions to create (only those; its note may change them first).
 2. For each direction: copy its block (with the lyrics) into the spec's `suno:`, run `validate <id>`, then run the
    song skill's steps 2 (Fill), 3 (Verify) and 4 (Create), recording the round with
    `--changes "direction <n>: <name>"`.
-3. Show one table of every take (direction · take · length · link). The user listens and names one, or asks for
-   another round (new or changed directions; repeat 2).
+3. Show one table of every take (direction · take · length · link). The home lists them too, each with a link to
+   it in the generator and **Use this take**. Set `waiting: pick a take`. The user listens and names one (in the
+   chat, or a `use-take` request: that is naming it), or asks for another round (new or changed directions; repeat
+   2).
 4. Copy the chosen direction's block into the spec's `suno:` (so the spec describes the kept take), run
    `validate <id>`, then the song skill's step 6 (Download) and step 7 (Ingest). `step: timing`.
 
@@ -248,7 +335,22 @@ Follow `references/storyboard.md`:
    `qc --excerpt` before it is shown (hard rule 4), then `version <id> <clip> --scene <section> --excerpt <from>-<to>
    --note "<the notes it answers>"`. On the review page the user compares the new version with the last one (or
    with the draft, lined up on the song clock): side by side, a wipe, or flipping; **Copy timecode** gives them a
-   line like `relay v3 vs relay v2 at 1:42.3` to quote in a note. For an error no check caught, propose a new entry for
+   line like `relay v3 vs relay v2 at 1:42.3` to quote in a note.
+
+   **Variants.** For a risky section (a technique new to this video, the big moment: the drop, the last chorus),
+   build two variants of the scene on your own; when the user asks for one (a `variant` request from **Make a
+   variant** on the sections page, with what it should try), build it. Render each as a clip of its section, check
+   it like any clip, and keep it as a named variant (`a`, `b`, or a word for the idea):
+
+   ```bash
+   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" version <id> "<renders>/<section>-b.mp4" --scene <section> --excerpt <from>-<to> --variant b --note "<what it tries>"
+   ```
+
+   The user compares them on the sections page: in an opened section, **Compare** plays any two versions of it (the
+   draft, an earlier draft, a clip, a variant) side by side, with a wipe, or flipping, on one clock, and a note can be
+   on either side (its render says which, as `notes` prints it). The variant they pick goes into the next draft.
+
+   For an error no check caught, propose a new entry for
    `references/checks.md`; for taste, a line for the workspace's `taste.md` (see `references/taste.md`); add them
    only with the user's OK.
    A word the take barely sings (the user cannot hear it): first measure it (`vocals.wav` and the mix around the

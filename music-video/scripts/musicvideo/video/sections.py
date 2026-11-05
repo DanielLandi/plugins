@@ -25,7 +25,7 @@ from ..errors import MVError
 from ..spec import find_spec, load_spec
 from ..workspace import Workspace
 from .media import need, run
-from .review import load_versions, review_dir
+from .review import load_versions, review_dir, version_label
 from .timing_editor import trusted_host
 
 PORT = 8645
@@ -36,6 +36,7 @@ POSTER_WIDTH = 960
 MAX_BODY = 40 * 1024 * 1024
 ENTRY_RE = re.compile(r"\{\s*id:\s*['\"]([a-z0-9-]+)['\"]\s*,\s*from:\s*([^,}\s]+)")
 NOTE_ID_RE = re.compile(r"^n[0-9]+$")
+VERSION_FILE_RE = re.compile(r"^[a-z0-9-]+-v[0-9]+\.(mp4|mov|webm|png|jpg|jpeg|webp)$")
 
 
 def clock(t: float) -> str:
@@ -332,10 +333,47 @@ class Sections:
         self.lines = lyric_lines(ws, video_id)
         self.title = video_title(ws, video_id)
 
+    def versions(self) -> list[dict]:
+        """Every kept version that shows part of these sections (earlier drafts, scene clips, variants, stills), but
+        not the render on the page: the second side of Compare."""
+        media = review_dir(self.ws, self.video_id) / "media"
+        lo, hi = self.sections[0]["from"], self.sections[-1]["to"]
+        out = []
+        for v in load_versions(self.ws, self.video_id):
+            name = Path(v.get("file", "")).name
+            if not VERSION_FILE_RE.match(name) or not (media / name).is_file():
+                continue
+            if (media / name).resolve() == Path(self.source["file"]).resolve():
+                continue
+            start = float(v.get("start") or 0.0)
+            if v.get("kind") == "video":
+                end = start + float(v.get("duration") or 0)
+                if end <= lo or start >= hi:
+                    continue
+            elif v.get("start") is None or not lo <= start < hi:
+                continue
+            out.append({"key": name, "label": version_label(v), "scene": v["scene"], "n": v["n"],
+                        "variant": v.get("variant"), "kind": v.get("kind"), "start": start,
+                        "duration": float(v.get("duration") or 0), "fps": float(v.get("fps") or self.facts["fps"]),
+                        "size": v.get("size"), "note": v.get("note", ""), "at": v.get("at", ""),
+                        "src": f"/versions/{name}"})
+        return out
+
+    def version(self, key: str) -> dict:
+        v = next((x for x in self.versions() if x["key"] == key), None)
+        if v is None:
+            raise MVError(f"no kept version {key!r} covers these sections")
+        return v
+
+    def requests(self) -> list[dict]:
+        from ..requests import video_queue
+        return [r for r in video_queue(self.ws, self.video_id).all() if r["kind"] == "variant"]
+
     def state(self) -> dict:
         return {"id": self.video_id, "title": self.title, "render": self.source["label"],
                 "start": self.source["start"], **self.facts, "sections": self.sections, "lines": self.lines,
-                "thumbs": self.assets["thumbs"], "posters": self.assets["posters"], "notes": self.notes.all()}
+                "thumbs": self.assets["thumbs"], "posters": self.assets["posters"], "notes": self.notes.all(),
+                "versions": self.versions(), "requests": self.requests()}
 
     def page(self) -> str:
         return TEMPLATE.read_text(encoding="utf-8").replace("{{TITLE}}", self.title.replace("<", "&lt;"))
@@ -345,8 +383,36 @@ class Sections:
             raise MVError(f"no frame {n} in {self.source['label']}")
         return grab_frame(self.source["file"], n, self.facts["fps"], self.build / self.assets["key"] / "frames" / f"{n}.png")
 
+    def version_frame(self, v: dict, n: int) -> Path:
+        """Frame n of a kept version, full size (a still is its one frame)."""
+        file = review_dir(self.ws, self.video_id) / "media" / v["key"]
+        if v["kind"] != "video":
+            return grab_frame(file, 0, 1.0, self.build / self.assets["key"] / "vframes" / f"{Path(v['key']).stem}.png")
+        if not 0 <= n <= round(v["duration"] * v["fps"]):
+            raise MVError(f"no frame {n} in {v['label']}")
+        return grab_frame(file, n, v["fps"], self.build / self.assets["key"] / "vframes" / Path(v["key"]).stem / f"{n}.png")
+
+    def ask(self, body: dict) -> dict:
+        """A request from this page: only Make a variant, of one of its sections."""
+        from ..requests import video_queue
+        if body.get("kind") != "variant":
+            raise MVError("this page only asks for variants")
+        data = body.get("data") or {}
+        if not isinstance(data, dict) or data.get("section") not in {s["id"] for s in self.sections}:
+            raise MVError("no such section on this page")
+        req = video_queue(self.ws, self.video_id).add("variant", data)
+        return {"request": req, "requests": self.requests()}
+
     def act(self, body: dict) -> dict:
         action = body.get("action")
+        if action == "add" and body.get("version"):
+            v = self.version(str(body["version"]))
+            source = {"file": review_dir(self.ws, self.video_id) / "media" / v["key"], "label": v["label"],
+                      "start": v["start"]}
+            if v["kind"] != "video":
+                body = {**body, "frame": 0}
+            return {"note": self.notes.add(body, source, v["fps"], self.sections,
+                                           grab=lambda n: self.version_frame(v, n)), "notes": self.notes.all()}
         if action == "add":
             return {"note": self.notes.add(body, self.source, self.facts["fps"], self.sections, grab=self.frame),
                     "notes": self.notes.all()}
@@ -368,6 +434,35 @@ def _range_of(header: str | None, size: int) -> tuple[int, int] | None:
     else:
         a, b = max(0, size - int(m[2])), size - 1
     return (a, min(b, size - 1)) if a < size else None
+
+
+def send_file(handler: BaseHTTPRequestHandler, file: Path, kind: str) -> None:
+    """A file, in byte ranges when asked (players seek with them)."""
+    if not file.is_file():
+        return handler.send_error(404)
+    size = file.stat().st_size
+    span = _range_of(handler.headers.get("Range"), size)
+    a, b = span if span else (0, size - 1)
+    handler.send_response(206 if span else 200)
+    handler.send_header("Content-Type", kind)
+    handler.send_header("Accept-Ranges", "bytes")
+    handler.send_header("Content-Length", str(b - a + 1))
+    if span:
+        handler.send_header("Content-Range", f"bytes {a}-{b}/{size}")
+    handler.send_header("Cache-Control", "no-store" if kind != "image/jpeg" else "max-age=3600")
+    handler.end_headers()
+    try:
+        with file.open("rb") as f:
+            f.seek(a)
+            left = b - a + 1
+            while left > 0:
+                chunk = f.read(min(1 << 20, left))
+                if not chunk:
+                    break
+                handler.wfile.write(chunk)
+                left -= len(chunk)
+    except (BrokenPipeError, ConnectionResetError):
+        pass   # the player moved on and dropped the request
 
 
 def make_handler(app: Sections):
@@ -396,12 +491,21 @@ def make_handler(app: Sections):
                 m = re.match(r"^/notes/frames/(n[0-9]+(-marked)?\.jpg)$", route)
                 if m:
                     return self.send_file(app.notes.folder / "frames" / m[1], "image/jpeg")
+                m = re.match(r"^/versions/([^/]+)$", route)
+                if m and VERSION_FILE_RE.match(m[1]):
+                    v = app.version(m[1])
+                    ext = Path(v["key"]).suffix.lower()
+                    kind = {".webm": "video/webm", ".mov": "video/quicktime", ".png": "image/png",
+                            ".webp": "image/webp"}.get(ext, "image/jpeg" if ext in (".jpg", ".jpeg") else "video/mp4")
+                    return self.send_file(review_dir(app.ws, app.video_id) / "media" / v["key"], kind)
+                if route == "/api/requests":
+                    return self.send_json({"requests": app.requests()})
             except (MVError, ValueError) as e:
                 return self.send_json({"error": str(e)}, 400)
             self.send_error(404)
 
         def do_POST(self):
-            if not trusted_host(self.headers.get("Host")) or self.path != "/api/notes":
+            if not trusted_host(self.headers.get("Host")) or self.path not in ("/api/notes", "/api/request"):
                 return self.send_error(403)
             origin = self.headers.get("Origin")
             if origin and not trusted_host(origin.split("://", 1)[-1]):
@@ -410,7 +514,10 @@ def make_handler(app: Sections):
             if length > MAX_BODY:
                 return self.send_json({"error": "too large"}, 413)
             try:
-                answer, status = app.act(json.loads(self.rfile.read(length) or b"{}")), 200
+                body = json.loads(self.rfile.read(length) or b"{}")
+                if not isinstance(body, dict):
+                    raise MVError("expected a JSON object")
+                answer, status = (app.act(body) if self.path == "/api/notes" else app.ask(body)), 200
             except (MVError, ValueError, KeyError, TypeError) as e:
                 answer, status = {"error": str(e)}, 400
             self.send_json(answer, status)
@@ -419,31 +526,7 @@ def make_handler(app: Sections):
             self.send_bytes(json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json", status)
 
         def send_file(self, file: Path, kind: str) -> None:
-            if not file.is_file():
-                return self.send_error(404)
-            size = file.stat().st_size
-            span = _range_of(self.headers.get("Range"), size)
-            a, b = span if span else (0, size - 1)
-            self.send_response(206 if span else 200)
-            self.send_header("Content-Type", kind)
-            self.send_header("Accept-Ranges", "bytes")
-            self.send_header("Content-Length", str(b - a + 1))
-            if span:
-                self.send_header("Content-Range", f"bytes {a}-{b}/{size}")
-            self.send_header("Cache-Control", "no-store" if kind != "image/jpeg" else "max-age=3600")
-            self.end_headers()
-            try:
-                with file.open("rb") as f:
-                    f.seek(a)
-                    left = b - a + 1
-                    while left > 0:
-                        chunk = f.read(min(1 << 20, left))
-                        if not chunk:
-                            break
-                        self.wfile.write(chunk)
-                        left -= len(chunk)
-            except (BrokenPipeError, ConnectionResetError):
-                pass   # the player moved on and dropped the request
+            send_file(self, file, kind)
 
         def send_bytes(self, body: bytes, kind: str, status: int = 200) -> None:
             self.send_response(status)

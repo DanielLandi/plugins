@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.8.0
+
+- `home`: one local page for every song and video. A card per video with its stage out of ten, what is waiting for
+  you and the requests in flight; songs with no video; a **New video** form that takes a topic. Each video opens on
+  its ten stages, each with its state and its pages: the karaoke preview (played in the page), the timing editor and
+  the sections page (started from the home, on free ports), the look frames, the review page, the finals, the live
+  page.
+  - Lyrics side by side, from the new `lyric-options.yaml`: **Use this one**, with a note ("take the chorus from
+    B"), or **Write new options**.
+  - The song: the musical directions with a tick box each and **Send to Suno**; the takes with a link to each in
+    Suno and **Use this take** (two clicks: it names the take, and only it is downloaded).
+  - **Approve** on every stage you approve, with a note; **Tell Claude** for anything else; **Free the working
+    files** at the end.
+- Buttons queue requests, never run anything: one queue per video (`<video>/requests/`) and one for new videos. The
+  page shows each request's progress (waiting for Claude, Claude is on it, done) and lets you cancel one Claude has
+  not started.
+- `requests`: what you asked for on the pages, for Claude to carry out; `--take`, `--update`, `--done` move a request
+  along with a message the page shows; `--wait` returns as soon as one is waiting (Claude keeps it running in the
+  background, so a click wakes it).
+- Sections page: **Compare** (C) in an opened section plays it in two versions at once, on one clock (this draft, an
+  earlier one, a clip, a variant): side by side, wipe or flip, frame by frame, sound from either; a note can go on
+  either side and keeps that version's frame. **Make a variant** (V) asks Claude for a second version of the
+  section.
+- Sections page: quick presses of `.` and `,` always add up; a late report from an earlier seek could drop one.
+- Two clicks at once on a page both reach the queue; one could write over the other.
+- `version --variant <name>` keeps a render as a named variant of its scene (the review page shows it too).
+- The make skill: the home and its requests; `waiting:` (what you are asked for now) and `topic:` in `video.yaml`;
+  the video's folder is made once the concept is approved (the spec takes its id: `new --id`); lyric options on
+  file; two variants of a risky scene. The song skill: a request on the home is your OK on the directions, or your
+  pick of a take.
+
 ## 0.7.3
 
 - Sections page: a tooltip shows once a page load (quickly, the first time you point at that kind of button); after

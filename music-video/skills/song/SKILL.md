@@ -20,7 +20,8 @@ generator is Suno: `references/generators/suno/`.
 
 ## Hard rules
 
-1. Never click Download until the user has named the take to keep in this conversation.
+1. Never click Download until the user has named the take to keep in this conversation. A `use-take` request
+   from the home (the user clicked **Use this take** on it, twice) names that take; nothing else on a page does.
 2. Always run `downloaded` *before* clicking Download. If it refuses, stop. Use `--paid-extra` only when the
    generator's own remaining-downloads count is above 0 and the user agreed, in this conversation, to use one of
    those extra downloads.
@@ -49,7 +50,8 @@ generator is Suno: `references/generators/suno/`.
    ```
 
 6. Show the user the settings, a one-line story and the chorus, as the workflow says. Wait for OK or changes. No
-   credits are spent before this OK (filling the form in step 2 is free and may be done while waiting).
+   credits are spent before this OK (filling the form in step 2 is free and may be done while waiting). For a video,
+   a `create-takes` request from the home is this OK, for the directions it names (the make skill, step 3).
 
 ## 2. Fill (Chrome)
 
@@ -84,8 +86,9 @@ Create as the workflow says, watching for the generator's messages.
 
 ## 5. Listen
 
-Tell the user the takes are ready (a table: take · length · link) and ask which to keep, or what to change. If
-they want changes: edit the spec's settings block, run `validate <id>`, then repeat steps 2–5.
+Tell the user the takes are ready (a table: take · length · link) and ask which to keep, or what to change. For a
+video, the home lists them too (from the rounds you recorded), each with **Use this take**. If they want changes:
+edit the spec's settings block, run `validate <id>`, then repeat steps 2–5.
 
 ## 6. Download
 

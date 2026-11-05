@@ -1,6 +1,10 @@
 id: __ID__
 # concept | lyrics | song | timing | look | sample | production | delivery | done
 step: concept
+# What the user is asked for now, in a few words ("pick a lyric"); empty once answered. The home shows it.
+waiting: ""
+# The user's topic, when the video was asked for on the home.
+topic: ""
 lang: en
 # none | lines | words, decided at step 6 (also set in look.ts)
 subtitles: null
