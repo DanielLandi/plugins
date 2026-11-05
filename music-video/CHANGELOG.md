@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1
+
+- Deleting a note on the sections page removes only that note's own frame images (named by its id), whatever
+  paths `notes.json` holds.
+
 ## 0.7.0
 
 - `sections <id>`: a new page for watching a draft and giving notes, laid out by the scenes in `scenes.ts`.

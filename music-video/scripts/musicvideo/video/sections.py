@@ -278,9 +278,9 @@ class Notes:
         with self.lock:
             notes = self.all()
             note = self._find(notes, nid)
-            for key in ("image", "marked"):
-                if note.get(key):
-                    (self.folder / note[key]).unlink(missing_ok=True)
+            # the file names come from the note's id (checked by _find), never from paths stored in notes.json
+            for name in (f"{note['id']}.jpg", f"{note['id']}-marked.jpg"):
+                (self.folder / "frames" / name).unlink(missing_ok=True)
             self._write([x for x in notes if x["id"] != nid])
 
     def new(self) -> list[dict]:
