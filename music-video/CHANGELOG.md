@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.8
+## 0.6.9
 
 - A git checkout of the plugin (a clone or a worktree, for working on the plugin itself) uses its own engine in
   `engines/<checkout>/` under the install folder. Its packages are hard links to an installed engine with the same
@@ -11,6 +11,14 @@
   longer reinstalls its packages, mid-render. It says which version and video hold it instead.
 - `web`: two builds at once, even of different videos, no longer swap song data (each build stages it in a folder
   of its own).
+
+## 0.6.8
+
+- `edit-timing`: a spectrogram under the waveform (on by default; the S key or its checkbox hides it), drawn from the
+  mix or the vocals, whichever is shown. A word's first sound is easier to place on it than on the waveform: an s or f
+  is a haze high up that can start several frames before the vowel, a p, t or k a thin vertical line, a vowel a stack
+  of bright bands. Each word's mark runs through it and can be dragged there too. The page's help explains how to
+  read it.
 
 ## 0.6.7
 

@@ -127,7 +127,9 @@ chorus → bridge → final chorus). Wait for approval. Nothing is written to di
    moving playhead, 0.1 s ticks and a mark at each word's start: a word's true start is where the waveform rises
    after a dip, so a fix can be read off it to the tenth of a second.
    - Always offer the timing editor with the preview (users find dragging words easier than writing fixes): a
-     local page where the user drags each word's mark onto the waveform, plays the song around it, and saves (it
+     local page where the user drags each word's mark onto the waveform or the spectrogram under it (a word's first
+     sound shows best there: an s or f is a haze high up, a p, t or k a thin vertical line), plays the song around it,
+     and saves (it
      writes the `timing-fixes.yaml` entries and re-runs align and analyze). Run it in the background and give the
      user its address (`http://127.0.0.1:8644/`); it keeps serving until stopped. After each save, check the
      entries landed and commit `timing-fixes.yaml`. Stop it when the timing is approved (it can be started again
