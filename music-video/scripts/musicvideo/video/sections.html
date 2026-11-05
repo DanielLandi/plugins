@@ -8,7 +8,7 @@
 <style>
   :root {
     --bg: #111317; --panel: #1a1d23; --panel2: #20242b; --line: #2a2e37; --text: #e7e9ee; --dim: #9aa0ab;
-    --accent: #ffb547; --play: #5ad1a0; --ink: #ff4d4d; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    --accent: #ffb547; --play: #5ad1a0; --ink: #ff4d4d; --blue: #6fb6ff; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -144,6 +144,44 @@
            border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 40; }
   .toast.show { opacity: 1; }
   .toast.err { background: #6a2020; }
+  /* Compare: one section in two versions */
+  .dtop .sp { flex: 1; }
+  .vchip { font-size: 11.5px; border: 1px solid rgba(255, 181, 71, .5); color: var(--accent); border-radius: 9px; padding: 1px 8px; }
+  .vchip.done { color: var(--dim); border-color: var(--line); }
+  .varbox { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; }
+  .varbox label { display: block; font-size: 12.5px; color: var(--dim); margin-bottom: 6px; }
+  .varbox textarea { width: 100%; min-height: 54px; resize: vertical; background: var(--bg); color: var(--text);
+                     border: 1px solid var(--line); border-radius: 6px; padding: 8px; font: inherit; }
+  .varbox .row { display: flex; gap: 6px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+  .cmpbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
+  .cmpbar label { font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+  .cmpbar label.pa { color: var(--accent); } .cmpbar label.pb { color: var(--blue); }
+  .cmpbar select { max-width: 260px; font-weight: 400; }
+  .segs { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .segs button { border: 0; border-radius: 0; }
+  .segs button.on { background: var(--line); color: var(--accent); }
+  .cstage { position: relative; background: #000; border-radius: 8px; overflow: hidden; user-select: none; }
+  .cstage.side { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+  .cstage .pane { position: relative; aspect-ratio: var(--aspect, 16 / 9); background: #000; }
+  .cstage.stack { aspect-ratio: var(--aspect, 16 / 9); max-height: calc(100vh - 330px); margin: 0 auto; }
+  .cstage.stack .pane { position: absolute; inset: 0; }
+  .cstage .pane video, .cstage .pane img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .clabel { position: absolute; top: 8px; left: 8px; padding: 1px 8px; border-radius: 4px; font-weight: 700; font-size: 12.5px;
+            color: #111; z-index: 2; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cstage .pane.a .clabel { background: var(--accent); }
+  .cstage .pane.b .clabel { background: var(--blue); left: auto; right: 8px; }
+  .cout { position: absolute; inset: 0; display: none; place-items: center; color: var(--dim); background: rgba(0,0,0,.8); z-index: 1; }
+  .cstage .pane.out .cout { display: grid; }
+  .cwipe { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; z-index: 3; display: none; pointer-events: none;
+           box-shadow: 0 0 0 1px rgba(0,0,0,.4); }
+  .cstage.wipe-mode .cwipe { display: block; }
+  .cstage.wipe-mode { cursor: ew-resize; }
+  .cstage.flip-mode { cursor: pointer; }
+  #cscrub { flex: 1; min-width: 120px; accent-color: var(--accent); }
+  .cnone { color: var(--dim); background: var(--panel); border: 1px dashed var(--line); border-radius: 8px; padding: 18px; }
+  #cmpSide { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 12.5px; color: var(--dim); }
+  #cmpSide button.on.a { border-color: var(--accent); color: var(--accent); }
+  #cmpSide button.on.b { border-color: var(--blue); color: var(--blue); }
   @media (max-width: 1200px) { #grid { --cols: 2 !important; } .dmain { grid-template-columns: 1fr; } aside.notes { position: static; max-height: none; } }
   @media (max-width: 700px) { #grid { --cols: 1 !important; } .now { margin-left: 0; } .about { grid-template-columns: 1fr; } }
 </style>
@@ -171,9 +209,43 @@
     <button id="prev" data-tip="The section before ([)">‹</button>
     <h2 id="dtitle"></h2>
     <button id="next" data-tip="The next section (])">›</button>
+    <span class="sp"></span>
+    <span id="varchips"></span>
+    <button id="variantBtn" data-tip="Ask Claude for a second version of this section, built another way, to compare with this one (V)">⧉ Make a variant<kbd>V</kbd></button>
+    <button id="cmpBtn" data-tip="Play this section in two versions (this draft, an earlier one, a variant) side by side, with a wipe, or flipping between them (C)">⇆ Compare<kbd>C</kbd></button>
+  </div>
+  <div class="varbox" id="varbox" hidden>
+    <label for="varText" id="varLabel">What should the variant try?</label>
+    <textarea id="varText" placeholder="e.g. the same moment seen from above. Claude builds it as a second version of this section; Compare shows them side by side."></textarea>
+    <div class="row"><button class="primary" id="varSend" data-tip="Queue it: Claude picks it up in the terminal, and its progress shows here">Queue it for Claude</button>
+      <button id="varCancel">Cancel</button></div>
   </div>
   <div class="dmain">
     <div>
+      <div id="cmp" hidden>
+        <div class="cmpbar">
+          <label class="pa">A <select id="cmpA" data-tip="The version on the left (or under the wipe)"></select></label>
+          <label class="pb">B <select id="cmpB" data-tip="The version on the right"></select></label>
+          <span class="segs" id="cmpModes"><button data-mode="side" data-tip="Both at once (1)">Side by side</button><button data-mode="wipe" data-tip="One over the other; drag across to wipe between them (2)">Wipe</button><button data-mode="flip" data-tip="One at a time; click the picture or press F to flip (3)">Flip</button></span>
+          <span class="segs" id="cmpSound"><button data-audio="a" data-tip="Hear A">Sound A</button><button data-audio="b" data-tip="Hear B">Sound B</button></span>
+          <button id="cmpSwap" data-tip="Swap A and B (S)">⇄ Swap</button>
+          <button id="cmpClose" data-tip="Back to this draft alone (C or Esc)">✕ Close</button>
+        </div>
+        <div class="cstage side" id="cstage">
+          <div class="pane a" id="cpaneA"><span class="clabel" id="clabelA">A</span><div class="cout">no footage at this time</div></div>
+          <div class="pane b" id="cpaneB"><span class="clabel" id="clabelB">B</span><div class="cout">no footage at this time</div></div>
+          <div class="cwipe" id="cwipe"></div>
+        </div>
+        <div class="transport">
+          <button id="cplay" class="primary" data-tip="Play / pause both, in step (Space); the section loops">▶ Play</button>
+          <button id="cback" data-tip="One frame back (,)">⟨ frame</button>
+          <button id="cfwd" data-tip="One frame on (.)">frame ⟩</button>
+          <span class="time" id="ctime"></span>
+          <input type="range" id="cscrub" min="0" max="1" step="0.001" value="0">
+        </div>
+        <p class="cnone" id="cnone" hidden></p>
+      </div>
+      <div id="single">
       <div class="stage" id="stage">
         <video id="big" preload="auto" playsinline></video>
         <canvas id="ink" hidden></canvas>
@@ -204,10 +276,12 @@
       </div>
       <div class="scrub" id="dscrub" data-tip="Click to jump within this section; the marks are notes"><i></i></div>
       <div class="strip" id="strip"></div>
+      </div>
       <div class="about"><div class="note" id="dnote"></div><div class="lyrics" id="dlyrics"></div></div>
     </div>
     <aside class="notes">
       <div class="composer">
+        <div id="cmpSide" hidden>Note on <button class="a" data-side="a" data-tip="Your note is about A, at its frame on screen">A</button><button class="b" data-side="b" data-tip="Your note is about B, at its frame on screen">B</button></div>
         <label for="text" id="pin"></label>
         <textarea id="text" placeholder="What should change here? Typing pauses the video; the note keeps this frame."></textarea>
         <div class="row">
@@ -501,6 +575,9 @@ let shownFrame = 0;          // the frame on screen, from the video's own frame 
 function openSection(i, song = null) {
   tileV.pause();
   leaveInk();
+  const comparing = cmp.on && st.view === "detail";
+  leaveCompare();
+  $("varbox").hidden = true;
   st.view = "detail";
   st.cur = i;
   const s = S[i];
@@ -526,11 +603,15 @@ function openSection(i, song = null) {
   const t = song ?? s.from;
   seekVeiled(big, atFrame(frameOf(videoOf(t))));
   detailTick(true);
+  renderVarChips();
+  if (comparing) enterCompare();
   window.scrollTo(0, 0);
 }
 
 function backToGrid() {
   if (st.ink) { leaveInk(); return; }
+  leaveCompare();
+  $("varbox").hidden = true;
   big.pause();
   st.view = "grid";
   $("detail").hidden = true; $("grid").hidden = false; $("overviewBar").hidden = false;
@@ -555,7 +636,7 @@ function stepFrame(d) {
 }
 
 function detailTick(force = false) {
-  if (st.view !== "detail") return;
+  if (st.view !== "detail" || cmp.on) return;
   const s = S[st.cur];
   let song = songOf(big.currentTime);
   if (!big.paused && song >= s.to - 0.5 / D.fps) {
@@ -576,7 +657,7 @@ function detailTick(force = false) {
     if (force || curFig.offsetLeft < strip.scrollLeft || curFig.offsetLeft + curFig.offsetWidth > strip.scrollLeft + strip.clientWidth)
       strip.scrollLeft = curFig.offsetLeft - strip.clientWidth / 3;
   }
-  if (!st.ink) $("pin").innerHTML = `Note at <b>${fmt(songOf(shownFrame / D.fps))}</b> · frame ${shownFrame} · ${esc(D.render)}`;
+  if (!st.ink && !cmp.on) $("pin").innerHTML = `Note at <b>${fmt(songOf(shownFrame / D.fps))}</b> · frame ${shownFrame} · ${esc(D.render)}`;
   showHead(song);
 }
 
@@ -684,11 +765,13 @@ function editNote(el, x) {
 
 function goToNote(x) {
   $("drawer").hidden = true;
+  leaveCompare();
   const i = S.findIndex((s) => s.id === x.section);
-  const song = songOf(x.frame / D.fps);
+  const here = x.render === D.render;           // a note on another version (from Compare) goes to its song time
+  const song = here ? songOf(x.frame / D.fps) : x.song;
   if (st.view !== "detail" || st.cur !== i) openSection(i >= 0 ? i : sectionAt(x.song), song);
   big.pause();
-  big.currentTime = atFrame(x.frame);
+  big.currentTime = here ? atFrame(x.frame) : atFrame(frameOf(videoOf(x.song)));
 }
 
 function update(data) {
@@ -705,7 +788,9 @@ async function saveNote() {
   const text = $("text").value.trim();
   const drawing = st.ink ? st.ink.strokes : [];
   if (!text && !drawing.length) { toast("Write what should change (or draw on the frame) first", true); $("text").focus(); return; }
-  const body = { action: "add", frame: st.ink ? st.ink.frame : shownFrame, text, drawing };
+  const on = cmp.on ? cOf(cmp.side) : null;
+  const body = on ? { action: "add", frame: cFrame(cmp.side), text, drawing: [], ...(on.key ? { version: on.key } : {}) }
+                  : { action: "add", frame: st.ink ? st.ink.frame : shownFrame, text, drawing };
   if (st.ink && drawing.length) body.marked = composite();
   $("save").disabled = true;
   try {
@@ -719,8 +804,8 @@ async function saveNote() {
   finally { $("save").disabled = false; }
 }
 $("save").addEventListener("click", saveNote);
-$("text").addEventListener("focus", () => { big.pause(); });
-$("text").addEventListener("input", () => { if (!big.paused) big.pause(); });
+$("text").addEventListener("focus", () => { big.pause(); cPause(); });
+$("text").addEventListener("input", () => { if (!big.paused) big.pause(); cPause(); });
 $("text").addEventListener("keydown", (e) => {
   e.stopPropagation();
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNote(); }
@@ -883,6 +968,273 @@ function composite() {
   return c.toDataURL("image/jpeg", 0.9);
 }
 
+// ---------------------------------------------------------------- Compare: this section in two versions
+// The review page's player, inside an opened section: two versions (this draft, an earlier draft, a scene clip, a
+// variant) on one song clock, side by side, with a wipe, or flipping; a note can be on either side.
+const cmp = { on: false, list: [], a: null, b: null, mode: "side", audio: "a", t: 0, playing: false, wipe: 0.5, flipB: false,
+              clock: null, side: "a", el: { a: null, b: null } };
+const cA = () => cmp.list.find((v) => v.key === cmp.a);
+const cB = () => cmp.list.find((v) => v.key === cmp.b);
+const cOf = (side) => (side === "a" ? cA() : cB());
+
+function sourcesFor(i) {
+  const s = S[i];
+  const draft = { key: "", label: D.render, kind: "video", start: D.start, duration: D.duration, fps: D.fps, src: "/video",
+                  scene: "draft", n: 0, at: "" };
+  return [draft, ...D.versions].filter((v) => (v.kind === "video"
+    ? v.start < s.to - 0.05 && v.start + v.duration > s.from + 0.05
+    : v.start >= s.from && v.start < s.to));
+}
+function defaultB(list, s) {
+  const others = list.filter((v) => v.key !== "");
+  const newest = (xs) => [...xs].sort((x, y) => (y.at || "").localeCompare(x.at || "") || y.n - x.n)[0];
+  return newest(others.filter((v) => v.scene === s.id && v.variant)) || newest(others.filter((v) => v.scene === s.id))
+    || newest(others.filter((v) => v.scene === "draft")) || newest(others);
+}
+
+function enterCompare() {
+  if (st.view !== "detail" || st.ink) return;
+  big.pause();
+  const s = S[st.cur];
+  cmp.list = sourcesFor(st.cur);
+  cmp.on = true;
+  $("cmp").hidden = false; $("single").hidden = true; $("drawBtn").hidden = true;
+  $("cmpBtn").classList.add("on"); $("cmpSide").hidden = false;
+  const fill = (sel) => { sel.innerHTML = cmp.list.map((v) => `<option value="${esc(v.key)}">${esc(v.label)}${v.key ? "" : " (on this page)"}${v.kind === "video" ? ` · ${fmt(v.start)}–${fmt(v.start + v.duration)}` : " · a still"}</option>`).join(""); };
+  fill($("cmpA")); fill($("cmpB"));
+  const b = defaultB(cmp.list, s);
+  const lone = !b;
+  $("cnone").hidden = !lone;
+  $("cstage").hidden = lone; $("cmp").querySelector(".transport").hidden = lone; $("cmp").querySelector(".cmpbar").hidden = lone;
+  if (lone) {
+    $("cnone").innerHTML = `Only this draft shows <b>${esc(s.id)}</b> so far. <b>⧉ Make a variant</b> asks Claude for a second version of it; earlier drafts and kept clips of it show here too. <button id="cnoneClose">Close</button>`;
+    $("cnoneClose").addEventListener("click", leaveCompare);
+    cmp.a = ""; cmp.b = null; cmp.t = Math.max(s.from, songOf(big.currentTime));
+    cShowPin();
+    return;
+  }
+  cmp.t = Math.min(Math.max(songOf(big.currentTime), s.from), s.to - 0.01);
+  cSetPair("", b.key);
+  cMode(cmp.mode);
+  cSound(cmp.audio);
+  cNoteSide(cmp.side);
+}
+function leaveCompare() {
+  if (!cmp.on) return;
+  cPause();
+  cmp.on = false;
+  for (const side of ["a", "b"]) { cmp.el[side]?.remove(); cmp.el[side] = null; }
+  $("cmp").hidden = true; $("single").hidden = false; $("drawBtn").hidden = false;
+  $("cmpBtn").classList.remove("on"); $("cmpSide").hidden = true;
+  const s = S[st.cur];
+  if (cmp.t >= s.from && cmp.t < s.to) seekBig(cmp.t);
+  detailTick(true);
+}
+
+function cMedia(v, pane) {
+  pane.querySelectorAll("video, img").forEach((n) => n.remove());
+  let m;
+  if (v.kind === "video") {
+    m = document.createElement("video");
+    m.src = v.src; m.preload = "auto"; m.playsInline = true; m.muted = true;
+  } else {
+    m = document.createElement("img");
+    m.src = v.src; m.alt = v.label;
+  }
+  pane.insertBefore(m, pane.firstChild);
+  return m;
+}
+function cSetPair(a, b) {
+  cPause();
+  cmp.a = a; cmp.b = b;
+  cmp.el.a = cMedia(cA(), $("cpaneA"));
+  cmp.el.b = cMedia(cB(), $("cpaneB"));
+  $("cmpA").value = a; $("cmpB").value = b;
+  $("clabelA").textContent = `A · ${cA().label}`;
+  $("clabelB").textContent = `B · ${cB().label}`;
+  const r = cRange();
+  $("cscrub").min = r[0]; $("cscrub").max = r[1]; $("cscrub").step = 1 / (cA().fps || D.fps);
+  for (const side of ["a", "b"]) {
+    const m = cmp.el[side];
+    if (m.tagName === "VIDEO") m.addEventListener("loadedmetadata", () => cPlace(side, cmp.t, true), { once: true });
+  }
+  cSound(cmp.audio);
+  cSeek(cmp.t);
+}
+function cRange() {
+  // the section, where both versions have footage (else all of the section)
+  const s = S[st.cur];
+  let lo = s.from, hi = s.to;
+  for (const v of [cA(), cB()]) if (v && v.kind === "video") { lo = Math.max(lo, v.start); hi = Math.min(hi, v.start + v.duration); }
+  return hi - lo > 0.1 ? [lo, hi] : [s.from, s.to];
+}
+function cMode(m) {
+  cmp.mode = m;
+  $("cstage").className = "cstage " + (m === "side" ? "side" : "stack") + (m === "wipe" ? " wipe-mode" : "") + (m === "flip" ? " flip-mode" : "");
+  $("cmpModes").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.mode === m));
+  cLayout();
+}
+function cLayout() {
+  const pa = $("cpaneA"), pb = $("cpaneB");
+  pa.style.clipPath = ""; pa.style.visibility = ""; pb.style.visibility = "";
+  pa.style.zIndex = 1; pb.style.zIndex = 0;
+  if (cmp.mode === "wipe") {
+    pa.style.clipPath = `inset(0 ${(1 - cmp.wipe) * 100}% 0 0)`;
+    $("cwipe").style.left = `calc(${cmp.wipe * 100}% - 1px)`;
+  } else if (cmp.mode === "flip") {
+    (cmp.flipB ? pa : pb).style.visibility = "hidden";
+  }
+}
+function cFlip() { cmp.flipB = !cmp.flipB; cLayout(); if (cmp.mode === "flip") cNoteSide(cmp.flipB ? "b" : "a"); }
+function cSound(which) {
+  cmp.audio = which;
+  $("cmpSound").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.audio === which));
+  for (const side of ["a", "b"]) { const m = cmp.el[side]; if (m && m.tagName === "VIDEO") m.muted = side !== which; }
+}
+function cNoteSide(side) {
+  cmp.side = side;
+  $("cmpSide").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.side === side));
+  cShowPin();
+}
+function cSwap() { const { a, b } = cmp; cSetPair(b, a); }
+
+// One song clock. While playing, the version you hear leads; the other follows.
+function cPlace(side, t, hard) {
+  const v = cOf(side), m = cmp.el[side], pane = side === "a" ? $("cpaneA") : $("cpaneB");
+  if (!v || !m || v.kind !== "video") return;
+  const local = t - v.start, inside = local >= 0 && local < v.duration - 0.02;
+  pane.classList.toggle("out", !inside);
+  if (!inside) { if (!m.paused) m.pause(); return; }
+  if (cmp.playing && m.paused) m.play().catch(() => {});
+  if (!cmp.playing && !m.paused) m.pause();
+  if (hard || Math.abs(m.currentTime - local) > (cmp.playing ? 0.08 : 0.001)) m.currentTime = local;
+}
+function cLeader() {
+  for (const side of [cmp.audio, cmp.audio === "a" ? "b" : "a"]) {
+    const v = cOf(side), m = cmp.el[side];
+    if (v && m && v.kind === "video" && !m.paused && cmp.t >= v.start && cmp.t < v.start + v.duration - 0.05) return [v, m];
+  }
+  return null;
+}
+function cTick(now) {
+  if (!cmp.playing || !cmp.on) return;
+  const r = cRange(), lead = cLeader();
+  if (lead) cmp.t = lead[0].start + lead[1].currentTime;
+  else if (cmp.clock) cmp.t += (now - cmp.clock) / 1000;
+  cmp.clock = now;
+  if (cmp.t >= r[1]) { cmp.t = r[0]; cPlace("a", cmp.t, true); cPlace("b", cmp.t, true); }   // the section loops
+  else { cPlace("a", cmp.t, false); cPlace("b", cmp.t, false); }
+  cShow();
+  requestAnimationFrame(cTick);
+}
+const cFps = () => cA()?.fps || D.fps;
+function cFrame(side) {
+  const v = cOf(side);
+  if (!v || v.kind !== "video") return 0;
+  return Math.max(0, Math.round((cmp.t - v.start) * v.fps - 0.5 + 1e-6));
+}
+function cShowPin() {
+  if (!cmp.on) return;
+  const v = cOf(cmp.side);
+  if (!v) { $("pin").innerHTML = `Note at <b>${fmt(cmp.t)}</b> · ${esc(D.render)}`; return; }
+  $("pin").innerHTML = `Note on <b>${cmp.side.toUpperCase()}</b> · ${esc(v.label)} at <b>${fmt(cmp.t)}</b>${v.kind === "video" ? ` · frame ${cFrame(cmp.side)}` : " · the still"}`;
+}
+function cShow() {
+  $("cscrub").value = cmp.t;
+  $("ctime").innerHTML = `${fmt(cmp.t)} <small>A frame ${cFrame("a")} · B frame ${cFrame("b")}</small>`;
+  cShowPin();
+  showHead(cmp.t);
+}
+function cSeek(t) {
+  const r = cRange(), fps = cFps(), a = cA();
+  t = Math.min(Math.max(t, r[0]), r[1] - 1 / fps / 2);
+  const n = Math.floor((t - a.start) * fps + 1e-6);              // the middle of A's frame there
+  cmp.t = Math.min(a.start + (n + 0.5) / fps, r[1] - 1e-3);
+  cPlace("a", cmp.t, true); cPlace("b", cmp.t, true);
+  cShow();
+}
+function cPlay() {
+  if (!cmp.on || cmp.b == null) return;
+  cmp.playing = true; cmp.clock = null;
+  $("cplay").textContent = "❚❚ Pause";
+  cPlace("a", cmp.t, true); cPlace("b", cmp.t, true);
+  requestAnimationFrame(cTick);
+}
+function cPause() {
+  if (!cmp.playing) return;
+  cmp.playing = false;
+  $("cplay").textContent = "▶ Play";
+  for (const side of ["a", "b"]) { const m = cmp.el[side]; if (m && m.tagName === "VIDEO") m.pause(); }
+  cSeek(cmp.t);
+}
+function cToggle() { cmp.playing ? cPause() : cPlay(); }
+function cStep(d) { cPause(); cSeek(cmp.t + d / cFps()); }
+
+$("cmpBtn").addEventListener("click", () => (cmp.on ? leaveCompare() : enterCompare()));
+$("cmpClose").addEventListener("click", leaveCompare);
+$("cmpA").addEventListener("change", (e) => cSetPair(e.target.value, cmp.b));
+$("cmpB").addEventListener("change", (e) => cSetPair(cmp.a, e.target.value));
+$("cmpModes").addEventListener("click", (e) => { const m = e.target.closest("[data-mode]")?.dataset.mode; if (m) cMode(m); });
+$("cmpSound").addEventListener("click", (e) => { const a = e.target.closest("[data-audio]")?.dataset.audio; if (a) cSound(a); });
+$("cmpSide").addEventListener("click", (e) => { const sd = e.target.closest("[data-side]")?.dataset.side; if (sd) cNoteSide(sd); });
+$("cmpSwap").addEventListener("click", cSwap);
+$("cplay").addEventListener("click", cToggle);
+$("cback").addEventListener("click", () => cStep(-1));
+$("cfwd").addEventListener("click", () => cStep(1));
+$("cscrub").addEventListener("input", (e) => { cPause(); cSeek(+e.target.value); });
+{
+  const stg = $("cstage");
+  let dragging = false;
+  const wipeAt = (e) => { const r = stg.getBoundingClientRect(); cmp.wipe = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1); cLayout(); };
+  stg.addEventListener("pointerdown", (e) => {
+    if (cmp.mode === "wipe") { dragging = true; stg.setPointerCapture(e.pointerId); wipeAt(e); }
+    else if (cmp.mode === "flip") cFlip();
+    else cNoteSide(e.target.closest(".pane")?.classList.contains("b") ? "b" : "a");   // side by side: a click picks the note's side
+  });
+  stg.addEventListener("pointermove", (e) => { if (dragging) wipeAt(e); });
+  stg.addEventListener("pointerup", () => { dragging = false; });
+}
+
+// ---------------------------------------------------------------- Make a variant
+function openVariant() {
+  if (st.view !== "detail") return;
+  $("varbox").hidden = false;
+  $("varLabel").textContent = `What should a variant of ${S[st.cur].id} try?`;
+  $("varText").focus();
+}
+$("variantBtn").addEventListener("click", () => ($("varbox").hidden ? openVariant() : ($("varbox").hidden = true)));
+$("varCancel").addEventListener("click", () => { $("varbox").hidden = true; });
+async function sendVariant() {
+  const note = $("varText").value.trim();
+  try {
+    const r = await fetch("/api/request", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "variant", data: { section: S[st.cur].id, note } }) });
+    const data = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    D.requests = data.requests;
+    $("varText").value = ""; $("varbox").hidden = true;
+    renderVarChips();
+    toast(`Queued for Claude: ${data.request.text}`);
+  } catch (e) { toast(e.message, true); }
+}
+$("varSend").addEventListener("click", sendVariant);
+$("varText").addEventListener("keydown", (e) => {
+  e.stopPropagation();
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendVariant(); }
+  else if (e.key === "Escape") $("varbox").hidden = true;
+});
+function renderVarChips() {
+  const box = $("varchips");
+  if (st.view !== "detail") return;
+  const mine = (D.requests || []).filter((r) => r.data.section === S[st.cur].id).slice(-3);
+  const said = { new: "variant asked: waiting for Claude", taken: "variant: Claude is on it", done: "variant done" };
+  box.innerHTML = mine.map((r) => `<span class="vchip${r.state === "done" ? " done" : ""}" data-tip="${esc(r.text)}${r.message ? ` · ${esc(r.message)}` : ""}">${esc(said[r.state])}${r.message ? `: ${esc(r.message)}` : ""}</span>`).join(" ");
+}
+setInterval(async () => {
+  if (st.view !== "detail" || document.hidden) return;
+  try { const r = await fetch("/api/requests"); if (r.ok) { D.requests = (await r.json()).requests; renderVarChips(); } } catch (_) {}
+}, 3000);
+
 // ---------------------------------------------------------------- keys and the loop
 addEventListener("keydown", (e) => {
   if (e.target.closest("select, textarea, input") || e.metaKey || e.ctrlKey || e.altKey) {
@@ -901,6 +1253,22 @@ addEventListener("keydown", (e) => {
     else if (k === "Escape") $("drawer").hidden = true;
     return;
   }
+  if (cmp.on) {
+    if (k === " ") { e.preventDefault(); cToggle(); }
+    else if (k === ",") cStep(-1);
+    else if (k === ".") cStep(1);
+    else if (k === "1") cMode("side");
+    else if (k === "2") cMode("wipe");
+    else if (k === "3") cMode("flip");
+    else if (k === "f" || k === "F") cFlip();
+    else if ((k === "s" || k === "S") && cmp.b != null) cSwap();
+    else if (k === "c" || k === "C" || k === "Escape") leaveCompare();
+    else if (k === "n" || k === "N") { e.preventDefault(); $("text").focus(); }
+    else if (k === "v" || k === "V") { e.preventDefault(); openVariant(); }
+    else if (k === "[") $("prev").click();
+    else if (k === "]") $("next").click();
+    return;
+  }
   if (st.ink) {
     const tools = { p: "pen", a: "arrow", b: "box", o: "circle" };
     if (tools[k.toLowerCase()]) setTool(tools[k.toLowerCase()]);
@@ -916,6 +1284,8 @@ addEventListener("keydown", (e) => {
   else if (k === "[") $("prev").click();
   else if (k === "]") $("next").click();
   else if (k === "d" || k === "D") enterInk();
+  else if (k === "c" || k === "C") enterCompare();
+  else if (k === "v" || k === "V") { e.preventDefault(); openVariant(); }
   else if (k === "n" || k === "N") { e.preventDefault(); $("text").focus(); }
   else if (k === "l" || k === "L") $("dloop").click();
   else if (k === "Escape") backToGrid();

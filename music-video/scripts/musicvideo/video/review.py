@@ -19,6 +19,7 @@ from ..workspace import Workspace
 from .media import need, probe, run
 
 SCENE_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+VARIANT_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 VIDEO_EXT = {".mp4", ".mov", ".webm"}
 STILL_EXT = {".png", ".jpg", ".jpeg", ".webp"}
 POSTER_WIDTH = 320
@@ -90,8 +91,15 @@ def _poster(file: Path, out: Path, at: float) -> None:
          "-frames:v", "1", "-vf", f"scale={POSTER_WIDTH}:-2", "-q:v", "4", str(out)], f"poster for {file.name}")
 
 
+def version_label(v: dict) -> str:
+    """How a version is named on the pages: `roof v4`, or `roof v4 (variant b)`."""
+    return f"{v['scene']} v{v['n']}" + (f" (variant {v['variant']})" if v.get("variant") else "")
+
+
 def record_version(ws: Workspace, video_id: str, file: Path, scene: str, *, start: float | None = None,
-                   note: str = "") -> dict:
+                   note: str = "", variant: str | None = None) -> dict:
+    if variant is not None and (not VARIANT_RE.match(variant) or len(variant) > 20):
+        raise MVError(f"'{variant}' is not a variant name: a short lowercase word, like b or from-above")
     if not SCENE_RE.match(scene):
         raise MVError(f"'{scene}' is not a scene name: lowercase words joined by hyphens, as in scenes.ts "
                       "(or draft, sample, vertical)")
@@ -110,6 +118,8 @@ def record_version(ws: Workspace, video_id: str, file: Path, scene: str, *, star
     name = f"{scene}-v{n}"
     entry = {"scene": scene, "n": n, "at": datetime.now().isoformat(timespec="seconds"), "note": note,
              "code": _code_stamp(ws.video_dir(video_id)), "source": file.name, "start": start}
+    if variant:
+        entry["variant"] = variant
     if ext in VIDEO_EXT:
         qc = _qc_report(ws, video_id, file)
         facts = _video_facts(file)

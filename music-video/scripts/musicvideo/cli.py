@@ -25,7 +25,7 @@ from .video.mux import mux
 from .video.paths import VideoPaths, open_file, video_song
 from .video.preview import preview
 from .video.qc import run_qc
-from .video.review import build_page, load_versions, record_version
+from .video.review import build_page, load_versions, record_version, version_label
 from .video.songfix import lifted_song
 from .video.timing import clock
 from .video import timing_editor
@@ -255,9 +255,10 @@ def cmd_version(args) -> int:
         raise MVError("give --excerpt (a clip) or --at (a still), not both")
     start = _range(args.excerpt)[0] if args.excerpt else args.at
     ws = load_workspace()
-    v = record_version(ws, args.id, Path(args.file), args.scene, start=start, note=args.note or "")
+    v = record_version(ws, args.id, Path(args.file), args.scene, start=start, note=args.note or "",
+                       variant=args.variant)
     shows = f"{clock(v['start'])}–{clock(v['start'] + v['duration'])}" if v["kind"] == "video" else "a still"
-    print(f"kept {v['scene']} v{v['n']} ({shows}{', code ' + v['code'] if v['code'] else ''})")
+    print(f"kept {version_label(v)} ({shows}{', code ' + v['code'] if v['code'] else ''})")
     print(f"review: {build_page(ws, args.id)}")
     return 0
 
@@ -585,6 +586,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--excerpt", help="start-end in song seconds when the render is an excerpt (as for mux and qc)")
     p.add_argument("--at", type=float, help="the song time a still shows, in seconds")
     p.add_argument("--note", help="what changed in this version (the notes it answers)")
+    p.add_argument("--variant", help="keep it as a named variant of the scene (b, from-above…), to compare on the sections page")
     p = sub.add_parser("review", help="the review page: every version of every scene, two at a time in sync")
     p.add_argument("id")
     p.add_argument("--open", action="store_true", help="open the page in the browser")

@@ -355,9 +355,13 @@ def test_each_card_keeps_its_place_and_buttons_explain_themselves(sections_serve
         page.wait_for_function(f"!{tile}.paused")
         page.evaluate(f"{tile}.pause(); {tile}.currentTime = 1.6")
         page.wait_for_function(f"!{tile}.seeking")
+        # the player is hidden as it lands on the street card (no glimpse of the sky's frame), then shows again.
+        # Watched as it happens: the veil can lift before a later look, and the sky's own veil must be gone first.
+        page.wait_for_function(f"{tile}.style.opacity === ''")
+        page.evaluate(f"window.veiled = false; new MutationObserver(() => {{ if ({tile}.style.opacity === '0') "
+                      f"window.veiled = true; }}).observe({tile}, {{ attributes: true, attributeFilter: ['style'] }})")
         page.locator(".card").nth(0).locator("[data-a=play]").click()
-        # the player is hidden as it lands on the street card (no glimpse of the sky's frame), then shows again
-        assert page.evaluate(f"{tile}.style.opacity") == "0"
+        page.wait_for_function("window.veiled", timeout=3000)
         page.wait_for_function(f"{tile}.style.opacity === ''", timeout=3000)
         page.wait_for_timeout(200)
         assert page.evaluate("sections.st.cur") == 0
@@ -388,4 +392,107 @@ def test_each_card_keeps_its_place_and_buttons_explain_themselves(sections_serve
         assert page.evaluate("getComputedStyle(document.querySelector('#dnote')).fontStyle") == "italic"
         assert page.evaluate("getComputedStyle(document.querySelector('#dlyrics')).fontStyle") == "normal"
         browser.close()
+    assert errors == []
+
+
+# --- Compare and variants ----------------------------------------------------------------------------------------
+
+def keep_variant(app, mv_ws, tmp_path):
+    """A kept version of the roof (0.8–1.4 s) as variant b: its own numbered frames, starting at song 0.8."""
+    media = mv_ws.work_for(app.video_id) / "review" / "media"
+    media.mkdir(parents=True, exist_ok=True)
+    numbered_video(media / "roof-v1.webm", seconds=0.6)
+    versions = [{"scene": "roof", "n": 1, "kind": "video", "file": "media/roof-v1.webm", "start": 0.8, "duration": 0.6,
+                 "fps": FPS, "size": [160, 90], "variant": "b", "note": "from above", "at": "2026-11-05T09:00:00"},
+                {"scene": "intro", "n": 1, "kind": "video", "file": "media/intro-v1.webm", "start": 30, "duration": 5,
+                 "fps": FPS, "at": "2026-11-05T09:00:00"}]                # outside the render: not offered
+    (media.parent / "versions.json").write_text(json.dumps({"video": app.video_id, "versions": versions}),
+                                                encoding="utf-8")
+
+
+def test_state_offers_kept_versions_and_a_note_can_be_on_one(sections_server, mv_ws, tmp_path):
+    url, app = sections_server
+    keep_variant(app, mv_ws, tmp_path)
+    state = json.loads(get(url + "/api/state")[2])
+    assert [(v["key"], v["label"], v["start"]) for v in state["versions"]] == [("roof-v1.webm", "roof v1 (variant b)", 0.8)]
+    assert get(url + "/versions/roof-v1.webm")[1]["Content-Type"] == "video/webm"
+    for bad in ("/versions/intro-v1.webm", "/versions/..%2Fversions.json", "/versions/x.txt"):
+        with pytest.raises(urllib.error.HTTPError):
+            get(url + bad)
+    status, data = post(url + "/api/notes", {"action": "add", "frame": 2, "text": "B is better here",
+                                             "version": "roof-v1.webm"})
+    assert status == 200
+    note = data["note"]
+    assert (note["render"], note["render_file"], note["song"], note["section"]) == ("roof v1 (variant b)",
+                                                                                    "roof-v1.webm", 1.0, "roof")
+    assert grey((app.notes.folder / note["image"]).read_bytes()) == pytest.approx(level(2), abs=5)
+    assert post(url + "/api/notes", {"action": "add", "frame": 2, "text": "x", "version": "sky-v9.webm"})[0] == 400
+
+
+def test_make_a_variant_queues_a_request_for_a_section_on_the_page(sections_server):
+    url, app = sections_server
+    status, data = post(url + "/api/request", {"kind": "variant", "data": {"section": "sky", "note": "more stars"}})
+    assert status == 200 and data["request"]["text"] == "Make a variant of sky: more stars"
+    assert json.loads(get(url + "/api/requests")[2])["requests"][0]["state"] == "new"
+    assert post(url + "/api/request", {"kind": "variant", "data": {"section": "moon"}})[0] == 400
+    assert post(url + "/api/request", {"kind": "message", "data": {"note": "hi"}})[0] == 400
+
+
+def test_compare_plays_two_versions_and_takes_a_note_on_b(sections_server, mv_ws, tmp_path, browser_ok):
+    from playwright.sync_api import sync_playwright
+    url, app = sections_server
+    keep_variant(app, mv_ws, tmp_path)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
+        page = browser.new_page(viewport={"width": 1400, "height": 900})
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(url + "/#2")
+        page.evaluate("sections.ready")
+        page.wait_for_selector("#detail:not([hidden])")
+        page.keyboard.press("c")
+        page.wait_for_selector("#cmp:not([hidden])")
+        assert page.text_content("#clabelA") == "A · draft"
+        assert page.text_content("#clabelB") == "B · roof v1 (variant b)"
+        assert page.locator("#cstage video").count() == 2
+        # side by side, then the wipe and the flip
+        page.keyboard.press("2")
+        assert "wipe-mode" in page.get_attribute("#cstage", "class")
+        page.keyboard.press("3")
+        page.keyboard.press("1")
+        # play both in step for a moment, then pause and step to song 1.0 (A's frame 10, B's frame 2)
+        page.click("#cplay")
+        page.wait_for_timeout(400)
+        page.click("#cplay")
+        page.evaluate("document.querySelector('#cscrub').value = 0.8; document.querySelector('#cscrub').dispatchEvent(new Event('input'))")
+        page.keyboard.press(".")
+        page.keyboard.press(".")
+        page.wait_for_function("document.querySelector('#ctime').textContent.includes('A frame 10 · B frame 2')")
+        page.click("#cmpSide [data-side=b]")
+        assert "Note on B · roof v1 (variant b)" in page.text_content("#pin")
+        page.keyboard.press("n")
+        page.keyboard.type("B: the view from above works")
+        page.keyboard.press("Enter")
+        page.wait_for_function("sections.D.notes.length === 1")
+        # Make a variant of the sky
+        page.keyboard.press("Escape")
+        page.wait_for_selector("#cmp", state="hidden")
+        page.keyboard.press("]")
+        page.wait_for_function("sections.st.cur === 2")
+        page.click("#variantBtn")
+        page.fill("#varText", "the sky at dawn instead")
+        page.keyboard.press("Enter")
+        page.wait_for_selector(".vchip")
+        assert "waiting for Claude" in page.text_content("#varchips")
+        # the sky has no other version: Compare says so and points at Make a variant
+        page.keyboard.press("c")
+        page.wait_for_selector("#cnone:not([hidden])")
+        assert "Make a variant" in page.text_content("#cnone")
+        browser.close()
+    note = app.notes.all()[0]
+    assert (note["render"], note["frame"], note["section"], note["text"]) == ("roof v1 (variant b)", 2, "roof",
+                                                                              "B: the view from above works")
+    from musicvideo import requests as rq
+    assert [r["data"] for r in rq.video_queue(mv_ws, app.video_id).all()] == [{"section": "sky",
+                                                                               "note": "the sky at dawn instead"}]
     assert errors == []
