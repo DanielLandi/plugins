@@ -370,6 +370,35 @@ def _range_of(header: str | None, size: int) -> tuple[int, int] | None:
     return (a, min(b, size - 1)) if a < size else None
 
 
+def send_file(handler: BaseHTTPRequestHandler, file: Path, kind: str) -> None:
+    """A file, in byte ranges when asked (players seek with them)."""
+    if not file.is_file():
+        return handler.send_error(404)
+    size = file.stat().st_size
+    span = _range_of(handler.headers.get("Range"), size)
+    a, b = span if span else (0, size - 1)
+    handler.send_response(206 if span else 200)
+    handler.send_header("Content-Type", kind)
+    handler.send_header("Accept-Ranges", "bytes")
+    handler.send_header("Content-Length", str(b - a + 1))
+    if span:
+        handler.send_header("Content-Range", f"bytes {a}-{b}/{size}")
+    handler.send_header("Cache-Control", "no-store" if kind != "image/jpeg" else "max-age=3600")
+    handler.end_headers()
+    try:
+        with file.open("rb") as f:
+            f.seek(a)
+            left = b - a + 1
+            while left > 0:
+                chunk = f.read(min(1 << 20, left))
+                if not chunk:
+                    break
+                handler.wfile.write(chunk)
+                left -= len(chunk)
+    except (BrokenPipeError, ConnectionResetError):
+        pass   # the player moved on and dropped the request
+
+
 def make_handler(app: Sections):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):
@@ -419,31 +448,7 @@ def make_handler(app: Sections):
             self.send_bytes(json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json", status)
 
         def send_file(self, file: Path, kind: str) -> None:
-            if not file.is_file():
-                return self.send_error(404)
-            size = file.stat().st_size
-            span = _range_of(self.headers.get("Range"), size)
-            a, b = span if span else (0, size - 1)
-            self.send_response(206 if span else 200)
-            self.send_header("Content-Type", kind)
-            self.send_header("Accept-Ranges", "bytes")
-            self.send_header("Content-Length", str(b - a + 1))
-            if span:
-                self.send_header("Content-Range", f"bytes {a}-{b}/{size}")
-            self.send_header("Cache-Control", "no-store" if kind != "image/jpeg" else "max-age=3600")
-            self.end_headers()
-            try:
-                with file.open("rb") as f:
-                    f.seek(a)
-                    left = b - a + 1
-                    while left > 0:
-                        chunk = f.read(min(1 << 20, left))
-                        if not chunk:
-                            break
-                        self.wfile.write(chunk)
-                        left -= len(chunk)
-            except (BrokenPipeError, ConnectionResetError):
-                pass   # the player moved on and dropped the request
+            send_file(self, file, kind)
 
         def send_bytes(self, body: bytes, kind: str, status: int = 200) -> None:
             self.send_response(status)
