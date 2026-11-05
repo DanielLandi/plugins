@@ -29,7 +29,7 @@ def test_a_request_goes_new_taken_done_and_ids_are_never_reused(mv_ws, video):
     q.update("r1", "writing lyrics.md")
     done = q.done("r1", "final lyrics written; next: the song's directions")
     assert done["state"] == "done" and done["taken_at"] and done["done_at"]
-    assert [r["id"] for r in q.open()] == ["r3"]
+    assert [r["id"] for r in q.pending()] == ["r3"]
     with pytest.raises(MVError, match="already done"):
         q.take("r1")
     with pytest.raises(MVError, match="no request"):

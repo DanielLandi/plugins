@@ -403,7 +403,7 @@ class Pages:
         self.lock = threading.Lock()
         self.running: dict[tuple[str, str], tuple[ThreadingHTTPServer, str]] = {}
 
-    def open(self, page: str, video_id: str) -> str:
+    def start(self, page: str, video_id: str) -> str:
         if not ID_RE.match(video_id or "") or not (self.ws.video_dir(video_id) / "video.yaml").is_file():
             raise MVError(f"no video {video_id!r}")
         with self.lock:
@@ -514,7 +514,7 @@ def make_handler(app: Home):
                 if not isinstance(body, dict):
                     raise MVError("expected a JSON object")
                 if self.path == "/api/open":
-                    answer = {"url": app.pages.open(str(body.get("page") or ""), str(body.get("video") or ""))}
+                    answer = {"url": app.pages.start(str(body.get("page") or ""), str(body.get("video") or ""))}
                 else:
                     answer = app.request(body)
                 status = 200

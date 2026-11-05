@@ -235,3 +235,29 @@ def test_the_page_queues_what_the_user_decides_and_shows_progress(home_server, b
         assert "No finals yet" in page.text_content("#panel")
         browser.close()
     assert errors == []
+
+
+def test_the_home_starts_the_sections_page_of_the_newest_draft(mv_ws, filed_song):
+    from test_mv_sections import numbered_video, write_scenes
+    spec_id, _ = filed_song(seconds=2.0)
+    folder = mv_ws.video_dir(spec_id)
+    write_scenes(folder)
+    (folder / "video.yaml").write_text(f"id: {spec_id}\nstep: production\n", encoding="utf-8")
+    media = mv_ws.work_for(spec_id) / "review" / "media"
+    media.mkdir(parents=True)
+    numbered_video(media / "draft-v1.webm")
+    versions = [{"scene": "draft", "n": 1, "kind": "video", "file": "media/draft-v1.webm", "start": 0}]
+    (media.parent / "versions.json").write_text(json.dumps({"video": spec_id, "versions": versions}), encoding="utf-8")
+    pages = home.Pages(mv_ws)
+    try:
+        url = pages.start("sections", spec_id)
+        assert url.startswith("http://127.0.0.1:") and not url.endswith(":8645/")
+        assert json.loads(get(url + "api/state")[2])["render"] == "draft v1"
+        assert pages.start("sections", spec_id) == url                         # the same draft: the same page
+        numbered_video(media / "draft-v2.webm")
+        versions.append({**versions[0], "n": 2, "file": "media/draft-v2.webm"})
+        (media.parent / "versions.json").write_text(json.dumps({"video": spec_id, "versions": versions}), encoding="utf-8")
+        newer = pages.start("sections", spec_id)
+        assert json.loads(get(newer + "api/state")[2])["render"] == "draft v2"  # a newer draft: restarted on it
+    finally:
+        pages.close()

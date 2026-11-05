@@ -338,7 +338,7 @@ def cmd_requests(args) -> int:
         print(f"{len(found)} new request(s): take each one (requests --take <ref>) and carry it out")
         print(rq.describe(found))
         return 0
-    items = [(q.name, r) for q in rq.queues(ws, args.id) for r in (q.all() if args.all else q.open())]
+    items = [(q.name, r) for q in rq.queues(ws, args.id) for r in (q.all() if args.all else q.pending())]
     items.sort(key=lambda x: x[1]["at"])
     if args.json:
         print(json.dumps([{"ref": f"{n}:{r['id']}", **r} for n, r in items], indent=1, ensure_ascii=False))

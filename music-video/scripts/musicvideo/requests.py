@@ -201,7 +201,7 @@ class Requests:
                 req["video"] = video
         return self._change(rid, go)
 
-    def open(self) -> list[dict]:
+    def pending(self) -> list[dict]:
         """New and in-progress requests, oldest first."""
         return [r for r in self.all() if r["state"] != "done"]
 
