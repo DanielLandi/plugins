@@ -116,7 +116,9 @@ def test_video_context_names_the_missing_step(mv_ws, write_spec):
     assert studio.video_context(mv_ws, "night-drive").public == pub
 
 
-def test_the_engine_lives_in_the_install_folder(tmp_path):
+def test_the_engine_lives_in_the_install_folder(tmp_path, monkeypatch):
+    # The installed plugin (a copy in no git repo); a git checkout of the plugin has its own engine (test_mv_engine).
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", tmp_path / "cache" / "music-video" / "0.6.8" / "studio")
     assert studio.runtime_dir() == tmp_path / "install" / "engine"
 
 
@@ -124,7 +126,8 @@ def test_an_old_engine_in_the_cache_is_moved_not_reinstalled(tmp_path):
     old = tmp_path / "cache" / "studio"
     _tree(old, {"node_modules/remotion/index.js": "x", studio.LOCK_STAMP: "h"})
     assert studio.migrate_old_runtime() is True
-    assert (studio.runtime_dir() / "node_modules/remotion/index.js").is_file() and not old.exists()
+    # Into the installed plugin's engine, whichever plugin copy runs the move.
+    assert (tmp_path / "install" / "engine" / "node_modules/remotion/index.js").is_file() and not old.exists()
     _tree(old, {"node_modules/other.js": "y"})
     assert studio.migrate_old_runtime() is False  # the new one exists: leave both alone
     assert old.exists()

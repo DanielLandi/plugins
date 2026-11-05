@@ -9,9 +9,10 @@ import { wireSoundButton } from './sound-button';
 import { startStats } from './stats';
 // The video's own page styles (web/styles.css in its folder, e.g. self-hosted fonts), or nothing.
 import '@mv/web-styles';
-import scoreUrl from './.data/score.json?url';
+import scoreUrl from '@mv/web-data/score.json?url';
 
-// score.json: the song data the page draws from, and the audio loop's timing when the page has sound.
+// score.json (staged per build by tools/web.ts): the song data the page draws from, and the audio loop's timing when
+// the page has sound.
 type Score = { data: SongData; audio: (AudioMeta & { file: string }) | null };
 
 const params = new URLSearchParams(location.search);

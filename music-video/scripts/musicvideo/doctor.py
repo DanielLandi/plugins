@@ -5,7 +5,7 @@ import subprocess
 
 from . import studio
 from .errors import MVError
-from .workspace import load_workspace, workspace_home
+from .workspace import install_dir, load_workspace, workspace_home
 
 NEEDS = {
     "uv": "https://docs.astral.sh/uv/getting-started/installation/",
@@ -38,16 +38,28 @@ def run_doctor(install: bool = True) -> int:
     print("note the song steps need Chrome with the Claude in Chrome extension, signed in to your Suno account")
     if missing:
         return 1
+    # Before the lock: the lock file lives in the engine folder, and the move only runs while that folder is absent.
     if studio.migrate_old_runtime():
-        print(f"ok   moved the engine from the cache to {studio.runtime_dir()}")
-    rt = studio.sync_runtime()
-    if studio.is_installed(rt):
-        print(f"ok   video engine installed in {rt}")
-    elif install:
-        print(f"installing the video engine's packages in {rt} (about 1.7 GB, once)…", flush=True)
-        studio.install(rt)
-        print("ok   video engine installed")
-    else:
-        print("todo video engine not installed: run music-video doctor")
-        return 1
+        print(f"ok   moved the engine from the cache to {install_dir() / 'engine'}")
+    checkout = studio.plugin_checkout()
+    with studio.engine_lock(studio.runtime_dir()) as rt:
+        try:
+            studio.refuse_other_source(rt)
+        except MVError as e:
+            print(f"fix  {e}")
+            return 1
+        studio.sync_runtime(dest=rt)
+        studio.touch_owner(rt)
+        if not studio.is_installed(rt) and (seed := studio.seed_modules(rt)):
+            print(f"ok   video engine seeded from {seed}")
+        if studio.is_installed(rt):
+            print(f"ok   video engine for the checkout {checkout} in {rt}" if checkout
+                  else f"ok   video engine installed in {rt}")
+        elif install:
+            print(f"installing the video engine's packages in {rt} (about 1.7 GB, once)…", flush=True)
+            studio.install(rt)
+            print("ok   video engine installed")
+        else:
+            print("todo video engine not installed: run music-video doctor")
+            return 1
     return 0

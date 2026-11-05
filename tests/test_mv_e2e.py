@@ -5,6 +5,7 @@ import pytest
 
 from musicvideo import studio
 from musicvideo.cli import main
+from musicvideo.errors import MVError
 
 pytestmark = pytest.mark.studio
 
@@ -13,7 +14,9 @@ pytestmark = pytest.mark.studio
 def smoke_video(mv_ws, monkeypatch):
     """A fresh workspace video (the template) with the fixture song, rendered by the real, installed engine."""
     monkeypatch.delenv("MV_INSTALL_DIR")  # use the real, installed engine (work and results stay in tmp)
-    if not studio.is_installed(studio.runtime_dir()):
+    try:
+        studio.ensure_ready()  # a checkout's own engine is seeded from the installed one here
+    except MVError:
         pytest.skip("run music-video doctor first")
     assert main(["new-video", "smoke-test"]) == 0
     pub = mv_ws.work_for("smoke-test") / "public"
@@ -108,3 +111,31 @@ def test_a_web_tsx_without_its_web_export_fails_in_one_line(smoke_video, source,
     assert main(["web", "smoke-test", "--out", str(tmp_path / "page")]) == 2
     err = capfd.readouterr().err
     assert "must export `web`" in err and "SyntaxError" not in err and "    at " not in err
+
+
+def test_two_web_builds_at_once_keep_their_own_song_data(smoke_video, tmp_path):
+    import json
+    import threading
+    assert main(["new-video", "smoke-other"]) == 0
+    pub = smoke_video.work_for("smoke-other") / "public"
+    pub.mkdir(parents=True)
+    shutil.copy(smoke_video.work_for("smoke-test") / "public" / "timing.json", pub / "timing.json")
+    analysis = json.loads((smoke_video.work_for("smoke-test") / "public" / "analysis.json").read_text(encoding="utf-8"))
+    analysis["tempo"] = 133
+    (pub / "analysis.json").write_text(json.dumps(analysis), encoding="utf-8")
+    outs = {"smoke-test": tmp_path / "a", "smoke-other": tmp_path / "b"}
+    codes = {}
+    threads = [threading.Thread(target=lambda v=v: codes.__setitem__(v, main(["web", v, "--out", str(outs[v])])))
+               for v in outs]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert codes == {"smoke-test": 0, "smoke-other": 0}
+
+    def tempo(out):
+        (score,) = [p for p in (out / "assets").glob("*.json")]
+        return json.loads(score.read_text(encoding="utf-8"))["data"]["analysis"]["tempo"]
+    assert (tempo(outs["smoke-test"]), tempo(outs["smoke-other"])) == (120, 133)
+    entries = studio.runtime_dir() / ".entries"
+    assert not list(entries.glob("*/web-data-*"))  # each run's staging folder is gone

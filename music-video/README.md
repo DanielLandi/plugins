@@ -158,7 +158,7 @@ downloads per cycle), then starts at the concept.
 | Folder | Default (macOS) | What's in it |
 |---|---|---|
 | **Project** | `~/Documents/Music Videos/` (`init --path` for another) | `config.yaml`, `specs/<id>.yaml` (one per song), `albums/<album>.yaml`, `videos/<id>/` (each video's documents and scene code). Small: keep it in git if you like. |
-| **Install** | `~/Library/Application Support/music-video/` | the engine (Remotion, its browser, compilers, three.js) and the alignment models, installed once by `doctor` |
+| **Install** | `~/Library/Application Support/music-video/` | `engine/`: the engine (Remotion, its browser, compilers, three.js), installed once by `doctor`; the alignment models; `engines/<checkout>/`: an engine per git checkout of the plugin, seeded from `engine/` by hard links |
 | **Work** | `~/Library/Caches/music-video/work/<id>/` | everything regenerable: timings, vocals, previews, renders, checks. `clean <id>` frees it. |
 | **Results** | `~/Movies/Music Videos/` (`results_dir`) | `<id>/`: the final videos, thumbnail, subtitles, the song and `web/` (the live page); `albums/<album>/`: tagged MP3s and `manifest.json` |
 

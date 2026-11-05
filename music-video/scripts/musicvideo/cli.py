@@ -328,6 +328,7 @@ def cmd_doctor(args) -> int:
 def _prepare(video_id):
     ws = load_workspace()
     rt = studio.ensure_ready()
+    studio.take_lease(rt, video_id)  # released when the command ends (main)
     ctx = studio.video_context(ws, video_id)
     entry = studio.write_entry(rt, ctx.dir, video_id)
     return rt, ctx, entry, studio.tool_env(rt, ctx, entry)
@@ -553,3 +554,5 @@ def main(argv: list[str] | None = None, parser: argparse.ArgumentParser | None =
     except MVError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
+    finally:
+        studio.release_leases()

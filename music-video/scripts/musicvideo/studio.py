@@ -1,25 +1,34 @@
 """The Remotion engine runs from a writable copy in the OS cache (the plugin folder is read-only and replaced on
 update); its npm packages are installed there by `music-video doctor`. User videos stay in the workspace and are
 rendered through a generated entry file."""
+import contextlib
 import hashlib
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
+import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
+from . import __version__
 from .errors import MVError
 from .spec import is_instrumental
-from .workspace import Workspace, cache_dir, install_dir
+from .workspace import Workspace, cache_dir, folder_key, install_dir
 
 PLUGIN_STUDIO = Path(__file__).resolve().parents[2] / "studio"
 KEEP = {"node_modules", ".entries"}  # runtime-only folders, never synced or pruned
 LOCK_STAMP = ".installed-lock"
 SYNCED = ".synced.json"  # what the last sync copied: the only files a sync may delete
+SEED_SKIP = {".cache", ".vite", ".vite-temp"}  # tool caches written in place: never shared between engines
+LEASES = ".leases"  # one file per command using the engine (removed when it ends)
+LEASE_MAX_AGE = 48 * 3600  # a lease older than this is stale whatever its pid says (pids get reused)
+OWNER = ".owner.json"  # a checkout's engine: which checkout it serves, when it was last used
 ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 WEB_MARK = "<!-- built by music-video web -->"  # first line of a web build's README (tools/web-out.ts)
 
@@ -35,13 +44,48 @@ def check_web_out(out: Path) -> None:
                           "refusing to empty it; pick an empty folder")
 
 
+def plugin_checkout(studio_dir: Path | None = None) -> Path | None:
+    """The git working tree this plugin copy runs from, or None for the installed plugin. Claude Code runs a plugin
+    from its cache copy, which is in no git repo; only the plugin root and the repo root above it are looked at, so
+    a home folder kept in git never makes the installed plugin look like a checkout."""
+    studio_dir = studio_dir or PLUGIN_STUDIO
+    return next((d for d in (studio_dir.parent, studio_dir.parents[1]) if (d / ".git").exists()), None)
+
+
 def runtime_dir() -> Path:
-    return install_dir() / "engine"
+    """The installed plugin's engine is install/engine, as always; each git checkout of the plugin (a clone, a
+    worktree) gets install/engines/<checkout>, so two copies never sync over each other's engine."""
+    if value := os.environ.get("MV_ENGINE_DIR"):
+        return Path(value).expanduser().resolve()
+    checkout = plugin_checkout()
+    return install_dir() / "engine" if checkout is None else install_dir() / "engines" / folder_key(checkout)
+
+
+def touch_owner(rt: Path) -> None:
+    """A checkout's engine records which checkout it serves and when it was last used (at most hourly), so stale
+    engines can be found later. The installed engine has none."""
+    checkout = plugin_checkout()
+    if checkout is None:
+        return
+    path, now = rt / OWNER, time.time()
+    try:
+        owner = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        owner = {"created": _iso(now)}
+    if owner.get("checkout") == str(checkout) and now - owner.get("used_at", 0) < 3600:
+        return
+    owner.update(checkout=str(checkout), last_used=_iso(now), used_at=now)
+    rt.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(owner), encoding="utf-8")
+
+
+def _iso(t: float) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t))
 
 
 def migrate_old_runtime() -> bool:
     """0.1.0 installed the engine in the cache folder; move it (with its packages) instead of reinstalling."""
-    old, new = cache_dir() / "studio", runtime_dir()
+    old, new = cache_dir() / "studio", install_dir() / "engine"
     if not old.is_dir() or new.exists():
         return False
     new.parent.mkdir(parents=True, exist_ok=True)
@@ -49,33 +93,109 @@ def migrate_old_runtime() -> bool:
     return True
 
 
+def _plan(src: Path, dest: Path) -> tuple[list[str], list[str], list[str]]:
+    wanted, copy = [], []
+    for f in sorted(src.rglob("*")):
+        rel = f.relative_to(src)
+        if rel.parts[0] in KEEP or not f.is_file():
+            continue
+        wanted.append(rel.as_posix())
+        target, st = dest / rel, f.stat()
+        if not target.is_file() or target.stat().st_size != st.st_size or target.stat().st_mtime_ns != st.st_mtime_ns:
+            copy.append(rel.as_posix())
+    manifest = dest / SYNCED
+    before = set(json.loads(manifest.read_text(encoding="utf-8"))) if manifest.is_file() else set()
+    return wanted, copy, sorted(before - set(wanted))
+
+
+def sync_plan(src: Path, dest: Path) -> tuple[list[str], list[str]]:
+    """What a sync of src into dest would copy and delete (relative POSIX paths)."""
+    _, copy, delete = _plan(src, dest)
+    return copy, delete
+
+
 def sync_runtime(src: Path | None = None, dest: Path | None = None) -> Path:
     """Copy the plugin's engine into the runtime folder (only files that changed). Files a previous sync copied
     and the plugin no longer has are removed; nothing else in the folder is ever touched."""
     src = src or PLUGIN_STUDIO
     dest = dest or runtime_dir()
-    wanted = set()
-    for f in src.rglob("*"):
-        rel = f.relative_to(src)
-        if rel.parts[0] in KEEP or not f.is_file():
-            continue
-        wanted.add(rel.as_posix())
+    wanted, copy, delete = _plan(src, dest)
+    for rel in copy:
         target = dest / rel
-        st = f.stat()
-        if not target.is_file() or target.stat().st_size != st.st_size or target.stat().st_mtime_ns != st.st_mtime_ns:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(f, target)
-    manifest = dest / SYNCED
-    before = set(json.loads(manifest.read_text(encoding="utf-8"))) if manifest.is_file() else set()
-    for rel in sorted(before - wanted):
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src / rel, target)
+    for rel in delete:
         gone = dest / rel
         gone.unlink(missing_ok=True)
         for parent in gone.parents:
             if parent == dest or not parent.is_dir() or any(parent.iterdir()):
                 break
             parent.rmdir()
-    manifest.write_text(json.dumps(sorted(wanted)), encoding="utf-8")
+    dest.mkdir(parents=True, exist_ok=True)
+    (dest / SYNCED).write_text(json.dumps(wanted), encoding="utf-8")
     return dest
+
+
+def pid_alive(pid: int) -> bool:
+    if sys.platform == "win32":  # never os.kill here: on Windows it terminates the process
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259  # STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+_held: list[Path] = []
+
+
+def take_lease(rt: Path, video_id: str) -> Path:
+    """Mark the engine as in use by this command until it ends (release_leases), so that another plugin copy does
+    not sync over it or reinstall its packages mid-render."""
+    folder = rt / LEASES
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{os.getpid()}-{secrets.token_hex(4)}.json"
+    path.write_text(json.dumps({"pid": os.getpid(), "started": time.time(), "version": __version__,
+                                "source": str(PLUGIN_STUDIO), "video": video_id}), encoding="utf-8")
+    _held.append(path)
+    return path
+
+
+def release_leases() -> None:
+    while _held:
+        _held.pop().unlink(missing_ok=True)
+
+
+def live_leases(rt: Path) -> list[dict]:
+    """Leases of commands still running; dead, stale or unreadable ones are deleted on sight."""
+    live = []
+    for path in sorted((rt / LEASES).glob("*.json")) if (rt / LEASES).is_dir() else []:
+        try:
+            lease = json.loads(path.read_text(encoding="utf-8"))
+            ok = time.time() - float(lease["started"]) < LEASE_MAX_AGE and pid_alive(int(lease["pid"]))
+        except (OSError, ValueError, KeyError, TypeError):
+            ok = False
+        if ok:
+            live.append(lease)
+        else:
+            path.unlink(missing_ok=True)
+    return live
+
+
+def _in_use(lease: dict) -> str:
+    return (f"the engine is in use by music-video {lease.get('version')} (pid {lease.get('pid')}, "
+            f"video {lease.get('video')}): wait for it to finish, then run again")
 
 
 def lock_hash(rt: Path) -> str:
@@ -113,6 +233,11 @@ def install(rt: Path) -> None:
     if not npm:
         raise MVError("Node.js (npm) not found: install Node 20 or newer, then run music-video doctor")
     # --include=dev: the build tools (tsx, typescript) are dev dependencies, which an npm set to omit them would skip.
+    if leases := live_leases(rt):
+        raise MVError(_in_use(leases[0]))
+    # npm ci deletes and re-extracts node_modules: until it is done, the engine must not look installed (a checkout
+    # seeding from it then would link a half-extracted tree).
+    (rt / LOCK_STAMP).unlink(missing_ok=True)
     if subprocess.run([npm, "ci", "--include=dev", "--no-audit", "--no-fund"], cwd=rt).returncode:
         raise MVError(f"npm ci failed in {rt}")
     if subprocess.run([*tool(rt, "remotion"), "browser", "ensure"], cwd=rt).returncode:
@@ -120,10 +245,119 @@ def install(rt: Path) -> None:
     (rt / LOCK_STAMP).write_text(lock_hash(rt), encoding="utf-8")
 
 
+def find_seed(rt: Path) -> Path | None:
+    """An installed engine with the same packages as rt (same lock), to seed rt's node_modules from."""
+    others = install_dir() / "engines"
+    candidates = [install_dir() / "engine", *(sorted(others.iterdir()) if others.is_dir() else [])]
+    want = lock_hash(rt)
+    return next((c for c in candidates if c != rt and is_installed(c)
+                 and (c / LOCK_STAMP).read_text(encoding="utf-8") == want), None)
+
+
+def link_tree(src: Path, dest: Path, skip: frozenset[str] | set[str] = frozenset()) -> None:
+    """dest as a tree of hard links to src's files (symlinks re-created), leaving out the top-level names in skip.
+    npm ci replaces files rather than rewriting them, so a later install in src never changes dest. Where hard
+    links fail (another volume, an odd file system), dest becomes a full copy instead."""
+    def link(s: Path, d: Path, top: bool) -> None:
+        d.mkdir(parents=True, exist_ok=True)
+        with os.scandir(s) as entries:
+            for e in entries:
+                if top and e.name in skip:
+                    continue
+                target = d / e.name
+                if e.is_symlink():
+                    os.symlink(os.readlink(e.path), target)
+                elif e.is_dir():
+                    link(Path(e.path), target, False)
+                else:
+                    os.link(e.path, target)
+    try:
+        link(src, dest, True)
+    except OSError:
+        shutil.rmtree(dest, ignore_errors=True)
+        shutil.copytree(src, dest, symlinks=True, ignore=lambda folder, names: [
+            n for n in names if Path(folder) == src and n in skip])
+
+
+def seed_modules(rt: Path) -> Path | None:
+    """Give rt the packages of an engine with the same lock, by hard links: seconds, and almost no disk. Returns the
+    engine it seeded from, or None when there is none (then doctor installs them)."""
+    seed = find_seed(rt)
+    if seed is None:
+        return None
+    if leases := live_leases(rt):  # replacing node_modules under a running command breaks it, as npm ci would
+        raise MVError(_in_use(leases[0]))
+    shutil.rmtree(rt / "node_modules", ignore_errors=True)  # an earlier seed may have stopped half-way
+    link_tree(seed / "node_modules", rt / "node_modules", SEED_SKIP)
+    (rt / LOCK_STAMP).write_text(lock_hash(rt), encoding="utf-8")
+    return seed
+
+
+def refuse_other_source(rt: Path) -> None:
+    """Before a sync that would change files: another plugin copy (another version, across an update) may be
+    rendering from them. The same copy's own edits proceed, as always. Call under engine_lock."""
+    if any(sync_plan(PLUGIN_STUDIO, rt)):
+        for lease in live_leases(rt):
+            if lease.get("source") != str(PLUGIN_STUDIO):
+                raise MVError(_in_use(lease))
+
+
+@contextlib.contextmanager
+def engine_lock(rt: Path, timeout: float = 600.0, notice_after: float = 2.0):
+    """Only one command at a time changes an engine (sync, seed, install). Renders do not hold it, so they still
+    run side by side. Not re-entrant: taken by ensure_ready() and doctor only."""
+    rt.mkdir(parents=True, exist_ok=True)
+    with open(rt / ".lock", "a+b") as fd:
+        start, told = time.monotonic(), False
+        while not _try_lock(fd):
+            waited = time.monotonic() - start
+            if waited >= timeout:
+                raise MVError(f"another music-video command has been updating the engine in {rt} for "
+                              f"{max(1, round(timeout / 60))} minutes: try again when it ends")
+            if waited >= notice_after and not told:
+                print("waiting for another music-video command to finish updating the engine…", file=sys.stderr,
+                      flush=True)
+                told = True
+            time.sleep(0.1)
+        try:
+            yield rt
+        finally:
+            _unlock(fd)
+
+
+def _try_lock(fd) -> bool:
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+            fd.seek(0)
+            msvcrt.locking(fd.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except OSError:
+        return False
+
+
+def _unlock(fd) -> None:
+    if sys.platform == "win32":
+        import msvcrt
+        fd.seek(0)
+        msvcrt.locking(fd.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(fd.fileno(), fcntl.LOCK_UN)
+
+
 def ensure_ready() -> Path:
-    rt = sync_runtime()
+    with engine_lock(runtime_dir()) as rt:
+        refuse_other_source(rt)
+        sync_runtime(dest=rt)
+        if not is_installed(rt) and (seed := seed_modules(rt)):
+            print(f"seeded the engine for this checkout from {seed}", file=sys.stderr)
     if not is_installed(rt):
         raise MVError("the video engine's packages are not installed or are out of date: run music-video doctor")
+    touch_owner(rt)
     return rt
 
 
