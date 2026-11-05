@@ -101,6 +101,9 @@ def test_the_newest_draft_is_the_default_render(mv_ws, filed_song):
     (folder / "versions.json").write_text(json.dumps({"video": spec_id, "versions": versions}), encoding="utf-8")
     src = pick_source(mv_ws, spec_id)
     assert src["label"] == "draft v2" and src["file"] == folder / "media" / "draft-v2.mp4"
+    other = mv_ws.home / "draft-v7.mp4"
+    other.write_bytes(b"")
+    assert pick_source(mv_ws, spec_id, other, 3.0) == {"file": other.resolve(), "label": "draft v7", "start": 3.0}
 
 
 # --- the notes -------------------------------------------------------------------------------------------------
@@ -353,6 +356,9 @@ def test_each_card_keeps_its_place_and_buttons_explain_themselves(sections_serve
         page.evaluate(f"{tile}.pause(); {tile}.currentTime = 1.6")
         page.wait_for_function(f"!{tile}.seeking")
         page.locator(".card").nth(0).locator("[data-a=play]").click()
+        # the player is hidden as it lands on the street card (no glimpse of the sky's frame), then shows again
+        assert page.evaluate(f"{tile}.style.opacity") == "0"
+        page.wait_for_function(f"{tile}.style.opacity === ''", timeout=3000)
         page.wait_for_timeout(200)
         assert page.evaluate("sections.st.cur") == 0
         assert sky.locator(".screen img").get_attribute("src").startswith("data:image/jpeg")   # its paused frame
@@ -368,5 +374,18 @@ def test_each_card_keeps_its_place_and_buttons_explain_themselves(sections_serve
         assert "carries on into the next" in page.text_content("#tip")
         page.mouse.move(5, 5)
         page.wait_for_selector("#tip", state="hidden")
+        # once seen, it comes back only when the pointer rests on the button for 5 s
+        page.hover("#donward")
+        page.wait_for_timeout(1500)
+        assert page.is_hidden("#tip")
+        page.wait_for_selector("#tip:not([hidden])", timeout=6000)
+        page.mouse.move(5, 5)
+        # another button's tooltip still shows right away the first time
+        page.hover("#drawBtn")
+        page.wait_for_selector("#tip:not([hidden])", timeout=1500)
+        assert "draw on this frame" in page.text_content("#tip")
+        # the scene's note is in italics, the lyrics are not
+        assert page.evaluate("getComputedStyle(document.querySelector('#dnote')).fontStyle") == "italic"
+        assert page.evaluate("getComputedStyle(document.querySelector('#dlyrics')).fontStyle") == "normal"
         browser.close()
     assert errors == []

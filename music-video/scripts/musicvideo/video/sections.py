@@ -126,7 +126,8 @@ def pick_source(ws: Workspace, video_id: str, video: Path | None = None, start: 
         file = video.expanduser().resolve()
         if not file.is_file():
             raise MVError(f"{file} does not exist")
-        return {"file": file, "label": file.stem, "start": float(start or 0.0)}
+        label = re.sub(r"-v([0-9]+)$", r" v\1", file.stem)        # draft-v3.mp4 → draft v3, as kept versions read
+        return {"file": file, "label": label, "start": float(start or 0.0)}
     drafts = [v for v in load_versions(ws, video_id) if v["scene"] == "draft" and v.get("kind") == "video"]
     if not drafts:
         raise MVError(f"no draft of {video_id} kept yet: keep one (music-video version {video_id} <draft.mp4> "

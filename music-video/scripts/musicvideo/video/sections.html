@@ -66,7 +66,7 @@
                transform: translateX(-1px); }
   .tools { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px 0; }
   .tools button { padding: 3px 8px; font-size: 12px; }
-  .note { color: var(--dim); padding: 6px 10px 0; font-size: 12.5px; }
+  .note { color: var(--dim); padding: 6px 10px 0; font-size: 12.5px; font-style: italic; }
   .lyrics { padding: 6px 10px 10px; font-size: 13px; }
   .lyrics p { margin: 2px 0; color: #c9cdd5; }
   .lyrics span.sung { color: var(--accent); }
@@ -269,6 +269,7 @@ function drawFlow() {
     d.style.flex = `${s.to - s.from} 0 0`;
     d.style.background = colour(i);
     d.dataset.tip = `${i + 1} · ${s.id} · ${fmt(s.from)}–${fmt(s.to)}: click to play from there`;
+    d.dataset.tipKey = "flow";
     d.innerHTML = `<b>${i + 1}</b>${esc(s.id)}`;
     flow.append(d);
   });
@@ -362,6 +363,20 @@ function markNotes() {
   drawFlow();
 }
 
+// Seeking far shows the old frame until the new one is decoded: hide the player meanwhile (the card's picture or the
+// stage's black shows through), and bring it back with the first frame from the new place.
+function seekVeiled(v, t) {
+  if (Math.abs(v.currentTime - t) > 0.1) {
+    v.style.opacity = "0";
+    const show = () => { v.style.opacity = ""; };
+    v.addEventListener("seeked", () => {
+      if ("requestVideoFrameCallback" in v) v.requestVideoFrameCallback(show);
+      setTimeout(show, 300);   // in case no new frame is presented (already on it)
+    }, { once: true });
+  }
+  v.currentTime = t;
+}
+
 // Each card remembers where it was left (song time), and keeps showing that frame while the player is elsewhere.
 st.resume = {};
 function tileHost() { return cards.findIndex((c) => tileV.parentNode === c.screen); }
@@ -412,9 +427,9 @@ function startTile(i, song = null, stop = null) {
   st.stopAt = stop;
   const s = S[i];
   const now = songOf(tileV.currentTime);
-  if (song != null) tileV.currentTime = videoOf(song);
-  else if (arriving && st.resume[i] != null) tileV.currentTime = videoOf(st.resume[i]);
-  else if (now < s.from - 0.01 || now >= s.to - 0.05) tileV.currentTime = videoOf(s.from);
+  if (song != null) seekVeiled(tileV, videoOf(song));
+  else if (arriving && st.resume[i] != null) seekVeiled(tileV, videoOf(st.resume[i]));
+  else if (now < s.from - 0.01 || now >= s.to - 0.05) seekVeiled(tileV, videoOf(s.from));
   delete st.resume[i];
   tileV.play().catch(() => {});
   const r = cards[i].el.getBoundingClientRect();
@@ -427,7 +442,7 @@ function toggleTile(i) {
 }
 function seekTile(i, song) {
   moveTile(i);
-  tileV.currentTime = videoOf(song);
+  seekVeiled(tileV, videoOf(song));
 }
 
 function neighbours(i) {
@@ -509,7 +524,7 @@ function openSection(i, song = null) {
   }
   renderList();
   const t = song ?? s.from;
-  big.currentTime = atFrame(frameOf(videoOf(t)));
+  seekVeiled(big, atFrame(frameOf(videoOf(t))));
   detailTick(true);
   window.scrollTo(0, 0);
 }
@@ -521,7 +536,7 @@ function backToGrid() {
   $("detail").hidden = true; $("grid").hidden = false; $("overviewBar").hidden = false;
   if (location.hash) history.pushState(null, "", location.pathname);
   moveTile(st.cur);
-  tileV.currentTime = Math.max(videoOf(S[st.cur].from), Math.min(big.currentTime, videoOf(S[st.cur].to) - 0.05));
+  seekVeiled(tileV, Math.max(videoOf(S[st.cur].from), Math.min(big.currentTime, videoOf(S[st.cur].to) - 0.05)));
   tileTick();
   cards[st.cur].el.scrollIntoView({ block: "nearest" });
 }
@@ -914,6 +929,8 @@ addEventListener("popstate", () => {
 // tooltips: what a button does, shown a moment after the pointer (or the keyboard focus) reaches it
 const tip = $("tip");
 let tipTimer, tipFor = null;
+const seenTips = new Set();  // each kind of tooltip shows once a page load; after that only when the pointer rests 5 s
+const tipKey = (el) => el.dataset.tipKey || el.dataset.tip;
 function showTip(el) {
   tipFor = el;
   tip.textContent = el.dataset.tip;
@@ -929,9 +946,12 @@ document.addEventListener("pointerover", (e) => {
   const el = e.target.closest?.("[data-tip]");
   if (el === tipFor) return;
   hideTip();
-  if (el) tipTimer = setTimeout(() => showTip(el), 350);
+  if (el) tipTimer = setTimeout(() => { seenTips.add(tipKey(el)); showTip(el); }, seenTips.has(tipKey(el)) ? 5000 : 350);
 });
-document.addEventListener("focusin", (e) => { const el = e.target.closest?.("[data-tip]"); if (el && e.target.matches(":focus-visible")) showTip(el); });
+document.addEventListener("focusin", (e) => {
+  const el = e.target.closest?.("[data-tip]");
+  if (el && e.target.matches(":focus-visible") && !seenTips.has(tipKey(el))) { seenTips.add(tipKey(el)); showTip(el); }
+});
 document.addEventListener("focusout", hideTip);
 document.addEventListener("pointerdown", hideTip);
 addEventListener("keydown", hideTip, true);
