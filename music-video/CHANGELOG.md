@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.7.0
+
+- `sections <id>`: a new page for watching a draft and giving notes, laid out by the scenes in `scenes.ts`.
+  - Every section on one screen, in song order, under a strip that shows each to scale on the song. Each section
+    plays alone; **Play the flow** runs them in order with one player, so the joins play as they will; **With
+    neighbours** plays the end of the section before and the start of the next.
+  - Opening a section gives a large player of the draft itself, with frame stepping, a filmstrip (a frame a second),
+    its lyrics lighting up as sung, and its note from `scenes.ts`.
+  - A notes panel beside it: typing pauses the video, and the note keeps the frame on screen (song time, frame number,
+    which draft). **Draw on frame** grabs that frame at full size from the render, to mark with a pen, arrow, box or
+    circle; the drawing is saved over the frame with the note.
+  - Notes live in `<video>/notes/` (each with its frame as a JPEG, and the drawn frame).
+- `notes <id>`: the new notes in song order, with section, song time, frame, draft and image paths, for Claude to read
+  like notes typed in the chat; `--taken <round>` marks them as written into that round of `NOTES.md`.
+- The make skill opens the sections page on each draft and reads its notes into the next round.
+
 ## 0.6.9
 
 - A git checkout of the plugin (a clone or a worktree, for working on the plugin itself) uses its own engine in

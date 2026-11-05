@@ -217,14 +217,32 @@ Follow `references/storyboard.md`:
    ```
 
    Add `--hold a-b` to qc for every designed hold in `video.yaml`. Fix and re-render on any problem. Then keep it
-   as a version and open the review page (versions live in `<work>/review/`, so the render itself can be deleted
-   once kept; the review page holds every earlier draft):
+   as a version (versions live in `<work>/review/`, so the render itself can be deleted once kept; the review page
+   holds every earlier draft) and open the sections page on it:
 
    ```bash
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" version <id> "<renders>/draft-v<n>.mp4" --scene draft --note "Round <n-1>: <the notes it answers>"
-   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" review <id> --open
+   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" sections <id> --open
    ```
-4. Show the draft. Number the user's notes in `NOTES.md` under "Round <n>". Sort each into error or taste. The
+
+   The sections page lays the newest draft out by the scenes in `scenes.ts`: every section on one screen, each
+   playable alone, in order (**Play the flow**) or with its neighbours' joins. Opening a section gives a large player
+   with frame stepping, a filmstrip, and a notes panel: a note keeps the frame on screen (song time, frame number,
+   which draft), and **Draw on frame** marks a full-size frame with a pen, arrow, box or circle. Run it in the
+   background and give the user its address (`http://127.0.0.1:8645/`); it serves until stopped. Restart it on each
+   new draft (it shows the newest one when it starts; `--video <file> --start <s>` shows another render).
+4. Show the draft. When the user says their notes are in (or types more in the chat), read the page's notes:
+
+   ```bash
+   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" notes <id>
+   ```
+
+   It prints each new note with its section, song time, frame and draft, and the paths of its frame image and of the
+   frame with the user's drawing. Look at every drawn frame (and the frame of any note whose words point at
+   something on screen) before answering; the drawing shows where, the words say what. Treat them exactly like
+   notes typed in the chat. Write them into `NOTES.md` under "Round <n>" with their song times and image paths,
+   together with any notes from the chat, then mark them taken (`notes <id> --taken <n>`); taken notes stay on the
+   page, greyed, under their round. Number every note in the round and sort each into error or taste. The
    next version answers every note in `NOTES.md` (what changed, or why not; never just "addressed"). Changed
    sections can come back first as clips (`--frames=a-b`); a clip also goes through `mux --excerpt` and
    `qc --excerpt` before it is shown (hard rule 4), then `version <id> <clip> --scene <section> --excerpt <from>-<to>
