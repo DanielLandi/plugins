@@ -156,7 +156,7 @@
   .cmpbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
   .cmpbar label { font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
   .cmpbar label.pa { color: var(--accent); } .cmpbar label.pb { color: var(--blue); }
-  .cmpbar select { max-width: 260px; font-weight: 400; }
+  .cmpbar select { max-width: 250px; font-weight: 400; }
   .segs { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
   .segs button { border: 0; border-radius: 0; }
   .segs button.on { background: var(--line); color: var(--accent); }
@@ -212,7 +212,7 @@
     <span class="sp"></span>
     <span id="varchips"></span>
     <button id="variantBtn" data-tip="Ask Claude for a second version of this section, built another way, to compare with this one (V)">⧉ Make a variant<kbd>V</kbd></button>
-    <button id="cmpBtn" data-tip="Play this section in two versions (this draft, an earlier one, a variant) side by side, with a wipe, or flipping between them (C)">⇆ Compare<kbd>C</kbd></button>
+    <button id="cmpBtn" data-tip="Play this section in two versions (this draft, an earlier one, a variant) side by side, with a wipe, or flipping between them; C or Esc closes it (C)">⇆ Compare<kbd>C</kbd></button>
   </div>
   <div class="varbox" id="varbox" hidden>
     <label for="varText" id="varLabel">What should the variant try?</label>
@@ -229,7 +229,6 @@
           <span class="segs" id="cmpModes"><button data-mode="side" data-tip="Both at once (1)">Side by side</button><button data-mode="wipe" data-tip="One over the other; drag across to wipe between them (2)">Wipe</button><button data-mode="flip" data-tip="One at a time; click the picture or press F to flip (3)">Flip</button></span>
           <span class="segs" id="cmpSound"><button data-audio="a" data-tip="Hear A">Sound A</button><button data-audio="b" data-tip="Hear B">Sound B</button></span>
           <button id="cmpSwap" data-tip="Swap A and B (S)">⇄ Swap</button>
-          <button id="cmpClose" data-tip="Back to this draft alone (C or Esc)">✕ Close</button>
         </div>
         <div class="cstage side" id="cstage">
           <div class="pane a" id="cpaneA"><span class="clabel" id="clabelA">A</span><div class="cout">no footage at this time</div></div>
@@ -1000,7 +999,7 @@ function enterCompare() {
   cmp.on = true;
   $("cmp").hidden = false; $("single").hidden = true; $("drawBtn").hidden = true;
   $("cmpBtn").classList.add("on"); $("cmpSide").hidden = false;
-  const fill = (sel) => { sel.innerHTML = cmp.list.map((v) => `<option value="${esc(v.key)}">${esc(v.label)}${v.key ? "" : " (on this page)"}${v.kind === "video" ? ` · ${fmt(v.start)}–${fmt(v.start + v.duration)}` : " · a still"}</option>`).join(""); };
+  const fill = (sel) => { sel.innerHTML = cmp.list.map((v) => `<option value="${esc(v.key)}">${esc(v.label)}${v.key ? "" : " (this page)"}${v.kind === "video" ? ` · ${fmt(v.start)}–${fmt(v.start + v.duration)}` : " · a still"}</option>`).join(""); };
   fill($("cmpA")); fill($("cmpB"));
   const b = defaultB(cmp.list, s);
   const lone = !b;
@@ -1171,7 +1170,6 @@ function cToggle() { cmp.playing ? cPause() : cPlay(); }
 function cStep(d) { cPause(); cSeek(cmp.t + d / cFps()); }
 
 $("cmpBtn").addEventListener("click", () => (cmp.on ? leaveCompare() : enterCompare()));
-$("cmpClose").addEventListener("click", leaveCompare);
 $("cmpA").addEventListener("change", (e) => cSetPair(e.target.value, cmp.b));
 $("cmpB").addEventListener("change", (e) => cSetPair(cmp.a, e.target.value));
 $("cmpModes").addEventListener("click", (e) => { const m = e.target.closest("[data-mode]")?.dataset.mode; if (m) cMode(m); });
