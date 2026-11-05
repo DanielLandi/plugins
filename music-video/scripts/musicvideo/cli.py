@@ -277,6 +277,38 @@ def cmd_review(args) -> int:
     return 0
 
 
+def cmd_sections(args) -> int:
+    from .video import sections
+    sections.serve(load_workspace(), args.id, Path(args.video) if args.video else None, args.start, port=args.port,
+                   open_page=args.open)
+    return 0
+
+
+def cmd_notes(args) -> int:
+    from .video import sections
+    ws = load_workspace()
+    store = sections.Notes(sections.notes_dir(ws, args.id))
+    try:
+        order = sections.read_scenes(ws.video_dir(args.id))
+    except MVError:
+        order = None
+    if args.taken is not None:
+        taken = store.take(args.taken)
+        print(f"{len(taken)} note(s) marked as taken into Round {args.taken} of NOTES.md" if taken
+              else "no new notes to mark")
+        return 0
+    notes = store.all() if args.all else store.new()
+    if args.json:
+        print(json.dumps({"folder": str(store.folder), "notes": notes}, indent=1, ensure_ascii=False))
+        return 0
+    if not notes:
+        print(f"no new notes for {args.id} (the sections page saves them to {store.folder})")
+        return 0
+    print(f"{len(notes)} {'' if args.all else 'new '}note(s) for {args.id}, in song order:")
+    print(sections.describe(notes, store.folder, order))
+    return 0
+
+
 def cmd_paths(args) -> int:
     ws = load_workspace()
     meta_file = ws.video_dir(args.id) / "video.yaml"
@@ -434,7 +466,7 @@ def cmd_library(args) -> int:
 HANDLERS: dict = {"library": cmd_library, "web": cmd_web, "album": cmd_album, "loop": cmd_loop, "clean": cmd_clean, "new-video": cmd_new_video, "typecheck": cmd_typecheck, "studio": _remotion("studio"),
                   "render": _remotion("render"), "still": _remotion("still"), "stills": _tool("stills.ts", 1),
                   "blur": _tool("blur.ts", 1), "board": _tool("board.ts"), "doctor": cmd_doctor, "align": cmd_align, "analyze": cmd_analyze, "preview": cmd_preview, "edit-timing": cmd_edit_timing, "mux": cmd_mux,
-                  "qc": cmd_qc, "version": cmd_version, "review": cmd_review, "paths": cmd_paths, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
+                  "qc": cmd_qc, "version": cmd_version, "review": cmd_review, "sections": cmd_sections, "notes": cmd_notes, "paths": cmd_paths, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
                   "downloaded": cmd_downloaded, "status": cmd_status}
 
 
@@ -509,6 +541,17 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("review", help="the review page: every version of every scene, two at a time in sync")
     p.add_argument("id")
     p.add_argument("--open", action="store_true", help="open the page in the browser")
+    p = sub.add_parser("sections", help="every scene of the newest draft on one page; open one to watch it large and leave notes on its frames")
+    p.add_argument("id")
+    p.add_argument("--video", help="another render to show (default: the newest draft kept with version)")
+    p.add_argument("--start", type=float, help="the song time the --video render starts at, in seconds (default 0)")
+    p.add_argument("--port", type=int, default=8645)
+    p.add_argument("--open", action="store_true", help="open the page in the browser")
+    p = sub.add_parser("notes", help="the notes left on the sections page, for the next round of NOTES.md")
+    p.add_argument("id")
+    p.add_argument("--all", action="store_true", help="also the notes already taken into a round")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--taken", type=int, metavar="ROUND", help="mark every new note as taken into this round")
     p = sub.add_parser("new-video", help="start a video's code folder from the template")
     p.add_argument("id")
     p = sub.add_parser("typecheck", help="type-check a video's code against the engine")
