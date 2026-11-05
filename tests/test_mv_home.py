@@ -138,6 +138,8 @@ def test_files_come_only_from_the_videos_own_folders(home_server):
     status, headers, body = get(url + "/v/tide-clock/results/Tide%20Clock.mp4", {"Range": "bytes=0-1"})
     assert status == 206 and body == b"de" and headers["Content-Type"] == "video/mp4"
     (ws.results_for("tide-clock") / "notes.txt").write_text("private", encoding="utf-8")
+    (ws.results_for("tide-clock") / "Água Viva (it's late).srt").write_text("1", encoding="utf-8")
+    assert get(url + "/v/tide-clock/results/%C3%81gua%20Viva%20(it's%20late).srt")[2] == b"1"
     review = ws.work_for("paper-boats") / "review"
     (review / "index.html").write_text("<p>review</p>", encoding="utf-8")
     assert get(url + "/v/paper-boats/review/index.html")[2] == b"<p>review</p>"

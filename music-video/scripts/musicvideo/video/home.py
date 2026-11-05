@@ -348,13 +348,11 @@ def detail(ws: Workspace, video_id: str) -> dict:
 
 # --- files a video's view links to --------------------------------------------------------------------------------
 
-SAFE_PART = re.compile(r"^[A-Za-z0-9][\w .()+-]*$")
-
-
 def _inside(base: Path, rel: str) -> Path | None:
-    """base/rel when every part is plain (no dots or underscores first, no `..`) and it stays inside base."""
+    """base/rel when no part starts with a dot or an underscore (hidden and working files, `..`) and it stays
+    inside base."""
     parts = [p for p in rel.split("/") if p]
-    if not parts or any(not SAFE_PART.match(p) for p in parts):
+    if not parts or any(p.startswith((".", "_")) or "\\" in p or "\x00" in p or ":" in p for p in parts):
         return None
     target = base.joinpath(*parts)
     try:
