@@ -94,6 +94,28 @@ def test_cli_lists_takes_and_finishes_requests(mv_ws, video, capsys):
     assert len(json.loads(capsys.readouterr().out)) == 2
 
 
+def test_two_requests_at_once_are_both_kept(mv_ws, video, monkeypatch):
+    # the page's server takes each click on its own thread, with a queue object of its own: a slow write must not let
+    # the second click read the old list and write over the first
+    write = rq.Requests._write
+    monkeypatch.setattr(rq.Requests, "_write", lambda self, reqs, top: (time.sleep(0.1), write(self, reqs, top))[1])
+    start = threading.Barrier(2)
+
+    def click(note):
+        q = rq.video_queue(mv_ws, video)
+        start.wait()
+        q.add("message", {"note": note})
+    threads = [threading.Thread(target=click, args=(n,)) for n in ("approve it", "make the boats red")]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    reqs = rq.video_queue(mv_ws, video).all()
+    assert sorted(r["data"]["note"] for r in reqs) == ["approve it", "make the boats red"]
+    assert sorted(r["id"] for r in reqs) == ["r1", "r2"]
+    assert [f.name for f in (mv_ws.video_dir(video) / "requests").iterdir()] == ["requests.json"]
+
+
 def test_wait_returns_when_a_request_arrives_and_times_out_otherwise(mv_ws, video, capsys):
     assert rq.wait_for_new(mv_ws, timeout=0.3, every=0.05) == []
     q = rq.video_queue(mv_ws, video)

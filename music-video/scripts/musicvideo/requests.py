@@ -8,6 +8,7 @@ its progress. One queue per video, `<video>/requests/requests.json`, and one for
 A request is addressed as `<video>:<id>` (`night-drive:r3`), the home's queue as `_home:<id>`.
 """
 import json
+import os
 import threading
 import time
 from datetime import datetime
@@ -33,6 +34,18 @@ KINDS = {
     "clean": ({"note"}, "video"),
     "message": ({"note"}, "video"),
 }
+_LOCKS: dict[str, threading.Lock] = {}
+_LOCKS_LOCK = threading.Lock()
+
+
+def _lock_for(file: Path) -> threading.Lock:
+    """One lock per queue file in this process: the pages' servers handle each request on its own thread, with a
+    queue object of its own, and two quick clicks must not both read the old list and write over each other."""
+    key = os.path.abspath(file)
+    with _LOCKS_LOCK:
+        return _LOCKS.setdefault(key, threading.Lock())
+
+
 STAGES = ("concept", "lyrics", "song", "timing", "look", "sample", "production", "delivery", "web", "cleanup")
 
 
@@ -114,7 +127,7 @@ class Requests:
     def __init__(self, folder: Path, name: str):
         self.folder, self.name = folder, name
         self.file = folder / "requests.json"
-        self.lock = threading.Lock()
+        self.lock = _lock_for(self.file)
 
     def all(self) -> list[dict]:
         if not self.file.is_file():
@@ -127,7 +140,7 @@ class Requests:
 
     def _write(self, reqs: list[dict], top: int) -> None:
         self.folder.mkdir(parents=True, exist_ok=True)
-        tmp = self.file.with_suffix(".tmp")
+        tmp = self.file.with_name(f"requests.{os.getpid()}.{threading.get_ident()}.tmp")   # a writer's own
         tmp.write_text(json.dumps({"last": top, "requests": reqs}, indent=1, ensure_ascii=False), encoding="utf-8")
         tmp.replace(self.file)
 
