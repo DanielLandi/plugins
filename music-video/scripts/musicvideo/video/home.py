@@ -226,7 +226,8 @@ def summary(ws: Workspace, video_id: str) -> dict:
     gen = generator_name(spec)
     waiting = _waiting(meta, STAGES[i][0], lyrics, read_directions(folder / "directions.yaml", gen),
                        read_takes(spec), spec, open_reqs)
-    title = str((spec or {}).get("title") or (lyrics["final"] or {}).get("title") or meta.get("title") or video_id)
+    title = str((spec or {}).get("title") or (lyrics["final"] or {}).get("title") or meta.get("title")
+                or video_id.replace("-", " ").title())
     return {"id": video_id, "kind": "video", "title": title, "topic": str(meta.get("topic") or ""),
             "stage": i + 1, "stage_key": STAGES[i][0], "stage_name": STAGES[i][1], "done": meta.get("step") == "done",
             "waiting": waiting, "requests": len(open_reqs), "notes": _new_notes(ws, video_id),
@@ -310,13 +311,13 @@ def detail(ws: Workspace, video_id: str) -> dict:
     if (song_work / "preview.mp4").is_file():
         links["timing"].append({"label": "Karaoke preview", "kind": "video", "href": f"/v/{video_id}/preview.mp4"})
     if (song_work / "public" / "timing.json").is_file() and spec and spec.get("status") == "filed":
-        links["timing"].append({"label": "Timing editor", "kind": "open", "page": "timing"})
+        links["timing"].append({"label": "timing editor", "kind": "open", "page": "timing"})
     if review_page.is_file():
         links["sample"].append({"label": "Review page (every version)", "kind": "link",
                                 "href": f"/v/{video_id}/review/index.html"})
     if drafts:
-        links["production"].append({"label": f"Sections page (draft v{max(v['n'] for v in drafts)}): notes, Compare, "
-                                             "variants", "kind": "open", "page": "sections"})
+        links["production"].append({"label": f"sections page (draft v{max(v['n'] for v in drafts)})",
+                                    "kind": "open", "page": "sections"})
     if review_page.is_file():
         links["production"].append({"label": "Review page (every version)", "kind": "link",
                                     "href": f"/v/{video_id}/review/index.html"})

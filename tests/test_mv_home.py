@@ -168,3 +168,70 @@ def test_opening_a_page_needs_what_it_shows(home_server):
     assert status == 400 and "no draft of lantern-lake" in data["error"]
     status, data = post(url + "/api/open", {"video": "lantern-lake", "page": "shell"})
     assert status == 400 and "no page" in data["error"]
+
+
+# --- the page --------------------------------------------------------------------------------------------------
+
+def test_the_page_queues_what_the_user_decides_and_shows_progress(home_server, browser_ok):
+    from playwright.sync_api import sync_playwright
+    url, ws = home_server
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1400, "height": 900})
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(url + "/")
+        page.evaluate("home.ready")
+        assert page.locator(".card").count() == 4
+        assert "Waiting for you: pick a lyric" in page.text_content(".card[data-id=lantern-lake]")
+        # a new video from a topic
+        page.fill("#topic", "fireflies in a jar, let go at dawn")
+        page.fill("#topicNote", "in Portuguese")
+        page.click("#newBtn")
+        page.wait_for_function("document.querySelectorAll('.qrow').length === 2")
+        assert rq.home_queue(ws).all()[-1]["data"] == {"topic": "fireflies in a jar, let go at dawn", "note": "in Portuguese"}
+        # the lyric options side by side: pick B with a note
+        page.click(".card[data-id=lantern-lake]")
+        page.wait_for_selector(".opt")
+        assert page.locator(".opt").count() == 3
+        page.locator(".opt[data-option=B] [data-pick]").click()
+        page.locator(".opt[data-option=B] textarea").fill("take the chorus from A")
+        page.wait_for_timeout(2300)                           # a poll redraws the page: the note stays
+        assert page.locator(".opt[data-option=B] textarea").input_value() == "take the chorus from A"
+        page.locator(".opt[data-option=B] textarea").press("Enter")
+        page.wait_for_selector(".opt.picked")
+        req = rq.video_queue(ws, "lantern-lake").all()[-1]
+        assert (req["kind"], req["data"]) == ("pick-lyric", {"round": 1, "option": "B", "note": "take the chorus from A"})
+        # Claude takes it in the CLI: the page shows it is on it, with its message
+        rq.video_queue(ws, "lantern-lake").take(req["id"], "merging B with the chorus of A")
+        page.wait_for_selector(".req .st.taken", timeout=6000)
+        assert "merging B with the chorus of A" in page.text_content("#reqs")
+        # a take: two clicks name it
+        page.goto(url + "/#/v/kite-weather")
+        page.wait_for_selector("[data-take]")
+        first = page.locator("[data-take]").first
+        take_url = first.get_attribute("data-take")
+        first.click()
+        assert first.text_content() == "Download this one?" and rq.video_queue(ws, "kite-weather").all() == []
+        first.click()
+        page.wait_for_function("!document.querySelector('[data-take]')")
+        req = rq.video_queue(ws, "kite-weather").all()[-1]
+        assert (req["kind"], req["data"]["url"], req["data"]["round"]) == ("use-take", take_url, 2)
+        # approve a stage with a note, and tell Claude something
+        page.goto(url + "/#/v/paper-boats")
+        page.wait_for_selector("[data-keep=approve-production]")
+        page.fill("[data-keep=approve-production]", "lovely; a longer ending")
+        page.locator("[data-keep=approve-production]").press("Enter")
+        page.fill("#msg", "can the boats be red?")
+        page.click("#msgBtn")
+        page.wait_for_function("document.querySelectorAll('#reqs .req').length === 3")
+        kinds = [(r["kind"], r["data"].get("note")) for r in rq.video_queue(ws, "paper-boats").all()]
+        assert kinds[1:] == [("approve", "lovely; a longer ending"), ("message", "can the boats be red?")]
+        # cancel the message while it is still new
+        page.locator("#reqs .req", has_text="can the boats be red").locator("[data-cancel]").click()
+        page.wait_for_function("document.querySelectorAll('#reqs .req').length === 2")
+        # every stage can be opened
+        page.click("nav.stages button[data-stage=delivery]")
+        assert "No finals yet" in page.text_content("#panel")
+        browser.close()
+    assert errors == []

@@ -1,1 +1,627 @@
-<!doctype html><title>home</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>music-video · home</title>
+<style>
+  :root {
+    --bg: #111317; --panel: #1a1d23; --panel2: #20242b; --line: #2a2e37; --text: #e7e9ee; --dim: #9aa0ab;
+    --accent: #ffb547; --play: #5ad1a0; --ink: #ff4d4d; --blue: #6fb6ff; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, sans-serif; }
+  a { color: var(--blue); }
+  button, select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+                   padding: 5px 10px; font: inherit; cursor: pointer; }
+  button:hover { border-color: #4a5060; }
+  button.primary { background: var(--accent); color: #17130a; border-color: var(--accent); font-weight: 600; }
+  button.sure { background: var(--ink); border-color: var(--ink); color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+  textarea, input[type=text] { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line);
+                               border-radius: 6px; padding: 7px 8px; font: inherit; }
+  textarea { min-height: 64px; resize: vertical; }
+  textarea:focus, input:focus { outline: none; border-color: var(--accent); }
+  .mono { font-family: var(--mono); }
+  .dim { color: var(--dim); }
+  header { position: sticky; top: 0; z-index: 5; background: rgba(17, 19, 23, .96); border-bottom: 1px solid var(--line);
+           padding: 10px 16px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 650; }
+  header h1 a { color: var(--text); text-decoration: none; }
+  header h1 small { color: var(--dim); font-weight: 400; margin-left: 6px; font-size: 13px; }
+  .dl { font: 12.5px var(--mono); color: var(--dim); margin-left: auto; }
+  .dl b { color: var(--text); font-weight: 600; }
+  main { padding: 14px 16px 50px; max-width: 1500px; margin: 0 auto; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--dim); margin: 22px 0 8px; font-weight: 600; }
+
+  /* the list */
+  .newvid { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+            display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+  .newvid label { font-size: 12.5px; color: var(--dim); display: block; margin-bottom: 4px; }
+  .newvid h3 { grid-column: 1 / -1; margin: 0; font-size: 15px; }
+  .newvid textarea { min-height: 42px; }
+  .how { color: var(--dim); font-size: 12.5px; margin: 8px 2px 0; }
+  .queued { display: grid; gap: 6px; margin-top: 10px; }
+  .qrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; background: var(--panel2);
+          border: 1px dashed #3a404c; border-radius: 8px; padding: 8px 10px; }
+  .qrow .t { font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+  .card { display: flex; flex-direction: column; gap: 6px; background: var(--panel); border: 1px solid var(--line);
+          border-radius: 10px; padding: 12px; color: inherit; text-decoration: none; }
+  .card:hover { border-color: #4a5060; }
+  .card.waits { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(255,181,71,.35); }
+  .card .top { display: flex; align-items: baseline; gap: 8px; }
+  .card .title { font-weight: 650; font-size: 15px; }
+  .card .id { margin-left: auto; color: var(--dim); font: 11.5px var(--mono); }
+  .card .topic { color: var(--dim); font-size: 12.5px; font-style: italic; }
+  .ten { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+  .ten i { height: 6px; border-radius: 2px; background: #2b3039; }
+  .ten i.done { background: #4e8f75; }
+  .ten i.now { background: var(--accent); }
+  .stage { font-size: 12.5px; color: var(--dim); }
+  .stage b { color: var(--text); }
+  .wait { color: var(--accent); font-size: 13px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 11.5px; border: 1px solid var(--line); border-radius: 9px; padding: 0 7px; color: var(--dim); }
+  .chip.hot { color: var(--accent); border-color: rgba(255,181,71,.5); }
+  .songs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .songs span.song { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+
+  /* a video */
+  .vtop { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin-bottom: 12px; }
+  .vtop h2 { all: unset; font-size: 19px; font-weight: 650; }
+  .vmain { display: grid; grid-template-columns: 210px minmax(0, 1fr) 330px; gap: 14px; align-items: start; }
+  nav.stages { display: flex; flex-direction: column; gap: 3px; position: sticky; top: 58px; }
+  nav.stages button { display: grid; grid-template-columns: 22px 1fr auto; gap: 6px; align-items: center; text-align: left;
+                      border-color: transparent; background: none; padding: 6px 8px; }
+  nav.stages button .n { font: 600 11.5px var(--mono); color: var(--dim); }
+  nav.stages button .s { font-size: 11px; color: var(--dim); }
+  nav.stages button.done .n, nav.stages button.done .s { color: #74c9a6; }
+  nav.stages button.now { background: var(--panel); border-color: var(--accent); }
+  nav.stages button.now .s { color: var(--accent); }
+  nav.stages button.sel { background: var(--panel2); border-color: #4a5060; }
+  nav.stages button.now.sel { border-color: var(--accent); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+  .panel > h3 { margin: 0 0 4px; font-size: 17px; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+  .panel > h3 .state { font-size: 12px; font-weight: 500; color: var(--dim); }
+  .panel .lead { color: var(--dim); margin: 0 0 12px; }
+  .links { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; align-items: center; }
+  .box { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 12px 0; background: var(--panel2); }
+  .opt .box { margin: 4px 0 0; padding: 8px; background: var(--bg); }
+  .box h4 { margin: 0 0 6px; font-size: 13px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+  .row .grow { flex: 1; }
+  pre.text { white-space: pre-wrap; font: 13px/1.5 system-ui, -apple-system, sans-serif; margin: 0; }
+  .tag { color: var(--dim); font-size: 12px; }
+  .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+  .opt { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex;
+         flex-direction: column; gap: 6px; }
+  .opt.picked { border-color: var(--play); }
+  .opt .k { display: inline-block; font: 600 12px var(--mono); background: var(--accent); color: #17130a; border-radius: 4px;
+            padding: 0 6px; margin-right: 6px; }
+  .opt .angle { color: var(--dim); font-size: 12.5px; font-style: italic; }
+  .opt pre { flex: 1; }
+  .final { border-left: 3px solid var(--play); padding-left: 12px; margin: 6px 0 14px; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { color: var(--dim); font-weight: 500; font-size: 12px; }
+  .dirs label { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .dirs label small { grid-column: 2; color: var(--dim); }
+  .sheets { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+  .sheets figure { margin: 0; }
+  .sheets img { width: 100%; border-radius: 6px; background: #000; display: block; }
+  .sheets figcaption { font-size: 12px; color: var(--dim); margin-top: 3px; }
+  video.preview { width: 100%; max-height: 60vh; background: #000; border-radius: 6px; }
+  ul.plain { list-style: none; padding: 0; margin: 6px 0; }
+  ul.plain li { padding: 4px 0; border-bottom: 1px solid var(--line); }
+  aside.side { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 58px; max-height: calc(100vh - 70px); }
+  aside.side .panel { padding: 12px; }
+  aside.side h4 { margin: 0 0 6px; font-size: 13px; }
+  .reqs { overflow-y: auto; min-height: 0; }
+  .req { border-top: 1px solid var(--line); padding: 7px 0; font-size: 13px; }
+  .req:first-of-type { border-top: 0; }
+  .req .st { font: 11px var(--mono); border-radius: 9px; padding: 0 7px; margin-right: 6px; }
+  .req .st.new { background: #3a3220; color: var(--accent); }
+  .req .st.taken { background: #1f3a30; color: var(--play); }
+  .req .st.done { background: #262a32; color: var(--dim); }
+  .req .msg { color: var(--dim); font-size: 12.5px; margin-top: 2px; }
+  .req .when { color: var(--dim); font: 11px var(--mono); float: right; }
+  .err { color: #ff8a8a; }
+  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #2b303a; padding: 7px 14px;
+           border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 40; max-width: 90vw; }
+  .toast.show { opacity: 1; }
+  .toast.err { background: #6a2020; }
+  @media (max-width: 1150px) { .vmain { grid-template-columns: 190px minmax(0, 1fr); } aside.side { grid-column: 1 / -1; position: static; max-height: none; } }
+  @media (max-width: 760px) {
+    .vmain { grid-template-columns: 1fr; }
+    nav.stages { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .newvid { grid-template-columns: 1fr; }
+    .dl { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><a href="#/">music-video</a><small id="sub">home</small></h1>
+  <span class="dl" id="dl"></span>
+</header>
+
+<main id="list" hidden>
+  <form class="newvid" id="newForm">
+    <h3>New video</h3>
+    <div><label for="topic">What is it about?</label>
+      <textarea id="topic" data-keep="topic" placeholder="a topic, a feeling, a story: Claude writes the concept and lyric options from it"></textarea></div>
+    <div><label for="topicNote">Anything else? (optional)</label>
+      <textarea id="topicNote" data-keep="topicNote" placeholder="genre, language, length, who it is for…"></textarea></div>
+    <button class="primary" id="newBtn" type="submit">Queue it</button>
+  </form>
+  <p class="how">Buttons on these pages queue requests; Claude carries them out in the terminal (it picks them up while it
+    waits on the home, or when you say “check the home”), and each one shows its progress here.</p>
+  <div class="queued" id="queued"></div>
+  <h2>Videos</h2>
+  <div class="cards" id="cards"></div>
+  <div id="songsWrap"><h2>Songs without a video</h2><div class="songs" id="songs"></div></div>
+</main>
+
+<main id="video" hidden>
+  <div class="vtop" id="vtop"></div>
+  <div class="vmain">
+    <nav class="stages" id="stages"></nav>
+    <section class="panel" id="panel"></section>
+    <aside class="side">
+      <div class="panel">
+        <h4>Tell Claude</h4>
+        <textarea id="msg" data-keep="msg" placeholder="Anything about this video: a change, a question, a stage to redo…"></textarea>
+        <div class="row"><span class="dim grow" style="font-size:12px">Enter sends · Shift+Enter new line</span>
+          <button class="primary" id="msgBtn">Send</button></div>
+      </div>
+      <div class="panel reqs"><h4>Requests</h4><div id="reqs"></div></div>
+    </aside>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const st = { route: null, data: null, raw: "", sel: null, open: new Set(), sure: null };
+
+let toastTimer;
+function toast(msg, err = false) {
+  const t = $("toast"); t.textContent = msg; t.classList.toggle("err", err); t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), err ? 5000 : 2200);
+}
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  return data;
+}
+async function ask(video, kind, data, done) {
+  try {
+    const r = await post("/api/request", { video, kind, data });
+    toast(`Queued for Claude: ${r.request.text}`);
+    done?.();
+    await refresh(true);
+    return r.request;
+  } catch (e) { toast(e.message, true); }
+}
+const ago = (iso) => {
+  if (!iso) return "";
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" });
+};
+const lyricsHtml = (text) => esc(text).split("\n").map((l) => (/^\[.*\]$/.test(l.trim()) ? `<span class="tag">${l}</span>` : l)).join("\n");
+const mb = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(n / 1e6))} MB`);
+const reqState = (r) => (r.state === "new" ? "waiting for Claude" : r.state === "taken" ? "Claude is on it" : "done");
+
+// Inputs keep what was typed (and ticked, and focused) when the page redraws with new data.
+function keepInputs() {
+  const kept = {};
+  document.querySelectorAll("[data-keep]").forEach((el) => { kept[el.dataset.keep] = el.type === "checkbox" ? el.checked : el.value; });
+  const a = document.activeElement;
+  return { kept, focus: a?.dataset?.keep, sel: a && "selectionStart" in a ? [a.selectionStart, a.selectionEnd] : null };
+}
+function restoreInputs({ kept, focus, sel }) {
+  document.querySelectorAll("[data-keep]").forEach((el) => {
+    if (!(el.dataset.keep in kept)) return;
+    if (el.type === "checkbox") el.checked = kept[el.dataset.keep]; else el.value = kept[el.dataset.keep];
+  });
+  if (focus) {
+    const el = document.querySelector(`[data-keep="${CSS.escape(focus)}"]`);
+    if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(...sel); } catch (_) {} }
+  }
+}
+
+// ---------------------------------------------------------------- the list
+const ten = (stage) => `<div class="ten">${Array.from({ length: 10 }, (_, k) => `<i class="${k + 1 < stage ? "done" : k + 1 === stage ? "now" : ""}"></i>`).join("")}</div>`;
+
+function renderList(d) {
+  document.title = "music-video · home";
+  $("sub").textContent = `home · ${d.artist}`;
+  $("dl").innerHTML = d.downloads ? `Downloads: <b>${d.downloads.left}</b> left of ${d.downloads.budget} this cycle` : "";
+  const q = $("queued");
+  q.innerHTML = "";
+  for (const r of d.queued) {
+    const row = document.createElement("div");
+    row.className = "qrow";
+    row.innerHTML = `<span class="chip hot">${esc(reqState(r))}</span><span class="t">${esc(r.data.topic)}</span>
+      ${r.data.note ? `<span class="dim">${esc(r.data.note)}</span>` : ""}${r.message ? `<span class="dim">· ${esc(r.message)}</span>` : ""}
+      <span class="dim mono" style="margin-left:auto;font-size:11.5px">${esc(ago(r.at))}</span>
+      ${r.state === "new" ? `<button data-cancel>Cancel</button>` : ""}`;
+    row.querySelector("[data-cancel]")?.addEventListener("click", async () => {
+      try { await post("/api/request", { video: null, action: "cancel", id: r.id }); toast("Cancelled"); refresh(true); } catch (e) { toast(e.message, true); }
+    });
+    q.append(row);
+  }
+  for (const r of d.started) {
+    if (!r.video) continue;
+    const row = document.createElement("div");
+    row.className = "qrow";
+    row.innerHTML = `<span class="chip">started</span><span class="t">${esc(r.data.topic)}</span>
+      <a href="#/v/${esc(r.video)}">${esc(r.video)} →</a>${r.message ? `<span class="dim">${esc(r.message)}</span>` : ""}`;
+    q.append(row);
+  }
+  const cards = $("cards");
+  cards.innerHTML = d.videos.length ? "" : `<p class="dim">No videos yet: queue one above, or ask Claude for one in the chat.</p>`;
+  for (const v of d.videos) {
+    const a = document.createElement("a");
+    a.className = "card" + (v.waiting ? " waits" : "");
+    a.href = `#/v/${v.id}`;
+    a.dataset.id = v.id;
+    const chips = [];
+    if (v.requests) chips.push(`<span class="chip hot">${v.requests} request${v.requests > 1 ? "s" : ""} for Claude</span>`);
+    if (v.notes) chips.push(`<span class="chip">${v.notes} new note${v.notes > 1 ? "s" : ""}</span>`);
+    if (v.error) chips.push(`<span class="chip err">${esc(v.error)}</span>`);
+    a.innerHTML = `<div class="top"><span class="title">${esc(v.title)}</span><span class="id">${esc(v.id)}</span></div>
+      ${ten(v.stage)}
+      <div class="stage"><b>${v.stage} · ${esc(v.stage_name)}</b>${v.done ? " · delivered" : ""}</div>
+      ${v.waiting ? `<div class="wait">✋ Waiting for you: ${esc(v.waiting)}</div>` : ""}
+      ${chips.length ? `<div class="chips">${chips.join("")}</div>` : ""}
+      ${v.topic ? `<div class="topic">${esc(v.topic)}</div>` : ""}`;
+    cards.append(a);
+  }
+  $("songsWrap").hidden = !d.songs.length;
+  $("songs").innerHTML = d.songs.map((s) => `<span class="song">${esc(s.title)} <span class="dim">· ${esc(s.status)}${s.takes ? ` · ${s.takes} takes` : ""}</span></span>`).join("");
+}
+$("newForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const topic = $("topic").value.trim();
+  if (!topic) { toast("Write what the video is about first", true); $("topic").focus(); return; }
+  ask(null, "new-video", { topic, note: $("topicNote").value.trim() }, () => { $("topic").value = ""; $("topicNote").value = ""; });
+});
+$("topic").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("newBtn").click(); } });
+
+// ---------------------------------------------------------------- a video
+const STATE_LABEL = { done: "done", now: "now", later: "", optional: "optional" };
+function renderVideo(v) {
+  document.title = `${v.title} · music-video`;
+  $("sub").textContent = v.id;
+  $("dl").innerHTML = v.downloads ? `Downloads: <b>${v.downloads.left}</b> left of ${v.downloads.budget} this cycle` : "";
+  $("vtop").innerHTML = `<button id="backBtn">← All videos</button><h2>${esc(v.title)}</h2>
+    <span class="stage"><b>${v.stage} · ${esc(v.stage_name)}</b>${v.done ? " · delivered" : ""}</span>
+    ${v.waiting ? `<span class="wait">✋ Waiting for you: ${esc(v.waiting)}</span>` : ""}`;
+  $("backBtn").addEventListener("click", () => { location.hash = "#/"; });
+  const now = v.stages.find((s) => s.state === "now") || v.stages[v.stage - 1];
+  if (!st.sel || !v.stages.some((s) => s.key === st.sel)) st.sel = now.key;
+  $("stages").innerHTML = v.stages.map((s) => `<button class="${s.state}${s.key === st.sel ? " sel" : ""}" data-stage="${s.key}">
+      <span class="n">${s.n}</span><span>${s.hand ? "✋ " : ""}${esc(s.name)}</span><span class="s">${STATE_LABEL[s.state]}</span></button>`).join("");
+  $("stages").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { st.sel = b.dataset.stage; st.sure = null; render(); }));
+  const s = v.stages.find((x) => x.key === st.sel);
+  const panel = $("panel");
+  panel.innerHTML = `<h3>${s.n} · ${esc(s.name)} <span class="state">${s.state === "now" && v.waiting ? "waiting for you" : esc(STATE_LABEL[s.state] || "later")}</span></h3>`;
+  PANELS[s.key](panel, v, s);
+  if (s.links.some((l) => l.kind !== "video")) panel.append(linksEl(v, s.links));
+  if (APPROVE[s.key]) approveBox(panel, v, s, ...APPROVE[s.key]);
+  renderReqs(v);
+}
+
+function linksEl(v, links) {
+  const box = document.createElement("div");
+  box.className = "links";
+  for (const l of links) {
+    if (l.kind === "video") continue;      // shown in the panel itself
+    if (l.kind === "open") {
+      const b = document.createElement("button");
+      b.textContent = `Open the ${l.label} ↗`;
+      b.dataset.open = l.page;
+      b.addEventListener("click", () => openPage(v.id, l.page, b));
+      box.append(b);
+    } else {
+      const a = document.createElement("a");
+      a.href = l.href; a.target = "_blank"; a.rel = "noopener"; a.textContent = `${l.label} ↗`;
+      box.append(a);
+    }
+  }
+  return box;
+}
+
+async function openPage(video, page, btn) {
+  const w = window.open("about:blank", "_blank");     // opened now, while the click counts; filled in below
+  btn.disabled = true;
+  const was = btn.textContent;
+  btn.textContent = page === "sections" ? "Preparing the filmstrip…" : "Starting…";
+  try {
+    const { url } = await post("/api/open", { video, page });
+    if (w) w.location = url; else window.open(url, "_blank");
+    toast(`Opened ${url}`);
+  } catch (e) { if (w) w.close(); toast(e.message, true); }
+  finally { btn.disabled = false; btn.textContent = was; }
+}
+
+const openKinds = (v, kind, test = () => true) => v.requests.filter((r) => r.kind === kind && r.state !== "done" && test(r));
+
+function noteBox(key, label, placeholder, send, { primary = true, sent = null } = {}) {
+  const box = document.createElement("div");
+  box.className = "box";
+  box.innerHTML = `<h4>${esc(label)}</h4><textarea data-keep="${esc(key)}" placeholder="${esc(placeholder)}"></textarea>
+    <div class="row"><span class="grow dim" style="font-size:12px">${sent ? esc(sent) : "Enter sends"}</span><button class="${primary ? "primary" : ""}">${esc(label)}</button></div>`;
+  const ta = box.querySelector("textarea"), b = box.querySelector("button");
+  b.disabled = !!sent;
+  b.addEventListener("click", () => send(ta.value.trim(), () => { ta.value = ""; }));
+  ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!b.disabled) b.click(); } });
+  return box;
+}
+
+function approveBox(panel, v, s, label = null, placeholder = "Optional: what to change or keep in mind") {
+  if (!s.hand || s.state !== "now") return;
+  const sent = openKinds(v, "approve", (r) => r.data.stage === s.key).length ? "sent: Claude has it" : null;
+  panel.append(noteBox(`approve-${s.key}`, label || `Approve the ${s.name.toLowerCase()}`, placeholder,
+    (note, clear) => ask(v.id, "approve", { stage: s.key, note }, clear), { sent }));
+}
+
+// A button that does something you cannot take back asks once more ("Download this one?") before it does it.
+function twoClick(btn, key, first, go) {
+  btn.dataset.sureKey = key;
+  if (st.sure === key) { btn.textContent = first; btn.classList.add("sure"); }
+  btn.addEventListener("click", () => {
+    if (st.sure !== key) {
+      st.sure = key; btn.textContent = first; btn.classList.add("sure");
+      setTimeout(() => { if (st.sure === key) { st.sure = null; render(); } }, 4000);
+      return;
+    }
+    st.sure = null;
+    go();
+  });
+}
+
+// The ✋ stages approved with a button (lyrics and song have their own: a pick, directions, a take).
+const APPROVE = {
+  concept: ["Approve the concept"],
+  timing: ["Approve the timing"],
+  look: ["Approve a look", "Which look (or what to merge), e.g. “B, with A's colours”"],
+  sample: ["Go: approve the sample", "Optional: the subtitle style (none, whole lines, word highlight) and anything else"],
+  production: ["Approve the draft", "Optional: anything for the finals"],
+};
+
+const PANELS = {
+  concept(panel, v, s) {
+    panel.insertAdjacentHTML("beforeend", `${v.topic ? `<p class="lead">Topic: <i>${esc(v.topic)}</i></p>` : ""}
+      ${v.concept ? `<pre class="text">${esc(v.concept)}</pre>` : `<p class="dim">No concept written yet.</p>`}`);
+  },
+  lyrics(panel, v, s) {
+    const L = v.lyrics;
+    if (L.error) panel.insertAdjacentHTML("beforeend", `<p class="err">${esc(L.error)}</p>`);
+    if (L.final) {
+      panel.insertAdjacentHTML("beforeend", `<div class="final"><h4 style="margin:0 0 4px">${esc(L.final.title)} <span class="dim" style="font-weight:400">· the final lyrics${L.final.from ? ` (${esc(L.final.from)})` : ""}</span></h4>
+        <pre class="text">${lyricsHtml(L.final.lyrics)}</pre></div>`);
+    }
+    if (!L.rounds.length) {
+      if (!L.final) panel.insertAdjacentHTML("beforeend", `<p class="dim">No lyric options yet: Claude writes them here (<span class="mono">lyric-options.yaml</span>).</p>`);
+      return;
+    }
+    const picks = openKinds(v, "pick-lyric");
+    [...L.rounds].reverse().forEach((rnd, k) => {
+      const wrap = document.createElement(k === 0 && !L.final ? "div" : "details");
+      if (wrap.tagName === "DETAILS") wrap.innerHTML = `<summary class="dim">Round ${rnd.n}: ${rnd.options.length} options${rnd.note ? `, after “${esc(rnd.note)}”` : ""}</summary>`;
+      else wrap.insertAdjacentHTML("beforeend", `<p class="lead">Round ${rnd.n}${rnd.note ? `, after your note “${esc(rnd.note)}”` : ""}: pick one; a note says what to change or take from the others.</p>`);
+      const grid = document.createElement("div");
+      grid.className = "options";
+      for (const o of rnd.options) {
+        const key = `pick-${rnd.n}-${o.key}`;
+        const picked = picks.some((r) => r.data.round === rnd.n && r.data.option === o.key);
+        const card = document.createElement("div");
+        card.className = "opt" + (picked ? " picked" : "");
+        card.dataset.option = o.key;
+        card.innerHTML = `<div><span class="k">${esc(o.key)}</span><b>${esc(o.title)}</b></div>
+          ${o.angle ? `<div class="angle">${esc(o.angle)}</div>` : ""}<pre class="text">${lyricsHtml(o.lyrics)}</pre>`;
+        if (picked) card.insertAdjacentHTML("beforeend", `<div><span class="chip hot">picked: Claude has it</span></div>`);
+        else if (!L.final && !picks.length) {
+          const b = document.createElement("button");
+          b.textContent = "Use this one";
+          b.dataset.pick = o.key;
+          const box = noteBox(key, `Use ${o.key}`, `Optional: e.g. “take the chorus from ${o.key === "A" ? "B" : "A"}”`,
+            (note, clear) => ask(v.id, "pick-lyric", { round: rnd.n, option: o.key, note }, () => { clear(); st.open.delete(key); }));
+          box.hidden = !st.open.has(key);
+          b.hidden = st.open.has(key);
+          b.addEventListener("click", () => { st.open.add(key); box.hidden = false; b.hidden = true; box.querySelector("textarea").focus(); });
+          card.append(b, box);
+        }
+        grid.append(card);
+      }
+      wrap.append(grid);
+      panel.append(wrap);
+    });
+    const again = openKinds(v, "lyrics-again").length;
+    panel.append(noteBox("lyrics-again", "Write new options", "What should the next options do differently?",
+      (note, clear) => ask(v.id, "lyrics-again", { note }, clear), { primary: false, sent: again ? "sent: Claude has it" : null }));
+  },
+  song(panel, v, s) {
+    const gen = v.generator;
+    if (v.directions.length) {
+      const asked = openKinds(v, "create-takes");
+      const box = document.createElement("div");
+      box.className = "box";
+      box.id = "dirBox";
+      box.innerHTML = `<h4>Musical directions</h4><div class="dirs">${v.directions.map((d) => `
+        <label><input type="checkbox" data-keep="dir-${d.n}" data-dir="${d.n}"${v.takes.length ? "" : " checked"}><span><b>${d.n} · ${esc(d.name)}</b> <span class="dim">${esc(d.why)}</span></span>
+          <small>${esc(d.styles)}</small></label>`).join("")}</div>
+        <textarea data-keep="create-note" placeholder="Optional: anything to change before they are created" style="margin-top:8px"></textarea>
+        <div class="row"><span class="grow dim" style="font-size:12px">${asked.length ? "sent: Claude has it" : `Each one creates takes in your ${esc(gen)} account (credits, not downloads).`}</span>
+          <button class="primary" id="createBtn">${v.takes.length ? "Another round in" : "Send to"} ${esc(gen)}</button></div>`;
+      const btn = box.querySelector("#createBtn");
+      btn.disabled = asked.length > 0;
+      btn.addEventListener("click", () => {
+        const dirs = [...box.querySelectorAll("[data-dir]")].filter((c) => c.checked).map((c) => +c.dataset.dir);
+        if (!dirs.length) { toast("Tick at least one direction", true); return; }
+        ask(v.id, "create-takes", { directions: dirs, note: box.querySelector("textarea").value.trim() }, () => { box.querySelector("textarea").value = ""; });
+      });
+      panel.append(box);
+    } else {
+      panel.insertAdjacentHTML("beforeend", `<p class="dim">No musical directions yet: Claude writes 2–3 after the lyrics (<span class="mono">directions.yaml</span>).</p>`);
+    }
+    if (!v.takes.length) return;
+    const kept = v.spec?.kept;
+    const using = openKinds(v, "use-take");
+    const dl = v.downloads;
+    const names = Object.fromEntries(v.directions.map((d) => [d.n, d.name]));
+    const box = document.createElement("div");
+    box.className = "box";
+    box.innerHTML = `<h4>Takes</h4><p class="dim" style="margin:0 0 6px;font-size:12.5px">Listen in ${esc(gen)}, then pick one here: only that take is downloaded${dl ? ` (${dl.left} of ${dl.budget} downloads left this cycle)` : ""}.</p>
+      <table><thead><tr><th>Round</th><th>Direction</th><th>Take</th><th></th></tr></thead><tbody></tbody></table>`;
+    const tb = box.querySelector("tbody");
+    const inRound = {};
+    v.takes.forEach((t, k) => {
+      const tr = document.createElement("tr");
+      t.k = (inRound[t.round] = (inRound[t.round] || 0) + 1);
+      const asked = using.find((r) => r.data.url === t.url);
+      tr.innerHTML = `<td class="mono">${t.round}</td><td>${t.direction ? `${t.direction} · ${esc(names[t.direction] || "")}` : esc(t.changes)}</td>
+        <td>take ${t.k} · <a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">listen in ${esc(gen)} ↗</a></td><td></td>`;
+      const cell = tr.lastElementChild;
+      if (t.kept) cell.innerHTML = `<span class="chip hot">kept ✓</span>`;
+      else if (asked) cell.innerHTML = `<span class="chip hot">${esc(reqState(asked))}</span>`;
+      else if (!kept && !using.length) {
+        const b = document.createElement("button");
+        b.textContent = "Use this take";
+        b.dataset.take = t.url;
+        twoClick(b, `take-${k}`, "Download this one?", () => ask(v.id, "use-take", { url: t.url, round: t.round, note: "" }));
+        cell.append(b);
+      }
+      tb.append(tr);
+    });
+    const dirBox = panel.querySelector("#dirBox");      // the takes first: they are what waits for you
+    if (dirBox) panel.insertBefore(box, dirBox); else panel.append(box);
+  },
+  timing(panel, v, s) {
+    const prev = s.links.find((l) => l.kind === "video");
+    panel.insertAdjacentHTML("beforeend", prev ? `<p class="lead">Watch the karaoke preview: each word should light up as it is sung. Drag any that is off in the timing editor.</p>
+      <video class="preview" controls preload="metadata" src="${esc(prev.href)}"></video>` : `<p class="dim">No karaoke preview yet: Claude makes it once the song is filed and timed.</p>`);
+  },
+  look(panel, v, s) {
+    if (v.looks.length) {
+      panel.insertAdjacentHTML("beforeend", `<p class="lead">Style frames of each look, side by side.</p><div class="sheets">${v.looks.map((l) => `
+        <figure><a href="${esc(l.src)}" target="_blank" rel="noopener"><img loading="lazy" alt="look ${esc(l.look)}" src="${esc(l.src)}"></a><figcaption>look ${esc(l.look)} · ${esc(l.name)}</figcaption></figure>`).join("")}</div>`);
+    } else panel.insertAdjacentHTML("beforeend", `<p class="dim">No look frames yet.</p>`);
+  },
+  sample(panel, v, s) {
+    const samples = v.versions.filter((x) => x.scene === "sample");
+    panel.insertAdjacentHTML("beforeend", samples.length ? `<p class="lead">The sample (about 10 s) and the storyboard: the go signal for production.</p>
+      <ul class="plain">${samples.map((x) => `<li>sample v${x.n} <span class="dim">· ${esc(x.note)}</span></li>`).join("")}</ul>` : `<p class="dim">No sample yet.</p>`);
+  },
+  production(panel, v, s) {
+    const drafts = v.versions.filter((x) => x.scene === "draft");
+    const variants = v.versions.filter((x) => x.variant);
+    panel.insertAdjacentHTML("beforeend", `<p class="lead">Each draft opens on the sections page: notes on the frame, <b>Compare</b> two versions of a section, <b>Make a variant</b>.</p>
+      ${drafts.length ? `<ul class="plain">${drafts.map((x) => `<li>draft v${x.n} <span class="dim">· ${esc(x.note)}</span></li>`).join("")}</ul>` : `<p class="dim">No draft yet.</p>`}
+      ${variants.length ? `<h4 style="margin:10px 0 4px">Variants</h4><ul class="plain">${variants.map((x) => `<li>${esc(x.scene)} v${x.n} · variant ${esc(x.variant)} <span class="dim">· ${esc(x.note)}</span></li>`).join("")}</ul>` : ""}
+      ${v.notes ? `<p class="wait">${v.notes} new note${v.notes > 1 ? "s" : ""} on the sections page.</p>` : ""}`);
+  },
+  delivery(panel, v, s) {
+    panel.insertAdjacentHTML("beforeend", v.finals.length ? `<p class="lead">The finals, in the results folder.</p><ul class="plain">${v.finals.map((f) => `
+      <li><a href="${esc(f.src)}" target="_blank" rel="noopener">${esc(f.name)}</a> <span class="dim">· ${mb(f.size)}</span></li>`).join("")}</ul>` : `<p class="dim">No finals yet.</p>`);
+  },
+  web(panel, v, s) {
+    const has = s.state === "done";
+    panel.insertAdjacentHTML("beforeend", `<p class="lead">${has ? "The live page draws the video in the browser, on a loop." : "Optional: a live web page that draws the video in the browser, on a loop, ready to copy to a website."}</p>`);
+    if (!has && s.state === "optional") {
+      const sent = openKinds(v, "approve", (r) => r.data.stage === "web").length ? "sent: Claude has it" : null;
+      panel.append(noteBox("approve-web", "Make the web page", "Optional: what it should loop, its title…",
+        (note, clear) => ask(v.id, "approve", { stage: "web", note }, clear), { sent }));
+    }
+  },
+  cleanup(panel, v, s) {
+    if (s.state === "done") { panel.insertAdjacentHTML("beforeend", `<p class="lead">The working files are gone; the finals stay.</p>`); return; }
+    panel.insertAdjacentHTML("beforeend", `<p class="lead">Renders, timings and checks: ${v.work_size ? mb(v.work_size) : "nothing"} in the work folder. The finals and your timing corrections stay.</p>`);
+    if (!v.work_size || s.state !== "now") return;
+    const asked = openKinds(v, "clean").length;
+    const b = document.createElement("button");
+    b.textContent = asked ? "sent: Claude has it" : `Free ${mb(v.work_size)}`;
+    b.disabled = !!asked;
+    if (!asked) twoClick(b, "clean", "Delete the working files?", () => ask(v.id, "clean", { note: "" }));
+    panel.append(b);
+  },
+};
+
+function renderReqs(v) {
+  const box = $("reqs");
+  box.innerHTML = v.requests.length ? "" : `<p class="dim" style="font-size:12.5px">None yet. Every button here queues one; its progress shows here.</p>`;
+  for (const r of v.requests) {
+    const el = document.createElement("div");
+    el.className = "req";
+    el.innerHTML = `<span class="when">${esc(ago(r.done_at || r.taken_at || r.at))}</span><span class="st ${r.state}">${esc(reqState(r))}</span>
+      <div>${esc(r.text)}</div>${r.message ? `<div class="msg">${esc(r.message)}</div>` : ""}
+      ${r.state === "new" ? `<div class="row" style="margin-top:4px"><button data-cancel>Cancel</button></div>` : ""}`;
+    el.querySelector("[data-cancel]")?.addEventListener("click", async () => {
+      try { await post("/api/request", { video: v.id, action: "cancel", id: r.id }); toast("Cancelled"); refresh(true); } catch (e) { toast(e.message, true); }
+    });
+    box.append(el);
+  }
+}
+$("msgBtn").addEventListener("click", () => {
+  const note = $("msg").value.trim();
+  if (!note) { $("msg").focus(); return; }
+  ask(st.route.id, "message", { note }, () => { $("msg").value = ""; });
+});
+$("msg").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("msgBtn").click(); } });
+
+// ---------------------------------------------------------------- routing and polling
+function parseRoute() {
+  const m = location.hash.match(/^#\/v\/([a-z0-9-]+)$/);
+  return m ? { view: "video", id: m[1] } : { view: "list" };
+}
+function render() {
+  if (!st.data) return;
+  const keep = keepInputs();
+  $("list").hidden = st.route.view !== "list";
+  $("video").hidden = st.route.view !== "video";
+  if (st.route.view === "list") renderList(st.data); else renderVideo(st.data);
+  restoreInputs(keep);
+}
+async function refresh(force = false) {
+  const route = st.route;
+  const url = route.view === "video" ? `/api/video/${route.id}` : "/api/state";
+  try {
+    const r = await fetch(url);
+    const raw = await r.text();
+    if (route !== st.route) return;                 // the user moved on meanwhile
+    if (!r.ok) { let msg = `HTTP ${r.status}`; try { msg = JSON.parse(raw).error || msg; } catch (_) {} throw new Error(msg); }
+    if (!force && raw === st.raw) return;
+    st.raw = raw; st.data = JSON.parse(raw);
+    render();
+  } catch (e) {
+    toast(e.message, true);
+    if (route.view === "video") location.hash = "#/";
+  }
+}
+function go() {
+  const r = parseRoute();
+  if (r.view !== st.route?.view || r.id !== st.route?.id) { st.sel = null; st.open.clear(); st.sure = null; }
+  st.route = r; st.raw = ""; st.data = null;
+  window.scrollTo(0, 0);
+  return refresh(true);
+}
+addEventListener("hashchange", go);
+// New data redraws the page every 2 s at most; what you are typing stays. A button waiting for its second click
+// holds the redraw until then.
+setInterval(() => { if (!document.hidden && !st.sure) refresh(); }, 2000);
+window.home = { st, ready: go() };
+</script>
+</body>
+</html>
