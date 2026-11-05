@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.2
+
+- Sections page: each section keeps its place. Pause one, play another, and the first carries on where you left it
+  (its card shows the paused frame meanwhile); opening it continues from there too. A section that played to its
+  end, or that the flow ran past, starts over.
+- Every button explains itself in a tooltip that shows a moment after you point at it (Play on, With neighbours,
+  the drawing tools…).
+
 ## 0.7.1
 
 - Deleting a note on the sections page removes only that note's own frame images (named by its id), whatever

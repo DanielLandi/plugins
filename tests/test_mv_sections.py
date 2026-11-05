@@ -333,3 +333,40 @@ def test_the_page_plays_the_flow_and_saves_notes_on_the_frame_shown(sections_ser
     near = [marked.getpixel((x, y)) for x in range(68, 77) for y in range(36, 45)]
     assert any(r > 170 and g < 120 for r, g, _ in near)                             # the red pen line
     assert errors == []
+
+
+def test_each_card_keeps_its_place_and_buttons_explain_themselves(sections_server, browser_ok):
+    from playwright.sync_api import sync_playwright
+    url, app = sections_server
+    with sync_playwright() as p:
+        browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
+        page = browser.new_page(viewport={"width": 1400, "height": 900})
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(url + "/")
+        page.evaluate("sections.ready")
+        tile = "document.querySelector('.card video')"
+        sky = page.locator(".card").nth(2)
+        # pause the sky (1.4–2.0) at 1.6, play the street for a moment, then the sky again: it carries on from 1.6
+        sky.locator("[data-a=play]").click()
+        page.wait_for_function(f"!{tile}.paused")
+        page.evaluate(f"{tile}.pause(); {tile}.currentTime = 1.6")
+        page.wait_for_function(f"!{tile}.seeking")
+        page.locator(".card").nth(0).locator("[data-a=play]").click()
+        page.wait_for_timeout(200)
+        assert page.evaluate("sections.st.cur") == 0
+        assert sky.locator(".screen img").get_attribute("src").startswith("data:image/jpeg")   # its paused frame
+        assert sky.locator(".t").text_content() == "0:01.6"
+        sky.locator("[data-a=play]").click()
+        page.wait_for_function(f"!{tile}.paused")
+        assert 1.59 <= page.evaluate(f"{tile}.currentTime") < 1.8
+        page.evaluate(f"{tile}.pause()")
+        # a tooltip says what Play on does
+        page.locator(".card").nth(1).locator("[data-a=open]").click()
+        page.hover("#donward")
+        page.wait_for_selector("#tip:not([hidden])")
+        assert "carries on into the next" in page.text_content("#tip")
+        page.mouse.move(5, 5)
+        page.wait_for_selector("#tip", state="hidden")
+        browser.close()
+    assert errors == []

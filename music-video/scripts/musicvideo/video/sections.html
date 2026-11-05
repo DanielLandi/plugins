@@ -137,6 +137,9 @@
   #lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 30; display: grid; place-items: center;
               cursor: zoom-out; }
   #lightbox img { max-width: 96vw; max-height: 94vh; }
+  #tip { position: fixed; z-index: 50; max-width: 300px; background: #2e333d; color: var(--text); border: 1px solid #454b58;
+         border-radius: 6px; padding: 6px 9px; font-size: 12.5px; line-height: 1.35; pointer-events: none;
+         box-shadow: 0 6px 18px rgba(0,0,0,.45); }
   .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #2b303a; padding: 7px 14px;
            border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 40; }
   .toast.show { opacity: 1; }
@@ -150,11 +153,11 @@
   <div class="bar">
     <h1>{{TITLE}}<small id="facts"></small></h1>
     <span id="overviewBar" class="bar">
-      <button id="flowBtn" title="Play every section in order, one after the other">▶ Play the flow<kbd>F</kbd></button>
-      <button id="loopBtn" title="Repeat the current section">↻ Loop section<kbd>L</kbd></button>
-      <label>Columns <select id="cols"><option>2</option><option selected>3</option><option>4</option></select></label>
+      <button id="flowBtn" data-tip="Play every section in order from the selected one, with no stop between them, the way the video runs (F)">▶ Play the flow<kbd>F</kbd></button>
+      <button id="loopBtn" data-tip="Repeat the selected section until you turn this off (L)">↻ Loop section<kbd>L</kbd></button>
+      <label data-tip="How many sections per row">Columns <select id="cols"><option>2</option><option selected>3</option><option>4</option></select></label>
     </span>
-    <button id="notesBtn" title="Every note left on this video">Notes <span id="notesCount"></span></button>
+    <button id="notesBtn" data-tip="Every note on this video: the new ones, and those already taken into a round of NOTES.md">Notes <span id="notesCount"></span></button>
     <span class="now" id="now"></span>
   </div>
   <div class="flow" id="flow"></div>
@@ -164,10 +167,10 @@
 
 <section id="detail" hidden>
   <div class="dtop">
-    <button id="back" title="Back to every section (Esc)">← All sections</button>
-    <button id="prev" title="The section before ([)">‹</button>
+    <button id="back" data-tip="Back to every section (Esc)">← All sections</button>
+    <button id="prev" data-tip="The section before ([)">‹</button>
     <h2 id="dtitle"></h2>
-    <button id="next" title="The next section (])">›</button>
+    <button id="next" data-tip="The next section (])">›</button>
   </div>
   <div class="dmain">
     <div>
@@ -177,29 +180,29 @@
         <span class="frametag" id="frametag" hidden></span>
       </div>
       <div class="transport" id="transport">
-        <button id="dplay" class="primary" title="Play / pause (Space)">▶ Play</button>
-        <button id="fback" title="One frame back (,)">⟨ frame</button>
-        <button id="ffwd" title="One frame on (.)">frame ⟩</button>
+        <button id="dplay" class="primary" data-tip="Play / pause this section (Space). It stops at the section's end unless Play on is lit">▶ Play</button>
+        <button id="fback" data-tip="One frame back (,). ← and → jump a second">⟨ frame</button>
+        <button id="ffwd" data-tip="One frame on (.). ← and → jump a second">frame ⟩</button>
         <span class="time" id="dtime"></span>
         <span class="sp"></span>
-        <button id="dloop" title="Repeat this section (L)">↻ Loop</button>
-        <button id="donward" title="Play on into the next section">⇢ Play on</button>
-        <button id="drawBtn" title="Draw on this frame to show what is wrong (D)">✎ Draw on frame<kbd>D</kbd></button>
+        <button id="dloop" data-tip="Repeat this section until you turn it off (L)">↻ Loop</button>
+        <button id="donward" data-tip="Play on: don't stop at the end of this section. Playback carries on into the next ones and the page follows, as in the video">⇢ Play on</button>
+        <button id="drawBtn" data-tip="Pause and draw on this frame at full size to show where something is wrong; the drawing is saved with your note (D)">✎ Draw on frame<kbd>D</kbd></button>
       </div>
       <div class="inktools" id="inktools" hidden>
         <span class="lbl">Draw:</span>
-        <button data-tool="pen" title="Freehand (P)">✎ Pen</button>
-        <button data-tool="arrow" title="Arrow (A)">↗ Arrow</button>
-        <button data-tool="box" title="Box (B)">▭ Box</button>
-        <button data-tool="circle" title="Circle (O)">◯ Circle</button>
+        <button data-tool="pen" data-tip="Draw freely (P)">✎ Pen</button>
+        <button data-tool="arrow" data-tip="Drag from where the arrow starts to what it points at (A)">↗ Arrow</button>
+        <button data-tool="box" data-tip="Drag a box around something (B)">▭ Box</button>
+        <button data-tool="circle" data-tip="Drag a circle around something (O)">◯ Circle</button>
         <span class="lbl" style="margin-left:8px">Colour:</span>
         <span id="swatches"></span>
-        <button id="undo" title="Undo (⌘Z)">↶ Undo</button>
-        <button id="clear">Clear</button>
+        <button id="undo" data-tip="Remove the last mark (⌘Z)">↶ Undo</button>
+        <button id="clear" data-tip="Remove every mark">Clear</button>
         <span class="sp" style="flex:1"></span>
-        <button id="inkCancel" title="Leave without saving (Esc)">Cancel</button>
+        <button id="inkCancel" data-tip="Leave the drawing without saving it (Esc)">Cancel</button>
       </div>
-      <div class="scrub" id="dscrub"><i></i></div>
+      <div class="scrub" id="dscrub" data-tip="Click to jump within this section; the marks are notes"><i></i></div>
       <div class="strip" id="strip"></div>
       <div class="about"><div class="note" id="dnote"></div><div class="lyrics" id="dlyrics"></div></div>
     </div>
@@ -208,7 +211,7 @@
         <label for="text" id="pin"></label>
         <textarea id="text" placeholder="What should change here? Typing pauses the video; the note keeps this frame."></textarea>
         <div class="row">
-          <button class="primary" id="save">Save note</button>
+          <button class="primary" id="save" data-tip="Save the note at this frame (Enter)">Save note</button>
           <span class="hint">Enter saves · Shift+Enter new line · N to write</span>
         </div>
       </div>
@@ -220,6 +223,7 @@
 <div id="drawer" hidden></div>
 <div id="lightbox" hidden><img alt=""></div>
 <div class="toast" id="toast"></div>
+<div id="tip" role="tooltip" hidden></div>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -264,7 +268,7 @@ function drawFlow() {
     d.className = "seg";
     d.style.flex = `${s.to - s.from} 0 0`;
     d.style.background = colour(i);
-    d.title = `${i + 1} · ${s.id} · ${fmt(s.from)}–${fmt(s.to)}`;
+    d.dataset.tip = `${i + 1} · ${s.id} · ${fmt(s.from)}–${fmt(s.to)}: click to play from there`;
     d.innerHTML = `<b>${i + 1}</b>${esc(s.id)}`;
     flow.append(d);
   });
@@ -315,9 +319,9 @@ function buildGrid() {
         <span class="badge" hidden></span><span class="range">${fmt(s.from)}–${fmt(s.to)} · ${(s.to - s.from).toFixed(1)} s</span></div>
       <div class="screen"><img alt="" src="${D.posters[i]}"><span class="t">${fmt(s.from)}</span><span class="big">▶</span></div>
       <div class="scrub"><i></i></div>
-      <div class="tools"><button data-a="play">▶ Play</button>
-        <button data-a="open" title="Watch it large, frame by frame, and leave notes (Enter)">⤢ Open &amp; notes</button>
-        <button data-a="ctx" title="The end of the section before, this one, and the start of the next">⇄ With neighbours</button></div>
+      <div class="tools"><button data-a="play" data-tip="Play this section on its own; it stops at its end. Pausing keeps your place, even if you play another section (Space)">▶ Play</button>
+        <button data-a="open" data-tip="Watch this section large, frame by frame, and leave notes on it (Enter)">⤢ Open &amp; notes</button>
+        <button data-a="ctx" data-tip="Play the last 2 s of the section before, this one, and the first 2 s of the next, to see how it joins on both sides">⇄ With neighbours</button></div>
       <div class="note">${esc(s.note)}</div>
       <div class="lyrics">${lyricsHtml(s)}</div>`;
     const card = { el: c, i, s, screen: c.querySelector(".screen"), bar: c.querySelector(".scrub i"), scrub: c.querySelector(".scrub"),
@@ -325,9 +329,9 @@ function buildGrid() {
                    words: [...c.querySelectorAll(".lyrics span")] };
     card.screen.addEventListener("click", () => toggleTile(i));
     card.btn.addEventListener("click", () => toggleTile(i));
-    c.querySelector("[data-a=open]").addEventListener("click", () => openSection(i));
+    c.querySelector("[data-a=open]").addEventListener("click", () => openSection(i, tileSongFor(i)));
     c.querySelector("[data-a=ctx]").addEventListener("click", () => neighbours(i));
-    c.querySelector(".top").addEventListener("dblclick", () => openSection(i));
+    c.querySelector(".top").addEventListener("dblclick", () => openSection(i, tileSongFor(i)));
     card.scrub.addEventListener("click", (e) => {
       const r = card.scrub.getBoundingClientRect();
       const song = s.from + ((e.clientX - r.left) / r.width) * (s.to - s.from);
@@ -358,8 +362,39 @@ function markNotes() {
   drawFlow();
 }
 
+// Each card remembers where it was left (song time), and keeps showing that frame while the player is elsewhere.
+st.resume = {};
+function tileHost() { return cards.findIndex((c) => tileV.parentNode === c.screen); }
+function leaveCard(j) {
+  const c = cards[j], s = S[j], song = songOf(tileV.currentTime);
+  const img = c.screen.querySelector("img");
+  if (song > s.from + 0.05 && song < s.to - 0.05) {
+    st.resume[j] = song;
+    try {                                                     // the paused frame, in place of the poster
+      const cv = document.createElement("canvas");
+      cv.width = 960; cv.height = Math.round(960 * D.size[1] / D.size[0]);
+      cv.getContext("2d").drawImage(tileV, 0, 0, cv.width, cv.height);
+      img.src = cv.toDataURL("image/jpeg", 0.8);
+    } catch (_) { img.src = D.posters[j]; }
+  } else {
+    delete st.resume[j];
+    img.src = D.posters[j];
+    c.bar.style.width = "0%"; c.t.textContent = fmt(s.from);
+    for (const w of c.words) w.classList.remove("sung");
+  }
+}
+function tileSongFor(i) {
+  // where section i would carry on from: the player's time if it is on that card, else where the card was left
+  const s = S[i];
+  if (tileHost() === i) { const t = songOf(tileV.currentTime); if (t >= s.from && t < s.to - 0.05) return t; }
+  return st.resume[i] ?? null;
+}
+
 function moveTile(i) {
+  // the card it leaves keeps its place, unless playback ran past its end (the flow): then it starts over next time
   const c = cards[i];
+  const was = tileHost();
+  if (was >= 0 && was !== i) leaveCard(was);
   if (tileV.parentNode !== c.screen) c.screen.insertBefore(tileV, c.screen.querySelector(".t"));  // a move: keeps playing
   cards.forEach((k, j) => { k.el.classList.toggle("cur", j === i); if (j !== i) k.el.classList.remove("playing"); });
   st.cur = i;
@@ -372,12 +407,15 @@ function playTile(i, song = null) {
   startTile(i, song);
 }
 function startTile(i, song = null, stop = null) {
+  const arriving = tileHost() !== i;
   moveTile(i);
   st.stopAt = stop;
   const s = S[i];
   const now = songOf(tileV.currentTime);
   if (song != null) tileV.currentTime = videoOf(song);
+  else if (arriving && st.resume[i] != null) tileV.currentTime = videoOf(st.resume[i]);
   else if (now < s.from - 0.01 || now >= s.to - 0.05) tileV.currentTime = videoOf(s.from);
+  delete st.resume[i];
   tileV.play().catch(() => {});
   const r = cards[i].el.getBoundingClientRect();
   if (r.top < 110 || r.bottom > innerHeight) cards[i].el.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -592,11 +630,11 @@ function noteItem(x, withSection) {
   const where = withSection && i >= 0 ? `${i + 1} ${esc(x.section)} · ` : "";
   const img = x.marked || x.image;
   el.innerHTML = `
-    <button class="when" title="Go to this frame">${where}${fmt(x.song)} · frame ${x.frame}</button>
+    <button class="when" data-tip="Go to this frame">${where}${fmt(x.song)} · frame ${x.frame}</button>
     <span class="meta">${x.round != null ? `Round ${x.round}` : esc(x.id)} · ${esc(x.render)}</span>
     <div class="txt${x.text ? "" : " empty"}">${x.text ? esc(x.text) : "a drawing"}</div>
     ${img ? `<img alt="the frame with the drawing" src="/notes/${img}">` : ""}
-    ${x.round == null ? `<div class="acts"><button data-a="edit">Edit</button><button data-a="del">Delete</button></div>` : ""}`;
+    ${x.round == null ? `<div class="acts"><button data-a="edit" data-tip="Change the words">Edit</button><button data-a="del" data-tip="Delete this note and its frames (click twice)">Delete</button></div>` : ""}`;
   el.querySelector(".when").addEventListener("click", () => goToNote(x));
   el.querySelector("img")?.addEventListener("click", () => { $("lightbox").querySelector("img").src = `/notes/${img}`; $("lightbox").hidden = false; });
   el.querySelector("[data-a=edit]")?.addEventListener("click", () => editNote(el, x));
@@ -692,7 +730,7 @@ const ink = $("ink");
 const inkState = { tool: "pen", colour: COLOURS[0] };
 const W = 6;                                      // stroke width, in 1000-units of the frame's width
 
-$("swatches").innerHTML = COLOURS.map((c, k) => `<button class="sw${k ? "" : " on"}" data-c="${c}" style="background:${c}" title="${c}"></button>`).join("");
+$("swatches").innerHTML = COLOURS.map((c, k) => `<button class="sw${k ? "" : " on"}" data-c="${c}" style="background:${c}" data-tip="Draw in this colour"></button>`).join("");
 $("swatches").addEventListener("click", (e) => {
   const c = e.target.dataset?.c; if (!c) return;
   inkState.colour = c;
@@ -842,7 +880,7 @@ addEventListener("keydown", (e) => {
     if (k === " ") { e.preventDefault(); toggleTile(st.cur); }
     else if (k === "ArrowRight") { e.preventDefault(); playTile(Math.min(S.length - 1, st.cur + 1)); }
     else if (k === "ArrowLeft") { e.preventDefault(); playTile(Math.max(0, st.cur - 1)); }
-    else if (k === "Enter") openSection(st.cur, songOf(tileV.currentTime) >= S[st.cur].from && songOf(tileV.currentTime) < S[st.cur].to ? songOf(tileV.currentTime) : null);
+    else if (k === "Enter") openSection(st.cur, tileSongFor(st.cur));
     else if (k === "f" || k === "F") $("flowBtn").click();
     else if (k === "l" || k === "L") $("loopBtn").click();
     else if (k === "Escape") $("drawer").hidden = true;
@@ -872,6 +910,32 @@ addEventListener("popstate", () => {
   const i = parseInt(location.hash.slice(1), 10) - 1;
   if (i >= 0 && i < S.length) openSection(i); else if (st.view === "detail") backToGrid();
 });
+
+// tooltips: what a button does, shown a moment after the pointer (or the keyboard focus) reaches it
+const tip = $("tip");
+let tipTimer, tipFor = null;
+function showTip(el) {
+  tipFor = el;
+  tip.textContent = el.dataset.tip;
+  tip.hidden = false;
+  const r = el.getBoundingClientRect(), t = tip.getBoundingClientRect();
+  let x = Math.min(Math.max(8, r.left + r.width / 2 - t.width / 2), innerWidth - t.width - 8);
+  let y = r.bottom + 8;
+  if (y + t.height > innerHeight - 8) y = r.top - t.height - 8;
+  tip.style.left = `${x}px`; tip.style.top = `${y}px`;
+}
+function hideTip() { clearTimeout(tipTimer); tip.hidden = true; tipFor = null; }
+document.addEventListener("pointerover", (e) => {
+  const el = e.target.closest?.("[data-tip]");
+  if (el === tipFor) return;
+  hideTip();
+  if (el) tipTimer = setTimeout(() => showTip(el), 350);
+});
+document.addEventListener("focusin", (e) => { const el = e.target.closest?.("[data-tip]"); if (el && e.target.matches(":focus-visible")) showTip(el); });
+document.addEventListener("focusout", hideTip);
+document.addEventListener("pointerdown", hideTip);
+addEventListener("keydown", hideTip, true);
+addEventListener("scroll", hideTip, true);
 
 function loop() { tileTick(); detailTick(); requestAnimationFrame(loop); }
 
