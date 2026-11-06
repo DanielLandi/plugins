@@ -20,6 +20,7 @@ from .. import requests as rq
 from ..budget import cycle_start, downloads_in_cycle
 from ..errors import MVError
 from ..spec import ID_RE, iter_specs, load_spec
+from ..spec import lyrics as spec_lyrics
 from ..workspace import Workspace
 from .review import load_versions, review_dir
 from .sections import Notes, notes_dir, send_file
@@ -115,6 +116,18 @@ def read_lyric_options(file: Path) -> dict:
     if isinstance(final, dict) and final.get("lyrics"):
         out["final"] = {"title": str(final.get("title") or ""), "from": str(final.get("from") or ""),
                         "lyrics": str(final["lyrics"])}
+    return out
+
+
+def video_lyrics(folder: Path, spec: dict | None) -> dict:
+    """The lyric options, with the song's own lyrics as the final ones when no option was picked on the home.
+
+    Videos made before the home (or songs written outside it) have no lyric-options.yaml, but their spec holds the
+    lyrics that were sent to the song generator: those are the final lyrics."""
+    out = read_lyric_options(folder / "lyric-options.yaml")
+    text = spec_lyrics(spec).strip() if spec else ""
+    if not out["final"] and text:
+        out["final"] = {"title": str(spec.get("title") or ""), "from": "as sent to the song generator", "lyrics": text}
     return out
 
 
@@ -222,7 +235,7 @@ def summary(ws: Workspace, video_id: str) -> dict:
     i = stage_index(meta)
     reqs = _queue(ws, video_id)
     open_reqs = [r for r in reqs if r["state"] != "done"]
-    lyrics = read_lyric_options(folder / "lyric-options.yaml")
+    lyrics = video_lyrics(folder, spec)
     gen = generator_name(spec)
     waiting = _waiting(meta, STAGES[i][0], lyrics, read_directions(folder / "directions.yaml", gen),
                        read_takes(spec), spec, open_reqs)
@@ -337,7 +350,7 @@ def detail(ws: Workspace, video_id: str) -> dict:
     return {**card, "generator": gen, "lang": str(meta.get("lang") or "en"), "song": song,
             "spec": {"status": spec.get("status"), "kept": (spec.get("kept") or {}).get("take_url")} if spec else None,
             "stages": stages, "concept": _read(folder / "CONCEPT.md"),
-            "lyrics": read_lyric_options(folder / "lyric-options.yaml"),
+            "lyrics": video_lyrics(folder, spec),
             "directions": read_directions(folder / "directions.yaml", gen), "takes": read_takes(spec),
             "downloads": downloads(ws), "looks": _look_sheets(ws, video_id),
             "versions": [{"scene": v["scene"], "n": v["n"], "kind": v.get("kind"), "note": v.get("note", ""),
