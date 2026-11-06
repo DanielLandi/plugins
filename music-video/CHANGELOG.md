@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1
+
+- The home shows a video's concept as formatted text instead of raw markdown.
+- Videos made before the home show their final lyrics: when no option was picked on the home, the Lyrics stage
+  shows the lyrics the song was made with, from its spec.
+
 ## 0.8.0
 
 - `home`: one local page for every song and video. A card per video with its stage out of ten, what is waiting for

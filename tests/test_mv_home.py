@@ -8,7 +8,8 @@ import pytest
 import mv_home_demo
 from musicvideo import requests as rq
 from musicvideo.video import home
-from musicvideo.video.home import Home, detail, make_server, projects, read_lyric_options, read_takes
+from musicvideo.video.home import (Home, detail, make_server, projects, read_lyric_options, read_takes,
+                                   video_lyrics)
 
 
 @pytest.fixture
@@ -75,6 +76,17 @@ def test_lyric_options_are_read_leniently(tmp_path):
     assert "not valid YAML" in read_lyric_options(f)["error"]
     f.write_text("- just a list\n", encoding="utf-8")
     assert "expected `rounds:`" in read_lyric_options(f)["error"]
+
+
+def test_a_video_made_before_the_home_shows_its_songs_lyrics(tmp_path):
+    spec = {"title": "Old Song", "generator": "suno", "suno": {"lyrics": "[Verse]\nla la\n"}}
+    got = video_lyrics(tmp_path, spec)                                   # no lyric-options.yaml at all
+    assert got["final"] == {"title": "Old Song", "from": "as sent to the song generator", "lyrics": "[Verse]\nla la"}
+    (tmp_path / "lyric-options.yaml").write_text(
+        "rounds: []\nfinal: {title: Picked, from: B, lyrics: 'mine'}\n", encoding="utf-8")
+    assert video_lyrics(tmp_path, spec)["final"]["title"] == "Picked"   # a pick on the home wins
+    assert video_lyrics(tmp_path / "none", None)["final"] is None       # no spec yet: still waiting for options
+    assert video_lyrics(tmp_path / "none", {"suno": {"instrumental": True}})["final"] is None
 
 
 def test_takes_keep_only_web_addresses_and_mark_the_kept_one():
@@ -186,6 +198,11 @@ def test_the_page_queues_what_the_user_decides_and_shows_progress(home_server, b
         page.evaluate("home.ready")
         assert page.locator(".card").count() == 4
         assert "Waiting for you: pick a lyric" in page.text_content(".card[data-id=lantern-lake]")
+        # the project's markdown is rendered, and escaped first
+        md = page.evaluate("""mdHtml('# One Key\\n\\n**About:** a *key* and `code`\\n\\n- one\\n- two\\n\\n1. first\\n\\n> said\\n\\n---\\n\\n<img src=x onerror=alert(1)>')""")
+        assert md.startswith("<h1>One Key</h1><p><b>About:</b> a <i>key</i> and <code>code</code></p>")
+        assert "<ul><li>one</li><li>two</li></ul><ol><li>first</li></ol><blockquote>said</blockquote><hr>" in md
+        assert "<img" not in md and "&lt;img" in md
         # a new video from a topic
         page.fill("#topic", "fireflies in a jar, let go at dawn")
         page.fill("#topicNote", "in Portuguese")
