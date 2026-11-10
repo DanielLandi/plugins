@@ -8,11 +8,13 @@ starts the sections page and the timing editor for a video, inside this process,
 import json
 import mimetypes
 import re
+import sys
 import threading
 import webbrowser
 from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import quote, unquote
 
 import yaml
 
@@ -284,7 +286,8 @@ def _look_sheets(ws: Workspace, video_id: str) -> list[dict]:
     for d in sorted(frames.iterdir()):
         if d.is_dir() and ID_RE.match(d.name):
             for f in sorted(d.glob("*-sheet.png")):
-                out.append({"look": d.name, "name": f.name, "src": f"/v/{video_id}/look/{d.name}/{f.name}"})
+                out.append({"look": d.name, "name": f.name,
+                            "src": f"/v/{video_id}/look/{d.name}/{quote(f.name, safe='')}"})
     return out
 
 
@@ -292,7 +295,8 @@ def _finals(ws: Workspace, video_id: str) -> list[dict]:
     folder = ws.results_for(video_id)
     if not folder.is_dir():
         return []
-    return [{"name": f.name, "src": f"/v/{video_id}/results/{f.name}", "size": f.stat().st_size}
+    # a title's ?, # or % would end or garble the address: the link carries the name percent-encoded
+    return [{"name": f.name, "src": f"/v/{video_id}/results/{quote(f.name, safe='')}", "size": f.stat().st_size}
             for f in sorted(folder.iterdir())
             if f.is_file() and f.suffix.lower() in FINALS and not f.name.startswith((".", "_"))]
 
@@ -361,11 +365,16 @@ def detail(ws: Workspace, video_id: str) -> dict:
 
 # --- files a video's view links to --------------------------------------------------------------------------------
 
+# On Windows a `:` names a drive (`C:x` joins as a path of its own) or a file's alternate stream, and no file name
+# holds one; elsewhere it is an ordinary character in a title.
+_BAD_IN_PART = ("\\", "\x00", ":") if sys.platform == "win32" else ("\\", "\x00")
+
+
 def _inside(base: Path, rel: str) -> Path | None:
-    """base/rel when no part starts with a dot or an underscore (hidden and working files, `..`) and it stays
-    inside base."""
+    """base/rel (rel already percent-decoded) when no part starts with a dot or an underscore (hidden and working
+    files, `..`) and it stays inside base."""
     parts = [p for p in rel.split("/") if p]
-    if not parts or any(p.startswith((".", "_")) or "\\" in p or "\x00" in p or ":" in p for p in parts):
+    if not parts or any(p.startswith((".", "_")) or any(c in p for c in _BAD_IN_PART) for p in parts):
         return None
     target = base.joinpath(*parts)
     try:
@@ -502,7 +511,6 @@ def make_handler(app: Home):
                     return self.send_json(detail(app.ws, m[1]))
                 m = VIDEO_ROUTE.match(route)
                 if m:
-                    from urllib.parse import unquote
                     f = video_file(app.ws, m[1], m[2], unquote(m[3] or ""))
                     if f is None:
                         return self.send_error(404)

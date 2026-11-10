@@ -1,6 +1,8 @@
 import json
+import sys
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import pytest
@@ -159,6 +161,38 @@ def test_files_come_only_from_the_videos_own_folders(home_server):
                 "/v/tide-clock/web/../../config.yaml", "/v/paper-boats/review/versions.json/../../x",
                 "/v/../results/x", "/v/tide-clock/look/a/x.png", "/v/tide-clock/preview.mp4",
                 "/v/paper-boats/review/.hidden"):
+        with pytest.raises(urllib.error.HTTPError) as e:
+            get(url + bad)
+        assert e.value.code in (403, 404), bad
+
+
+def _final_link_serves(url, ws, name):
+    (ws.results_for("tide-clock") / name).write_bytes(b"final")
+    finals = {f["name"]: f["src"] for f in json.loads(get(url + "/api/video/tide-clock")[2])["finals"]}
+    assert name in finals
+    src = finals[name]
+    segment = src.rsplit("/", 1)[1]
+    assert not set(segment) & set("?#: &") and urllib.parse.unquote(segment) == name   # percent-encoded
+    assert get(url + src)[2] == b"final"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="?, : are not allowed in Windows file names")
+def test_a_final_whose_title_has_question_hash_and_colon_is_listed_and_opens(home_server):
+    url, ws = home_server
+    _final_link_serves(url, ws, "Who? #1: Night.mp4")
+
+
+def test_a_final_whose_title_has_hash_ampersand_and_percent_opens(home_server):
+    url, ws = home_server
+    _final_link_serves(url, ws, "#1 & 50% Night.mp4")
+
+
+def test_encoded_names_still_stay_inside_the_results_folder(home_server):
+    url, ws = home_server
+    (ws.results_for("tide-clock").parent / "outside.mp4").write_bytes(b"no")
+    for bad in ("/v/tide-clock/results/%2E%2E%2Foutside.mp4", "/v/tide-clock/results/..%2Foutside.mp4",
+                "/v/tide-clock/results/C%3A..%5Coutside.mp4", "/v/tide-clock/results/%2E%2E",
+                "/v/tide-clock/results/x%00.mp4"):
         with pytest.raises(urllib.error.HTTPError) as e:
             get(url + bad)
         assert e.value.code in (403, 404), bad
