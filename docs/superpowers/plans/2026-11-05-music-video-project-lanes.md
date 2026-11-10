@@ -2,6 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Re-planned 2026-11-09 against 0.8.2 (plugins#24).** The plan first predated the home (0.8.0, 0.8.1) and the
+> 0.8.2 fixes. Changes: the release is 0.9.0; the home's fixed port 8646 and its `requests/` queues are covered
+> (Task 6, decisions 16 and 17); the home's Downloads line counts every worktree (Task 5); decision 13 names the home
+> as its one exception. Decisions 6 and 7 were reviewed and kept as written.
+
 **Goal:** A music-video session started in a git worktree of the project folder works on that worktree's specs and
 video code, with its own work folders, video finals and engine entries, while songs, albums and the download budget
 stay shared. Nothing changes for a project folder that is not a linked worktree.
@@ -13,7 +18,10 @@ stay shared. Nothing changes for a project folder that is not a linked worktree.
   `Workspace` gains `lane` and `main_home`. `work_for` and `results_for` move under `.lanes/<key>` in a lane, and the
   new `song_dir` stays shared.
 - **Engine entries per lane.** `.entries/.lane-<key>/<id>/` in a lane, `.entries/<id>/` as today otherwise.
-- **One budget.** `downloaded` and `status` count the specs of every worktree of the repo, once each.
+- **One budget.** `downloaded`, `status` and the home's Downloads line count the specs of every worktree of the
+  repo, once each.
+- **The home in a lane.** It serves that lane's videos and queues (the `requests/` folders live in the lane's own
+  checkout), on a free port; the main checkout keeps 8646. Queue folders ignore themselves in git.
 
 **Tech Stack:** Python 3 stdlib (`pathlib`, `hashlib`), PyYAML (already a dependency), pytest.
 
@@ -25,9 +33,12 @@ stay shared. Nothing changes for a project folder that is not a linked worktree.
 
 - **No change for a main checkout.** A project folder that is not inside a linked git worktree resolves to today's
   paths, byte for byte: `work_dir/<id>`, `results_dir/<id>`, `results_dir/albums/<a>`, `.entries/<id>`, the same
-  `settings.json` writes and the same command output. The existing tests (`test_mv_workspace.py`,
+  `settings.json` writes and the same command output, and the home still serves on 8646. The one new file a main
+  checkout sees is a queue folder's own `.gitignore` (decision 17). The existing tests (`test_mv_workspace.py`,
   `test_mv_studio.py`, `test_mv_studio_cli.py`, `test_mv_video_paths.py`, `test_mv_web.py`, `test_mv_budget.py`,
-  `test_mv_ingest.py`, `test_mv_engine.py`) pass unchanged: they are the contract.
+  `test_mv_ingest.py`, `test_mv_engine.py`, `test_mv_home.py`) pass unchanged: they are the contract. The one
+  exception is the folder listing in `test_mv_requests.py::test_two_requests_at_once_are_both_kept`, which gains the
+  queue's `.gitignore` (Task 6).
 - The cwd is consulted **only** inside a linked worktree. A plain folder or a main checkout holding a `config.yaml`
   never overrides the saved workspace.
 - `remember_home()` is never called when the home is a lane.
@@ -44,12 +55,14 @@ stay shared. Nothing changes for a project folder that is not a linked worktree.
   symlink, and `Path.cwd()` returns the resolved form).
 - Public repo: no personal names, paths or seasonal-holiday references in code, tests or docs
   (`tests/test_mv_privacy.py`).
-- Version: **0.8.0**, set in `music-video/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` and
-  `music-video/scripts/musicvideo/__init__.py`. `tests/test_mv_packaging.py` checks that they agree.
+- Version: **0.9.0** (main is at 0.8.2), set in `music-video/.claude-plugin/plugin.json`,
+  `.claude-plugin/marketplace.json` and `music-video/scripts/musicvideo/__init__.py`. `tests/test_mv_packaging.py`
+  checks that they agree.
 - Gates: `uv run pytest -q`; on the Mac, also `uv run pytest -m studio -q` (no engine code changes beyond entry paths,
   but the gate renders through `write_entry`).
 - Out of scope (phase 3): timing seeding from the main checkout, the `lanes` command, `doctor --prune-engines`, free
-  ports for `edit-timing` and `sections` in a lane. The plugins#19 follow-ups stay in that issue.
+  ports for `edit-timing` and `sections` in a lane. The home is the exception: a lane's home takes a free port here
+  (Task 6, decision 16). The plugins#19 follow-ups stay in that issue.
 
 ## Review Focus
 
@@ -65,6 +78,11 @@ stay shared. Nothing changes for a project folder that is not a linked worktree.
   goes. Test in Task 2 (resolution) and Task 5 (ingest).
 - **A worktree of a branch made before the workspace folder existed** (the mapped sub-folder is missing in the
   worktree). Expected: no mapping, the saved workspace as today, never an error. Test in Task 2.
+- **Two homes at once**, the main checkout's on 8646 and a lane's. Expected: both serve, each shows only its own
+  checkout's videos and writes only its own queues, and a lane's home never answers on 8646, so a browser tab left on
+  8646 is always the main checkout's. Test in Task 6.
+- **A request queued in one lane** is never listed, taken or waited for by a session in another lane or in the main
+  checkout. Test in Task 6.
 
 ---
 
@@ -374,6 +392,7 @@ def test_doctor_names_the_lane(mv_lane, capsys, monkeypatch):
 - Modify: `music-video/scripts/musicvideo/spec.py` (add `iter_worktree_specs`)
 - Modify: `music-video/scripts/musicvideo/budget.py` (`downloads_in_cycle` de-duplicates)
 - Modify: `music-video/scripts/musicvideo/cli.py` (`cmd_downloaded`, `cmd_status`)
+- Modify: `music-video/scripts/musicvideo/video/home.py` (`downloads`: the home's Downloads line)
 - Modify: `music-video/scripts/musicvideo/ingest.py` (`song_dir`, the ownership check)
 - Test: `tests/test_mv_lanes.py`
 
@@ -397,6 +416,7 @@ def test_downloads_count_across_worktrees(mv_lane, monkeypatch, capsys):
     # the same spec with the same downloaded_at in lane a and lane b (merged into both) → counts once
     # main(["status"]) from main, a and b each print "Downloads: 4 of 20"
     # main(["downloaded", "<a fifth spec in lane a>", "--take-url", "u"]) prints "recorded download 5 of 20"
+    # home.downloads(load_workspace(<main | a | b>))["used"] == 5 from each (the home's Downloads line)
 
 def test_a_plain_workspace_counts_as_today(mv_ws, write_spec, capsys):   # no .git: same count as before
 
@@ -420,7 +440,9 @@ def test_ingest_refuses_a_file_another_worktree_owns(mv_lane, make_mp3, monkeypa
   - Expected: FAIL.
 
 - [ ] **Step 3: Implement**
-  - `cmd_downloaded` and the Downloads line of `cmd_status` feed `iter_worktree_specs(ws)` to `downloads_in_cycle`.
+  - `cmd_downloaded`, the Downloads line of `cmd_status` and `video/home.py`'s `downloads(ws)` feed
+    `iter_worktree_specs(ws)` to `downloads_in_cycle`. The home's song cards keep `iter_specs(ws)` (this worktree's
+    songs), as `status`'s "Songs:" line does.
     The "Songs:" line of `cmd_status` keeps `iter_specs(ws)`: this worktree's own specs.
   - `ingest`: `dest_dir = ws.album_dir(album.id) if album else ws.song_dir(spec_id)`. The ownership loop runs over
     `iter_worktree_specs(ws)` and skips specs whose file stem equals `spec_path.stem` (the same song in another
@@ -432,21 +454,100 @@ def test_ingest_refuses_a_file_another_worktree_owns(mv_lane, make_mp3, monkeypa
 
 - [ ] **Step 5: Commit**: `music-video: songs stay shared and one budget counts every worktree`
 
-### Task 6: Release 0.8.0
+### Task 6: The home and its requests in a lane
+
+Read first: `music-video/scripts/musicvideo/video/home.py` (`PORT = 8646`, `serve`, `make_server`, `Pages`, which
+already starts the sections page and timing editor on free ports), `music-video/scripts/musicvideo/requests.py`
+(`home_queue` = `ws.home/requests`, `video_queue` = `ws.video_dir(id)/requests`, `queues`, `wait_for_new`; each
+read-modify-write holds `requests/requests.lock` across processes since 0.8.2) and `cmd_home` in `cli.py`
+(`--port` defaults to 8646).
+
+**Files:**
+- Modify: `music-video/scripts/musicvideo/video/home.py` (add `default_port`; `serve`'s first line)
+- Modify: `music-video/scripts/musicvideo/cli.py` (`cmd_home`; the `home` parser's `--port` default)
+- Modify: `music-video/scripts/musicvideo/requests.py` (`Requests._write`: the folder's `.gitignore`)
+- Modify: `music-video/skills/make/SKILL.md` ("The home": its address)
+- Test: `tests/test_mv_lanes.py`, `tests/test_mv_requests.py`
+
+**Interfaces:**
+- Consumes: `Workspace.lane`, `load_workspace`, Task 1's `mv_lane` fixture.
+- Produces:
+  - `home.default_port(ws: Workspace) -> int`: `PORT` (8646) when `ws.lane is None`, else `0` (the OS picks a free
+    port).
+  - `home` parser: `--port` defaults to `None`; `cmd_home` serves on `args.port` when given, else
+    `default_port(ws)`.
+  - `home.serve` prints `home of {ws.home} (worktree {ws.lane}): {url} (Ctrl-C stops it)` in a lane; the main
+    checkout's line is unchanged.
+  - `requests.QUEUE_IGNORE = ".gitignore"`: `Requests._write` writes `folder/.gitignore` holding `*\n` when it is
+    missing. No other queue code changes: the queues follow `ws.home` and `ws.video_dir`, which are the lane's
+    (Task 2).
+
+- [ ] **Step 1: Write the failing tests**
+
+```python
+# tests/test_mv_lanes.py
+def test_a_lanes_home_takes_a_free_port_and_mains_keeps_8646(mv_lane, monkeypatch):
+    # record the port: monkeypatch home.serve with lambda ws, port, open_page: seen.append((ws.lane, port))
+    # MUSIC_VIDEO_HOME = main → main(["home"]) serves on 8646; = lane.a → 0; = lane.a with --port 9000 → 9000
+
+def test_two_homes_serve_at_once_each_on_its_own_checkout(mv_lane, monkeypatch):
+    # ws_main, ws_a = load_workspace(main), load_workspace(lane.a); a video folder "only-in-a" (video.yaml) in lane a
+    # make_server(Home(ws), port=0) for each (8646 may be taken on the test machine; default_port is tested above)
+    # GET /api/state: "only-in-a" in a's videos, not in main's; POST /api/request (new-video) on a's server →
+    # lane.a / "requests" / "requests.json" exists and main / "requests" does not
+
+def test_requests_are_per_lane(mv_lane, monkeypatch):
+    # rq.video_queue(ws_a, "night-drive").add("message", {"note": "warmer"}) and
+    # rq.home_queue(ws_a).add("new-video", {"topic": "fog horns"})
+    # → files under lane.a; rq.new_requests(ws_main) == [] and rq.new_requests(ws_b) == []; rq.new_requests(ws_a)
+    # lists both; rq.wait_for_new(ws_b, timeout=0.2, every=0.05) == []
+
+# tests/test_mv_requests.py
+def test_a_queue_folder_ignores_itself(mv_ws, video):
+    # after one add: (folder / ".gitignore").read_text(encoding="utf-8") == "*\n"; a hand-edited .gitignore is kept
+@pytest.mark.skipif(not shutil.which("git"), reason="git not installed")
+def test_git_ignores_a_queue(tmp_path):
+    # git init; a queue in videos/x/requests with one add; `git status --porcelain --untracked-files=all` lists
+    # nothing under requests/ (requests.json, requests.lock and .gitignore all ignored)
+```
+
+  Update `test_two_requests_at_once_are_both_kept`'s folder listing to
+  `[".gitignore", "requests.json", "requests.lock"]`.
+
+- [ ] **Step 2: Run them and check they fail**
+  - Run: `uv run pytest tests/test_mv_lanes.py tests/test_mv_requests.py -q -k "home or request or queue"`
+  - Expected: FAIL (`AttributeError: module 'musicvideo.video.home' has no attribute 'default_port'`, and no
+    `.gitignore` in the queue folder).
+
+- [ ] **Step 3: Implement** as the interfaces say. In `skills/make/SKILL.md`, "The home" says it serves on
+  `http://127.0.0.1:8646/` in the project folder and on a free port in a git worktree of it, and that you give the
+  user the address `home` prints (never 8646 from memory: in a worktree, 8646 is the main checkout's home). Run
+  `uv run pytest tests/test_mv_skills.py -q`. Expected: PASS.
+
+- [ ] **Step 4: Run the suite**
+  - Run: `uv run pytest -q`
+  - Expected: PASS; `test_mv_home.py` unchanged.
+
+- [ ] **Step 5: Commit**: `music-video: a lane's home serves its own videos and queues on a free port`
+
+### Task 7: Release 0.9.0
 
 **Files:**
 - Modify: `music-video/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`,
-  `music-video/scripts/musicvideo/__init__.py` (0.8.0)
+  `music-video/scripts/musicvideo/__init__.py` (0.9.0), and the pin in `tests/test_mv_packaging.py`
 - Modify: `music-video/CHANGELOG.md`, `music-video/README.md` (folders table), `music-video/skills/make/SKILL.md`
   ("Where a video lives")
 
-- [ ] **Step 1:** Bump the three versions and run `uv run pytest tests/test_mv_packaging.py -q`. Expected: PASS.
-- [ ] **Step 2:** Write the CHANGELOG entry `## 0.8.0`:
+- [ ] **Step 1:** Bump the three versions and the test's pin from 0.8.2 to 0.9.0, and run
+  `uv run pytest tests/test_mv_packaging.py -q`. Expected: PASS.
+- [ ] **Step 2:** Write the CHANGELOG entry `## 0.9.0`, above `## 0.8.2`:
   - In a git worktree of the project folder, music-video works on that worktree's specs and video code. Its working
     files go to `work/.lanes/<worktree>/`, its video finals to `<results>/.lanes/<worktree>/` (hidden from the
     library), and its engine entries are its own.
   - Songs and albums are filed into the shared results folder. The download budget counts every worktree.
   - `init` in a worktree no longer re-points the saved workspace.
+  - `home` in a worktree serves that worktree's videos and requests on a free port and prints its address; the
+    project folder's home stays on 8646. Request folders are never committed (each holds a `.gitignore`).
   - No change for a project folder that is not a git worktree.
 - [ ] **Step 3:** README folders table:
   - The Work row adds `.lanes/<worktree>/<id>/` for a git worktree of the project.
@@ -455,7 +556,7 @@ def test_ingest_refuses_a_file_another_worktree_owns(mv_lane, make_mp3, monkeypa
   project, `paths` prints that worktree's own folders (and a `lane` key). The song stays in the main results folder.
   Song downloads still count against the one budget." Run `uv run pytest tests/test_mv_skills.py -q`. Expected: PASS.
 - [ ] **Step 5:** Run `uv run pytest -q`, then on the Mac `uv run pytest -m studio -q`. Expected: PASS.
-- [ ] **Step 6: Commit**: `music-video 0.8.0: project lanes for git worktrees (#14 phase 2)`
+- [ ] **Step 6: Commit**: `music-video 0.9.0: project lanes for git worktrees (#14 phase 2)`
 
 ---
 
@@ -463,8 +564,9 @@ def test_ingest_refuses_a_file_another_worktree_owns(mv_lane, make_mp3, monkeypa
 
 Each was open in the design or arose from the code. "If wrong" names the cost.
 
-1. **Version 0.8.0, not 0.7.0.** The design predates 0.7.0–0.7.3 (the sections page). Lanes change where a worktree
-   writes, so a minor bump. *If wrong:* a number in three files.
+1. **Version 0.9.0.** The design predates 0.7.0–0.8.2 (the sections page, the home and its fixes); main is at 0.8.2,
+   so 0.8.0 would move the version backwards and repeat a CHANGELOG heading. Lanes change where a worktree writes,
+   so a minor bump. *If wrong:* a number in three files and a test's pin.
 2. **A new module `worktrees.py`** holds the git file reading. `workspace.py` stays about settings and config, and
    phase 3's `lanes` command will reuse `repo_worktrees`. *If wrong:* one more small file.
 3. **Not a lane:** a `.git` file without `commondir` (submodules, a `--separate-git-dir` main checkout), and a
@@ -499,18 +601,44 @@ Each was open in the design or arose from the code. "If wrong" names the cost.
 12. **`init` in a lane counts the main checkout's `config.yaml`.** It prints "using existing" and needs no `--artist`.
     It never writes a `config.yaml` into the lane unless neither exists. *If wrong:* a user who wanted a separate
     config per worktree writes one by hand. It then wins, as the design says.
-13. **No new port, seeding, pruning or `lanes` code** (phase 3, §8). This includes the `sections` page's port 8645,
-    which came after the design and has the same busy-port behaviour as `edit-timing`. *If wrong:* two lanes running
-    `sections` at once get "port busy: pass --port" until phase 3.
+13. **No new port, seeding, pruning or `lanes` code** (phase 3, §8), except the home's port (decision 16). This
+    includes the `sections` page's port 8645, which came after the design and has the same busy-port behaviour as
+    `edit-timing`. *If wrong:* two lanes running `sections` at once get "port busy: pass --port" until phase 3. (The
+    sections page and timing editor opened *from the home* already take free ports, so only the standalone
+    commands are affected.)
 14. **Paths are compared resolved** for "is the saved workspace inside the main tree". Case is not normalised
     (§10 item 9: low risk). *If wrong:* on a case-insensitive disk, a saved path typed with different case does not
     map, and the session keeps today's behaviour.
 15. **plugins#19 is not folded in.** None of its eight items is needed by lanes.
+16. **A lane's home takes a free port; the main checkout's keeps 8646** (a port rule, not "fail until phase 3").
+    `--port` still wins. The home is the page the make skill starts at the beginning of every session, so a second
+    lane meets the collision at once, not by chance. Failing with "port 8646 is busy" is worse than it looks: the
+    page already on 8646 is another checkout's, and a session or user who opens it instead queues requests into that
+    checkout's folders, where the wrong session carries them out (a `create-takes` request spends song credits).
+    With the rule, 8646 always means the main checkout's home. A lane's address changes when its home restarts;
+    `serve` prints it with the worktree's key, and the skill gives the user the printed address. A derived fixed
+    port per lane (8646 + hash) was rejected: it can still collide, and with nothing to say which lane holds it.
+    *If wrong:* a lane's bookmark breaks on restart. A fixed per-lane port can come with phase 3's free-port work.
+17. **Each lane has its own request queues, and queue folders ignore themselves in git.** The queues live where the
+    home and the `requests` command already put them, `<workspace>/requests/` and `<video>/requests/`, which in a
+    lane are the lane's own checkout (Task 2), so no queue code changes. Shared queues were rejected: a request is
+    about one checkout's specs and video code, and a session in another lane would take it and carry it out on the
+    wrong branch. A queue is runtime state, not project content: committed on a branch, it would merge into the
+    main checkout's queue (same ids, `r1` in both) and replay done requests. media-projects does not ignore
+    `requests/` today (checked 2026-11-09; none is committed yet), and any other user's project folder would not
+    either, so `Requests._write` writes `requests/.gitignore` (`*`), which also covers `requests.lock` and itself.
+    This plan does not edit media-projects; adding `requests/` to its `.gitignore` remains harmless but is no longer
+    needed. *If wrong:* requests still waiting in a lane go when its worktree is removed (`git worktree remove`
+    deletes ignored files), so a branch is finished only once `requests` lists nothing open in it; and one
+    `.gitignore` appears in every queue folder, main checkout included.
 
 ## Questions for the maintainer
 
-None block execution. One to confirm when reviewing:
+None block execution. Decision 6 (the union of the lane's and the main checkout's `private-names.txt`) was reviewed
+and confirmed in plugins#24. Still open:
 
-- Decision 6 makes a lane's private-name check the union of the lane's and the main checkout's
-  `private-names.txt`. If you keep that file committed rather than gitignored, the union changes nothing. If you
-  would rather a lane use only its own file, say so before Task 2.
+- **`private-names.txt` does not exist on the maintainer's machine** (found in the plugins#24 review), so `validate`
+  silently checks no names, and decision 6's union is of two missing files. Should the file exist; if so, should it
+  be SOPS-sealed in the project repo (so a fresh machine or worktree restores it); and should `validate` warn when
+  it is missing instead of passing silently? None of the answers changes a task above: a warning would be a small
+  change to `validate` and its test, added to Task 2 or done separately.
