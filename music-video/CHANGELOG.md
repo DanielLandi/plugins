@@ -6,6 +6,7 @@
   queue's lock now holds across processes (`requests/requests.lock`), not only inside one. A lost request could
   be handed out twice.
 - The home opens finals whose titles carry `?`, `#` or `:`; they were listed but would not open.
+- The home lists projects, finals and look sheets in the same order on Windows as elsewhere (by name as written).
 
 ## 0.8.1
 

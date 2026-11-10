@@ -250,11 +250,17 @@ def summary(ws: Workspace, video_id: str) -> dict:
                               folder / "requests" / "requests.json", folder / "notes" / "notes.json")}
 
 
+def _name(path: Path) -> str:
+    """Sort key: the file name as written. Windows paths compare without case, which would put thumbnail.png
+    before Tide Clock.mp4 there and after it everywhere else."""
+    return path.name
+
+
 def projects(ws: Workspace) -> dict:
     """Every video (folders with a video.yaml), every song with no video, and the topics queued for new videos."""
     videos = []
     if ws.videos_dir.is_dir():
-        for d in sorted(ws.videos_dir.iterdir()):
+        for d in sorted(ws.videos_dir.iterdir(), key=_name):
             if d.is_dir() and ID_RE.match(d.name) and (d / "video.yaml").is_file():
                 try:
                     videos.append(summary(ws, d.name))
@@ -283,9 +289,9 @@ def _look_sheets(ws: Workspace, video_id: str) -> list[dict]:
     if not frames.is_dir():
         return []
     out = []
-    for d in sorted(frames.iterdir()):
+    for d in sorted(frames.iterdir(), key=_name):
         if d.is_dir() and ID_RE.match(d.name):
-            for f in sorted(d.glob("*-sheet.png")):
+            for f in sorted(d.glob("*-sheet.png"), key=_name):
                 out.append({"look": d.name, "name": f.name,
                             "src": f"/v/{video_id}/look/{d.name}/{quote(f.name, safe='')}"})
     return out
@@ -297,7 +303,7 @@ def _finals(ws: Workspace, video_id: str) -> list[dict]:
         return []
     # a title's ?, # or % would end or garble the address: the link carries the name percent-encoded
     return [{"name": f.name, "src": f"/v/{video_id}/results/{quote(f.name, safe='')}", "size": f.stat().st_size}
-            for f in sorted(folder.iterdir())
+            for f in sorted(folder.iterdir(), key=_name)
             if f.is_file() and f.suffix.lower() in FINALS and not f.name.startswith((".", "_"))]
 
 
