@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.2
+
+- Requests are never lost when the home and Claude's `requests` command write a queue at the same moment: the
+  queue's lock now holds across processes (`requests/requests.lock`), not only inside one. A lost request could
+  be handed out twice.
+- The home opens finals whose titles carry `?`, `#` or `:`; they were listed but would not open.
+
 ## 0.8.1
 
 - The home shows a video's concept as formatted text instead of raw markdown.
