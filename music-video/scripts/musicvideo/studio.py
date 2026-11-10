@@ -18,6 +18,7 @@ import yaml
 
 from . import __version__
 from .errors import MVError
+from .filelock import file_lock
 from .spec import is_instrumental
 from .workspace import Workspace, cache_dir, folder_key, install_dir
 
@@ -307,46 +308,12 @@ def engine_lock(rt: Path, timeout: float = 600.0, notice_after: float = 2.0):
     """Only one command at a time changes an engine (sync, seed, install). Renders do not hold it, so they still
     run side by side. Not re-entrant: taken by ensure_ready() and doctor only."""
     rt.mkdir(parents=True, exist_ok=True)
-    with open(rt / ".lock", "a+b") as fd:
-        start, told = time.monotonic(), False
-        while not _try_lock(fd):
-            waited = time.monotonic() - start
-            if waited >= timeout:
-                raise MVError(f"another music-video command has been updating the engine in {rt} for "
-                              f"{max(1, round(timeout / 60))} minutes: try again when it ends")
-            if waited >= notice_after and not told:
-                print("waiting for another music-video command to finish updating the engine…", file=sys.stderr,
-                      flush=True)
-                told = True
-            time.sleep(0.1)
-        try:
-            yield rt
-        finally:
-            _unlock(fd)
-
-
-def _try_lock(fd) -> bool:
-    try:
-        if sys.platform == "win32":
-            import msvcrt
-            fd.seek(0)
-            msvcrt.locking(fd.fileno(), msvcrt.LK_NBLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return True
-    except OSError:
-        return False
-
-
-def _unlock(fd) -> None:
-    if sys.platform == "win32":
-        import msvcrt
-        fd.seek(0)
-        msvcrt.locking(fd.fileno(), msvcrt.LK_UNLCK, 1)
-    else:
-        import fcntl
-        fcntl.flock(fd.fileno(), fcntl.LOCK_UN)
+    with file_lock(rt / ".lock", timeout,
+                   busy=f"another music-video command has been updating the engine in {rt} for "
+                        f"{max(1, round(timeout / 60))} minutes: try again when it ends",
+                   notice="waiting for another music-video command to finish updating the engine…",
+                   notice_after=notice_after):
+        yield rt
 
 
 def ensure_ready() -> Path:

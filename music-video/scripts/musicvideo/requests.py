@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .errors import MVError
+from .filelock import file_lock
 from .workspace import Workspace
 
 HOME_QUEUE = "_home"   # `_` cannot start a video id
@@ -34,16 +35,7 @@ KINDS = {
     "clean": ({"note"}, "video"),
     "message": ({"note"}, "video"),
 }
-_LOCKS: dict[str, threading.Lock] = {}
-_LOCKS_LOCK = threading.Lock()
-
-
-def _lock_for(file: Path) -> threading.Lock:
-    """One lock per queue file in this process: the pages' servers handle each request on its own thread, with a
-    queue object of its own, and two quick clicks must not both read the old list and write over each other."""
-    key = os.path.abspath(file)
-    with _LOCKS_LOCK:
-        return _LOCKS.setdefault(key, threading.Lock())
+LOCK_WAIT = 30.0   # seconds a writer waits for another before giving up
 
 
 STAGES = ("concept", "lyrics", "song", "timing", "look", "sample", "production", "delivery", "web", "cleanup")
@@ -127,7 +119,14 @@ class Requests:
     def __init__(self, folder: Path, name: str):
         self.folder, self.name = folder, name
         self.file = folder / "requests.json"
-        self.lock = _lock_for(self.file)
+
+    def _locked(self):
+        """Every read-modify-write of the queue holds requests.lock: the home's server (a thread per click) and
+        Claude's `requests` command (another process) write the same file, and neither may read the old list and
+        write over the other's change."""
+        return file_lock(self.folder / "requests.lock", LOCK_WAIT, every=0.01,
+                         busy=f"{self.folder / 'requests.lock'}: another music-video command has held the queue "
+                              f"for {round(LOCK_WAIT)} seconds; try again")
 
     def all(self) -> list[dict]:
         if not self.file.is_file():
@@ -157,7 +156,7 @@ class Requests:
         if where == "video" and self.name == HOME_QUEUE:
             raise MVError(f"a {kind} request belongs to a video")
         fields, text = clean_data(kind, data)
-        with self.lock:
+        with self._locked():
             reqs, n = self.all(), self._top() + 1
             req = {"id": f"{REQ_ID}{n}", "n": n, "at": datetime.now().isoformat(timespec="seconds"), "kind": kind,
                    "data": fields, "text": text, "state": "new", "taken_at": None, "done_at": None, "message": "",
@@ -173,7 +172,7 @@ class Requests:
         return req
 
     def _change(self, rid: str, fn) -> dict:
-        with self.lock:
+        with self._locked():
             reqs = self.all()
             req = self._find(reqs, rid)
             fn(req)

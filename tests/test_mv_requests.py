@@ -113,7 +113,45 @@ def test_two_requests_at_once_are_both_kept(mv_ws, video, monkeypatch):
     reqs = rq.video_queue(mv_ws, video).all()
     assert sorted(r["data"]["note"] for r in reqs) == ["approve it", "make the boats red"]
     assert sorted(r["id"] for r in reqs) == ["r1", "r2"]
-    assert [f.name for f in (mv_ws.video_dir(video) / "requests").iterdir()] == ["requests.json"]
+    # no writer's temporary file is left behind; requests.lock is the queue's cross-process lock
+    assert sorted(f.name for f in (mv_ws.video_dir(video) / "requests").iterdir()) == ["requests.json",
+                                                                                       "requests.lock"]
+
+
+WRITER = """
+import sys, time
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from musicvideo import requests as rq
+folder, tag, n, go = Path(sys.argv[2]), sys.argv[3], int(sys.argv[4]), Path(sys.argv[5])
+q = rq.Requests(folder, "paper-boats")
+while not go.exists():
+    time.sleep(0.005)
+for i in range(n):
+    q.add("message", {"note": f"{tag} {i}"})
+"""
+
+
+def test_two_processes_writing_one_queue_lose_nothing(mv_ws, video, tmp_path):
+    # the home server and Claude's `requests` command are separate processes on the same queue file: a lock that
+    # holds only inside one process lets one read the old list and write over the other's requests
+    import subprocess
+    import sys
+    from pathlib import Path
+    scripts = Path(rq.__file__).resolve().parents[1]
+    folder = mv_ws.video_dir(video) / "requests"
+    go, n = tmp_path / "go", 60
+    procs = [subprocess.Popen([sys.executable, "-c", WRITER, str(scripts), str(folder), tag, str(n), str(go)],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+             for tag in ("home", "cli")]
+    time.sleep(0.5)          # both started and polling: they begin writing together
+    go.write_text("", encoding="utf-8")
+    for p in procs:
+        _, err = p.communicate(timeout=120)
+        assert p.returncode == 0, err.decode("utf-8", "replace")
+    reqs = rq.video_queue(mv_ws, video).all()
+    assert sorted(r["data"]["note"] for r in reqs) == sorted(f"{t} {i}" for t in ("home", "cli") for i in range(n))
+    assert sorted(r["n"] for r in reqs) == list(range(1, 2 * n + 1))       # every id given once
 
 
 def test_wait_returns_when_a_request_arrives_and_times_out_otherwise(mv_ws, video, capsys):
