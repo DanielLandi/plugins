@@ -17,7 +17,7 @@ from .media import decode_mono, duration_s, rms_envelope
 from .onsets import ONSET_SR, refine_onsets
 from .paths import VideoSong, video_song
 from .subtitles import to_lrc, to_srt, to_vtt
-from .timing import (VOICE_FRAME_S, apply_fixes, build_timing, fixed_indices, line_ends, match_heard,
+from .timing import (VOICE_FRAME_S, apply_fixes, build_timing, fix_targets, is_show_only, line_ends, match_heard,
                      missing_lines, show_words,
                      reconcile, snap_to_voice, suspects, words_from_json)
 
@@ -111,8 +111,15 @@ def align(ws: Workspace, spec_id: str, lang: str = "en", force: bool = False,
     on, state = _onsets_state(ws, spec_id, onsets)
     if on:
         stem = decode_mono(p.vocals, ONSET_SR)
-        words = refine_onsets(words, stem, ONSET_SR, lang, fixed_indices(words, fixes))
-    words = apply_fixes(words, fixes)
+        targets = None
+        if any(not is_show_only(fix) for fix in fixes):
+            # The editor writes a fix's `at` as the start the page showed: the measured start, or where an earlier
+            # fix put the word. Match the fixes there, then measure again leaving those words alone.
+            targets = fix_targets(refine_onsets(words, stem, ONSET_SR, lang, set()), fixes)
+        words = refine_onsets(words, stem, ONSET_SR, lang, {i for i in targets or [] if i is not None})
+        words = apply_fixes(words, fixes, targets)
+    else:
+        words = apply_fixes(words, fixes)
 
     timing = show_words(build_timing(words, lyrics, duration_s(p.song)), fixes)
     p.timing.write_text(json.dumps(timing, indent=1, ensure_ascii=False), encoding="utf-8")

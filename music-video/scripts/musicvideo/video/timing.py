@@ -148,17 +148,31 @@ def _fixed_index(words: list[Word], fix) -> int:
     return min(candidates, key=lambda k: abs(words[k].start - at))
 
 
+def fix_targets(words: list[Word], fixes: list) -> list[int | None]:
+    """The word each fix changes (None for a `show:`-only entry), matched as apply_fixes matches them: in file order,
+    each fix seeing the words as the fixes before it left them (the editor writes `at` as the start the page showed)."""
+    return _apply_fixes(words, fixes, None)[1]
+
+
 def fixed_indices(words: list[Word], fixes: list) -> set[int]:
     """The words the timing fixes will change (`show:`-only entries change text, not time)."""
-    return {_fixed_index(words, fix) for fix in fixes if not is_show_only(fix)}
+    return {i for i in fix_targets(words, fixes) if i is not None}
 
 
-def apply_fixes(words: list[Word], fixes: list[dict]) -> list[Word]:
-    out = list(words)
-    for fix in fixes:
+def apply_fixes(words: list[Word], fixes: list[dict], targets: list[int | None] | None = None) -> list[Word]:
+    """The fixes applied in file order. `targets` (from fix_targets) names the word each fix changes when the fixes
+    were matched already, so the words matched and the words changed are the same."""
+    return _apply_fixes(words, fixes, targets)[0]
+
+
+def _apply_fixes(words: list[Word], fixes: list, targets: list[int | None] | None) -> tuple[list[Word], list[int | None]]:
+    out, touched = list(words), []
+    for n, fix in enumerate(fixes):
         if is_show_only(fix):
+            touched.append(None)
             continue
-        i = _fixed_index(out, fix)
+        i = _fixed_index(out, fix) if targets is None else targets[n]
+        touched.append(i)
         w = out[i]
 
         def number(field: str, default=None) -> float:
@@ -179,7 +193,7 @@ def apply_fixes(words: list[Word], fixes: list[dict]) -> list[Word]:
         if too_short(start, end):
             raise MVError(f"timing fix {fix['word']!r} at {fix['at']} makes the word too short")
         out[i] = replace(w, start=round(start, 3), end=round(end, 3), source="fixed")
-    return out
+    return out, touched
 
 
 TIMING_KEYS = ("shift", "start", "end")

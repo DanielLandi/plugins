@@ -234,6 +234,20 @@ def test_a_shift_fix_keeps_its_old_meaning(mv_ws, filed_song):
     assert (first["start"], first["source"]) == (0.3, "fixed")
 
 
+def test_two_fixes_in_a_row_with_onsets_on(mv_ws, filed_song):
+    """The timing editor saved twice: Headlights moved more than 3 s, then nudged from where the page showed it."""
+    spec_id, _ = filed_song()
+    _with_stem(spec_id, _the_stem())
+    _video_yaml(spec_id, onsets=True)
+    paths = video_song(load_workspace(), spec_id).paths
+    paths.fixes.write_text(yaml.safe_dump([{"at": 0.2, "word": "Headlights", "start": 3.6, "end": 3.7},
+                                           {"at": 3.6, "word": "Headlights", "start": 3.65, "end": 3.75}]),
+                           encoding="utf-8")
+    words = align(load_workspace(), spec_id, runner=fake_worker([])).timing["words"]
+    assert (words[0]["start"], words[0]["end"], words[0]["source"]) == (3.65, 3.75, "fixed")
+    assert "moved" not in words[0]
+
+
 def test_cli_summary_reports_onsets(mv_ws, filed_song, monkeypatch, capsys):
     spec_id, _ = filed_song()
     _with_stem(spec_id, _the_stem())
