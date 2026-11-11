@@ -138,7 +138,8 @@ def _confidence(level: float, floor: float) -> float:
     return float(np.clip((db - CONF_DB[0]) / (CONF_DB[1] - CONF_DB[0]), 0.0, 1.0))
 
 
-def _measure(samples: np.ndarray, sr: int, lo: float, hi: float, sound: Sound, win_s: float) -> tuple[float | None, float]:
+def _measure(samples: np.ndarray, sr: int, lo: float, hi: float, guess: float, sound: Sound,
+             win_s: float) -> tuple[float | None, float]:
     t, (p, low) = _band_power(samples, sr, max(0.0, lo - PAD_S), hi, win_s, [BANDS[sound], LOW_BAND])
     inside = np.flatnonzero(t >= lo)
     if len(inside) < 2:
@@ -153,9 +154,15 @@ def _measure(samples: np.ndarray, sr: int, lo: float, hi: float, sound: Sound, w
         if level < floor * 10 ** (RISE_DB / 10):
             return None, 0.0
         threshold = floor + 0.5 * (level - floor)
+        # The note before still sounding at the window's opening and at the word's start, with the dip after that
+        # start: the dip can be a closure inside the word (af-ter), so the rise after it is unsure.
+        g = first + int(np.argmin(np.abs(t[first:] - guess)))
+        opens, at_start = ((p[k:k + sustain] >= threshold).all() for k in (first, g))
+        held = bool(opens and at_start) and dip > g
         for k in range(dip + 1, len(p)):
             if p[k] >= threshold and (p[k:k + sustain] >= floor + 0.25 * (level - floor)).all():
-                return _crossing(t, p, k, threshold), _confidence(level, floor)
+                conf = _confidence(level, floor)
+                return _crossing(t, p, k, threshold), min(conf, UNSURE) if held else conf
         return None, 0.0
     look = max(int(round(FLOOR_S / HOP_S)), 2)
     for k in range(max(first, look), len(p)):
@@ -179,9 +186,9 @@ def measure_onset(samples: np.ndarray, sr: int, lo: float, hi: float, guess: flo
                   sound: Sound) -> tuple[float | None, float]:
     """Where the word's first sound starts within [lo, hi] (song seconds), and how sure (0-1). Measured with two
     window lengths; when they disagree by more than AGREE_S the confidence drops to UNSURE. `guess` is the current
-    start (kept for the caller's bounds and future tie-breaks)."""
-    a, conf_a = _measure(samples, sr, lo, hi, sound, WINDOWS_S[0])
-    b, conf_b = _measure(samples, sr, lo, hi, sound, WINDOWS_S[1])
+    start: a voice rising after a dip that the note before runs past it into is unsure."""
+    a, conf_a = _measure(samples, sr, lo, hi, guess, sound, WINDOWS_S[0])
+    b, conf_b = _measure(samples, sr, lo, hi, guess, sound, WINDOWS_S[1])
     if a is None:
         return None, 0.0
     if b is None or abs(a - b) > AGREE_S:

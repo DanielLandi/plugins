@@ -154,3 +154,12 @@ def test_refine_never_goes_below_zero():
 def test_refine_keeps_the_start_without_a_clear_event():
     w = refine_onsets([Word("moon", 0.60, 1.0, 0.9)], tone(440, 1.5), ONSET_SR, "en", keep=set())[0]
     assert (w.start, w.moved) == (0.60, 0.0) and w.sound == "voiced"
+
+
+def test_a_held_note_running_into_the_word_keeps_its_start():
+    """'so' is held past the aligner's start of 'after' (10.0 s) to 10.15 s; the silence after it, to 10.25 s, can be a
+    closure inside 'after' (af-ter). The word must not jump to the voice after that silence."""
+    audio = cat(silence(9.5), tone(220, 0.65), silence(0.10), tone(220, 0.75))
+    words = [Word("so", 9.5, 10.0, 0.9), Word("after", 10.0, 10.6, 0.9)]
+    so, after = refine_onsets(words, audio, ONSET_SR, "en", keep=set())
+    assert 9.95 <= after.start <= 10.05 and so.end <= 10.05
