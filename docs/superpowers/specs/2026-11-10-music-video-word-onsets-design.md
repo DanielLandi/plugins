@@ -110,7 +110,7 @@ a sung s/sh's energy (and all that separates hiss from breath) sits above it. On
 word's start + `MIN_WORD_S`, nor before the previous word's end minus a small overlap of 0.05 s) to `start + 0.25 s`
 (but not past the word's end − `MIN_WORD_S`).
 
-- **Fricative:** the high band (4–8 kHz) energy against its own floor just before the window; the onset is the first
+- **Fricative:** the high band (4–12 kHz, possible now that the stem is decoded at 44.1 kHz) energy against its own floor just before the window; the onset is the first
   5 ms frame where that band rises above the floor by a clear margin and stays up for ≥ 30 ms, provided the high band
   dominates the low band there (hiss, not a voiced note).
 - **Stop:** the largest positive broadband spectral flux in the window that follows a dip (the closure); the onset is
