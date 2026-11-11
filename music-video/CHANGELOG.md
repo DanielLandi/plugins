@@ -1,7 +1,14 @@
 # Changelog
 
-## 0.8.3
+## 0.8.4
 
+- Word starts follow the first sound: `align` moves each word's start onto the onset of its first sound, measured
+  on the vocal stem by class (an s/f/sh hiss, a p/t/k burst, a vowel or m/n/l rise). On by default for new videos
+  (`onsets: true` in `video.yaml`); videos without the setting keep their timing. `--onsets`/`--no-onsets`
+  override it, the summary reports how many words moved, the timing editor marks each word's sound class (F, S, V),
+  and your own `timing-fixes.yaml` entries always win.
+- `mux` and `qc` find the song of a video that borrows another video's song (`song:` in `video.yaml`).
+- The make skill joins the end screen by decoding and encoding once instead of `concat -c copy`.
 - `validate` and `ingest` warn when the workspace has no `private-names.txt`: `warning: no private-names.txt in
   <workspace>; private names were not checked`, with the path to create it. The check was skipped silently before.
   The warning never fails the command, and a file with no names in it (only comments) is taken as a deliberate
