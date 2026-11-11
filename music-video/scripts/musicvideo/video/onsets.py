@@ -8,6 +8,8 @@ word's spelling; its time is measured on the vocal stem.
 import unicodedata
 from typing import Literal
 
+import numpy as np
+
 Sound = Literal["fricative", "stop", "voiced"]
 
 _SOFT = set("eiy")
@@ -69,3 +71,109 @@ def first_sound(word: str, lang: str) -> Sound:
     if not w:
         return "voiced"
     return _english(w) if code == "en" else _portuguese(w) if code == "pt" else _other(w)
+
+
+# ---------------------------------------------------------------- measuring on the vocal stem
+
+ONSET_SR = 44100        # decoded at full rate: a sung s hisses well above 8 kHz
+HOP_S = 0.005
+WINDOWS_S = (0.020, 0.040)  # measured twice; the two must agree
+AGREE_S = 0.025
+PAD_S = 0.10            # context analysed before the window, for the floor
+SUSTAIN_S = 0.030       # a hiss or a voice that lasts at least this long
+FLOOR_S = 0.060         # a hiss or a burst is measured against the 60 ms just before it
+BANDS = {"fricative": (4000.0, 12000.0), "stop": (100.0, 12000.0), "voiced": (100.0, 1500.0)}
+LOW_BAND = (100.0, 1500.0)
+RISE_DB = 10.0          # an event stands this far above the floor
+CONF_DB = (6.0, 20.0)   # confidence 0 at the first, 1 at the second
+UNSURE = 0.3            # the confidence when the two windows disagree
+
+
+def _band_power(samples: np.ndarray, sr: int, t0: float, t1: float, win_s: float,
+                bands: list[tuple[float, float]]) -> tuple[np.ndarray, list[np.ndarray]]:
+    """Frame centres every HOP_S from t0 to t1, and each band's power at each centre (Hann window)."""
+    win = max(int(round(win_s * sr)), 8)
+    half = win // 2
+    centres = np.arange(t0, t1 + 1e-9, HOP_S)
+    idx = np.round(centres * sr).astype(int)
+    keep = (idx - half >= 0) & (idx + half <= len(samples))
+    centres, idx = centres[keep], idx[keep]
+    if len(idx) == 0:
+        return centres, [np.zeros(0) for _ in bands]
+    frames = np.stack([samples[i - half:i - half + win] for i in idx]).astype(np.float64)
+    power = np.abs(np.fft.rfft(frames * np.hanning(win), axis=1)) ** 2
+    freqs = np.fft.rfftfreq(win, 1 / sr)
+    out = []
+    for lo_f, hi_f in bands:
+        sel = (freqs >= lo_f) & (freqs < hi_f)
+        out.append(power[:, sel].sum(axis=1) + 1e-12)
+    return centres, out
+
+
+def _crossing(t: np.ndarray, p: np.ndarray, k: int, threshold: float) -> float:
+    """The time p rises through threshold around frame k (the rise that frame k is part of), interpolated linearly."""
+    j = k
+    while j < len(p) - 1 and p[j] < threshold:
+        j += 1
+    while j > 0 and p[j - 1] >= threshold:
+        j -= 1
+    if j == 0 or p[j] == p[j - 1]:
+        return float(t[j])
+    a = (threshold - p[j - 1]) / (p[j] - p[j - 1])
+    return float(t[j - 1] + a * (t[j] - t[j - 1]))
+
+
+def _confidence(level: float, floor: float) -> float:
+    db = 10 * np.log10(level / floor)
+    return float(np.clip((db - CONF_DB[0]) / (CONF_DB[1] - CONF_DB[0]), 0.0, 1.0))
+
+
+def _measure(samples: np.ndarray, sr: int, lo: float, hi: float, sound: Sound, win_s: float) -> tuple[float | None, float]:
+    t, (p, low) = _band_power(samples, sr, max(0.0, lo - PAD_S), hi, win_s, [BANDS[sound], LOW_BAND])
+    inside = np.flatnonzero(t >= lo)
+    if len(inside) < 2:
+        return None, 0.0
+    first = inside[0]
+    sustain = max(int(round(SUSTAIN_S / HOP_S)), 1)
+    if sound == "voiced":
+        # From the window's quietest point, the voice rising halfway to its peak: a breath stays far below it.
+        dip = first + int(np.argmin(p[first:]))
+        floor = p[dip]
+        level = float(p[dip:].max())
+        if level < floor * 10 ** (RISE_DB / 10):
+            return None, 0.0
+        threshold = floor + 0.5 * (level - floor)
+        for k in range(dip + 1, len(p)):
+            if p[k] >= threshold and (p[k:k + sustain] >= floor + 0.25 * (level - floor)).all():
+                return _crossing(t, p, k, threshold), _confidence(level, floor)
+        return None, 0.0
+    look = max(int(round(FLOOR_S / HOP_S)), 2)
+    for k in range(max(first, look), len(p)):
+        floor = float(np.percentile(p[k - look:k], 20))
+        rise = floor * 10 ** (RISE_DB / 10)
+        if p[k] < rise or p[k - 1] >= rise:
+            continue  # only a frame that rises through the line counts
+        if sound == "fricative":
+            run = slice(k, k + sustain)
+            if len(p[run]) < sustain or not (p[run] >= rise).all() or np.median(p[run]) <= np.median(low[run]):
+                continue
+            level = float(np.median(p[run]))
+        else:
+            level = float(p[k:k + max(sustain // 2, 1)].max())
+        threshold = floor + 0.5 * (level - floor)
+        return _crossing(t, p, k, threshold), _confidence(level, floor)
+    return None, 0.0
+
+
+def measure_onset(samples: np.ndarray, sr: int, lo: float, hi: float, guess: float,
+                  sound: Sound) -> tuple[float | None, float]:
+    """Where the word's first sound starts within [lo, hi] (song seconds), and how sure (0-1). Measured with two
+    window lengths; when they disagree by more than AGREE_S the confidence drops to UNSURE. `guess` is the current
+    start (kept for the caller's bounds and future tie-breaks)."""
+    a, conf_a = _measure(samples, sr, lo, hi, sound, WINDOWS_S[0])
+    b, conf_b = _measure(samples, sr, lo, hi, sound, WINDOWS_S[1])
+    if a is None:
+        return None, 0.0
+    if b is None or abs(a - b) > AGREE_S:
+        return a, min(conf_a, UNSURE)
+    return a, min(conf_a, conf_b)
