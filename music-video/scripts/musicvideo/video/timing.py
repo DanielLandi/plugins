@@ -36,7 +36,10 @@ class Word:
     start: float
     end: float
     conf: float
-    source: str = "align"  # align | transcript | snapped | fixed
+    source: str = "align"  # align | transcript | snapped | onset | fixed
+    sound: str = ""                # the first sound's kind (fricative | stop | voiced), when onsets ran
+    onset_conf: float | None = None
+    moved: float = 0.0             # how far the onset moved the start (seconds, negative = earlier)
 
 
 def norm(text: str) -> str:
@@ -134,18 +137,28 @@ def parse_at(value) -> float:
     return seconds
 
 
+def _fixed_index(words: list[Word], fix) -> int:
+    """The word a timing fix changes: the same word nearest its `at`, within FIX_WINDOW_S."""
+    if not isinstance(fix, dict) or "at" not in fix or "word" not in fix:
+        raise MVError(f"timing fix {fix!r} needs 'at' and 'word', plus 'shift' or 'start'/'end'")
+    at, key = parse_at(fix["at"]), norm(str(fix["word"]))
+    candidates = [i for i, w in enumerate(words) if norm(w.text) == key and abs(w.start - at) <= FIX_WINDOW_S]
+    if not candidates:
+        raise MVError(f"timing fix {fix['word']!r} at {fix['at']}: no such word within {FIX_WINDOW_S:g} s")
+    return min(candidates, key=lambda k: abs(words[k].start - at))
+
+
+def fixed_indices(words: list[Word], fixes: list) -> set[int]:
+    """The words the timing fixes will change (`show:`-only entries change text, not time)."""
+    return {_fixed_index(words, fix) for fix in fixes if not is_show_only(fix)}
+
+
 def apply_fixes(words: list[Word], fixes: list[dict]) -> list[Word]:
     out = list(words)
     for fix in fixes:
         if is_show_only(fix):
             continue
-        if not isinstance(fix, dict) or "at" not in fix or "word" not in fix:
-            raise MVError(f"timing fix {fix!r} needs 'at' and 'word', plus 'shift' or 'start'/'end'")
-        at, key = parse_at(fix["at"]), norm(str(fix["word"]))
-        candidates = [i for i, w in enumerate(out) if norm(w.text) == key and abs(w.start - at) <= FIX_WINDOW_S]
-        if not candidates:
-            raise MVError(f"timing fix {fix['word']!r} at {fix['at']}: no such word within {FIX_WINDOW_S:g} s")
-        i = min(candidates, key=lambda k: abs(out[k].start - at))
+        i = _fixed_index(out, fix)
         w = out[i]
 
         def number(field: str, default=None) -> float:
@@ -232,8 +245,14 @@ def build_timing(words: list[Word], lyrics: Lyrics, duration: float) -> dict:
         first = k
         for token, backing in zip(line.words, line.backing):
             w = words[k]
-            out_words.append({"i": k, "text": token, "start": w.start, "end": w.end, "conf": round(w.conf, 3),
-                              "source": w.source, "line": li, "backing": backing})
+            entry = {"i": k, "text": token, "start": w.start, "end": w.end, "conf": round(w.conf, 3),
+                     "source": w.source, "line": li, "backing": backing}
+            if w.sound:
+                entry["sound"] = w.sound
+                if w.onset_conf is not None:  # measured (a word a fix changes is not)
+                    entry["onset_conf"] = round(w.onset_conf, 3)
+                    entry["moved"] = round(w.moved, 3)
+            out_words.append(entry)
             k += 1
         out_lines.append({"i": li, "text": line.text, "section": line.section, "backing": all(line.backing),
                           "start": words[first].start, "end": max(w.end for w in words[first:k]),

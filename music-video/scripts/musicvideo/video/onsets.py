@@ -6,9 +6,12 @@ sonorant where the voice rises into it, never on a breath or an "h" before it. T
 word's spelling; its time is measured on the vocal stem.
 """
 import unicodedata
+from dataclasses import replace
 from typing import Literal
 
 import numpy as np
+
+from .timing import MIN_WORD_S, Word, too_short
 
 Sound = Literal["fricative", "stop", "voiced"]
 
@@ -177,3 +180,40 @@ def measure_onset(samples: np.ndarray, sr: int, lo: float, hi: float, guess: flo
     if b is None or abs(a - b) > AGREE_S:
         return a, min(conf_a, UNSURE)
     return a, min(conf_a, conf_b)
+
+
+# ---------------------------------------------------------------- refining the words
+
+ONSET_MIN_CONF = 0.5
+ONSET_EARLY_S = 0.30
+ONSET_LATE_S = 0.25
+
+
+def refine_onsets(words: list[Word], samples: np.ndarray, sr: int, lang: str, keep: set[int]) -> list[Word]:
+    """Each word's start moved onto its first sound, measured on the vocal stem. Words in `keep` (the ones a timing
+    fix changes) keep their start. A start that moves into the word before trims that word's end, unless the trim
+    would leave it too short; then the start stays."""
+    out = list(words)
+    for i, w in enumerate(out):
+        sound = first_sound(w.text, lang)
+        if i in keep:
+            out[i] = replace(w, sound=sound)
+            continue
+        prev = out[i - 1] if i > 0 else None
+        lo = max(0.0, w.start - ONSET_EARLY_S, prev.start + MIN_WORD_S if prev else 0.0)
+        hi = min(w.start + ONSET_LATE_S, w.end - MIN_WORD_S)
+        if hi <= lo:
+            out[i] = replace(w, sound=sound)
+            continue
+        t, conf = measure_onset(samples, sr, lo, hi, w.start, sound)
+        start = round(t, 3) if t is not None and conf >= ONSET_MIN_CONF else w.start
+        if prev and start < prev.end:
+            if too_short(prev.start, start):
+                start = w.start
+            else:
+                out[i - 1] = replace(prev, end=start)
+        if start == w.start:
+            out[i] = replace(w, sound=sound, onset_conf=conf)
+        else:
+            out[i] = replace(w, start=start, source="onset", sound=sound, onset_conf=conf, moved=round(start - w.start, 3))
+    return out

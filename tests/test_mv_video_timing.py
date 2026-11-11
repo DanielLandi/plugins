@@ -162,3 +162,25 @@ def test_fix_with_a_non_numeric_value_names_the_fix():
     words = [W("night", 115.0, 115.5)]
     with pytest.raises(MVError, match="timing fix 'night' at 1:55: shift must be a number"):
         apply_fixes(words, [{"at": "1:55", "word": "night", "shift": "0,2"}])
+
+
+def test_fixed_indices_names_the_words_a_fix_touches():
+    from musicvideo.video.timing import fixed_indices
+    words = [W("Rain", 1.0, 1.5), W("rain", 5.0, 5.5)]
+    fixes = [{"at": 5.1, "word": "rain", "shift": 0.1}, {"word": "nine", "show": "9"}]
+    assert fixed_indices(words, fixes) == {1}
+
+
+def test_build_timing_writes_the_onset_fields():
+    lyrics = parse_lyrics("[Verse]\nTime flies\n")
+    words = [Word("Time", 1.0, 1.4, 0.9, "onset", sound="stop", onset_conf=0.8, moved=-0.05),
+             Word("flies", 1.4, 2.0, 0.9)]
+    out = build_timing(words, lyrics, 3.0)["words"]
+    assert {k: out[0][k] for k in ("sound", "onset_conf", "moved")} == {"sound": "stop", "onset_conf": 0.8, "moved": -0.05}
+    assert not {"sound", "onset_conf", "moved"} & out[1].keys()
+
+
+def test_build_timing_gives_a_fixed_word_its_sound_but_no_move():
+    lyrics = parse_lyrics("[Verse]\nTime\n")
+    out = build_timing([Word("Time", 1.0, 1.4, 0.9, "fixed", sound="stop")], lyrics, 3.0)["words"][0]
+    assert out["sound"] == "stop" and "moved" not in out and "onset_conf" not in out

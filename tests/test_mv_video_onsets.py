@@ -102,3 +102,49 @@ def test_no_clear_event_gives_no_onset(sound):
     for audio in (tone(440, 1.5), silence(1.5)):
         t, conf = measure_onset(audio, ONSET_SR, lo=0.3, hi=1.0, guess=0.6, sound=sound)
         assert t is None or conf < 0.5
+
+
+# ---------------------------------------------------------------- refining the words
+
+from musicvideo.video.onsets import refine_onsets
+from musicvideo.video.timing import Word
+
+
+def s_word_stem():
+    """A hiss at 0.50 s, the vowel from 0.70 s."""
+    return cat(silence(0.5), noise(0.2), tone(220, 0.6))
+
+
+def test_refine_moves_an_s_word_onto_its_hiss():
+    out = refine_onsets([Word("sun", 0.70, 1.0, 0.9)], s_word_stem(), ONSET_SR, "en", keep=set())
+    w = out[0]
+    assert abs(w.start - 0.50) <= 0.01 and w.end == 1.0
+    assert (w.source, w.sound) == ("onset", "fricative") and abs(w.moved + 0.20) <= 0.01
+
+
+def test_refine_skips_kept_words():
+    w = refine_onsets([Word("sun", 0.70, 1.0, 0.9)], s_word_stem(), ONSET_SR, "en", keep={0})[0]
+    assert (w.start, w.sound, w.moved, w.source) == (0.70, "fricative", 0.0, "align")
+
+
+def test_refine_trims_the_previous_word():
+    words = [Word("a", 0.10, 0.62, 0.9), Word("sun", 0.70, 1.0, 0.9)]
+    prev, w = refine_onsets(words, s_word_stem(), ONSET_SR, "en", keep=set())
+    assert abs(w.start - 0.50) <= 0.01 and prev.end == w.start
+
+
+def test_refine_will_not_squeeze_the_previous_word():
+    words = [Word("a", 0.46, 0.62, 0.9), Word("sun", 0.70, 1.0, 0.9)]
+    prev, w = refine_onsets(words, s_word_stem(), ONSET_SR, "en", keep=set())
+    assert (prev.end, w.start, w.moved) == (0.62, 0.70, 0.0)
+
+
+def test_refine_never_goes_below_zero():
+    audio = cat(noise(0.2), tone(220, 0.6))
+    w = refine_onsets([Word("sun", 0.10, 0.6, 0.9)], audio, ONSET_SR, "en", keep=set())[0]
+    assert w.start >= 0.0
+
+
+def test_refine_keeps_the_start_without_a_clear_event():
+    w = refine_onsets([Word("moon", 0.60, 1.0, 0.9)], tone(440, 1.5), ONSET_SR, "en", keep=set())[0]
+    assert (w.start, w.moved) == (0.60, 0.0) and w.sound == "voiced"
