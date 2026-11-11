@@ -76,3 +76,32 @@ def test_new_names_the_generator(mv_ws):
     assert main(["new", "--title", "Night Drive"]) == 0
     data = yaml.safe_load((mv_ws.specs_dir / "night-drive.yaml").read_text(encoding="utf-8"))
     assert data["generator"] == "suno" and "suno" in data
+
+
+def test_validate_warns_once_when_private_names_are_missing(mv_ws, write_spec, capsys):
+    from musicvideo.cli import main
+    write_spec()
+    write_spec(id="tide-clock", title="Tide Clock")
+    assert main(["validate", "--all"]) == 0  # a warning, never a failure
+    captured = capsys.readouterr()
+    assert captured.err.count("warning: no private-names.txt in") == 1
+    assert "private names were not checked" in captured.err
+    assert "private-names" not in captured.out
+
+
+def test_validate_with_a_private_names_file_does_not_warn(mv_ws, write_spec, capsys):
+    from musicvideo.cli import main
+    write_spec()
+    (mv_ws.home / "private-names.txt").write_text("# nobody yet\n", encoding="utf-8")
+    assert main(["validate", "night-drive"]) == 0
+    assert "private-names.txt" not in capsys.readouterr().err
+
+
+def test_validate_still_enforces_listed_private_names(mv_ws, write_spec, capsys):
+    from musicvideo.cli import main
+    write_spec(title="Alex on the Road")
+    (mv_ws.home / "private-names.txt").write_text("# names\nAlex\n", encoding="utf-8")
+    assert main(["validate", "night-drive"]) == 1
+    captured = capsys.readouterr()
+    assert "private name 'Alex' appears in the song" in captured.out
+    assert "private-names.txt" not in captured.err

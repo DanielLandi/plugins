@@ -108,6 +108,20 @@ def test_private_names(mv_ws):
     assert w.load_private_names(mv_ws) == ["Alex"]
 
 
+def test_missing_private_names_warns_where_to_create_it(mv_ws):
+    warning = w.private_names_warning(mv_ws)
+    assert warning == (f"warning: no private-names.txt in {mv_ws.home}; private names were not checked "
+                       f"(list them one per line in {mv_ws.home / 'private-names.txt'})")
+
+
+def test_a_private_names_file_never_warns(mv_ws):
+    path = mv_ws.home / "private-names.txt"
+    path.write_text("# nobody yet\n\n", encoding="utf-8")
+    assert w.private_names_warning(mv_ws) is None  # a deliberate empty list
+    path.write_text("Alex\n", encoding="utf-8")
+    assert w.private_names_warning(mv_ws) is None
+
+
 def test_cli_init(tmp_path, monkeypatch, capsys):
     from musicvideo.cli import main
     monkeypatch.setenv("MV_SETTINGS", str(tmp_path / "s.json"))

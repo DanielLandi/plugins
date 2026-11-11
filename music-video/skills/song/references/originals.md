@@ -8,7 +8,8 @@ never heard.
 1. **No borrowed material.** Never quote another song's lines, refrains or hooks, and never use a well-known
    song's title.
 2. **No private references.** No real people's names, inside jokes, home addresses, pets. `validate` checks the
-   workspace's optional `private-names.txt` (one name per line), but judgment comes first.
+   workspace's optional `private-names.txt` (one name per line) and warns when the file is missing, but judgment
+   comes first.
 3. **Check the title.** Before drafting, WebSearch `"<title>" song`. If a well-known song already uses it, pick
    another.
 4. **Sound like the era.** Use the genre recipe's idiom, concrete images over clichés, and a chorus built on the

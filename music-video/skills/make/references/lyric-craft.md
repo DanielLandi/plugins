@@ -32,5 +32,5 @@ Songs for music videos: originals that sound like real records and give the vide
 ## Rules
 - Originals only; no lines or titles from existing songs; title checked with WebSearch.
 - No names of real private people or private references: `validate` checks the workspace's optional
-  `private-names.txt` (one name per line), but judgment comes first.
+  `private-names.txt` (one name per line) and warns when the file is missing, but judgment comes first.
 - Under 3000 characters. Section tags in square brackets, one per line.
