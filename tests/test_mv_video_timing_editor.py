@@ -197,3 +197,10 @@ def test_spectrogram_shows_a_tone_at_its_pitch_and_toggles(editor_server, browse
         assert page.evaluate("localStorage.getItem('timing-editor.spec')") == "0"
         browser.close()
     assert not errors, errors
+
+
+def test_the_editor_labels_each_mark_with_its_sound(editor_server):
+    url, _, _ = editor_server
+    page = urllib.request.urlopen(f"{url}/").read().decode("utf-8")
+    assert 'const SOUND_LABEL = { fricative: "F", stop: "S", voiced: "V" };' in page
+    assert "SOUND_LABEL[wd.sound]" in page
