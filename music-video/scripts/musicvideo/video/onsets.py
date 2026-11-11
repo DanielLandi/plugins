@@ -152,7 +152,7 @@ def _measure(samples: np.ndarray, sr: int, lo: float, hi: float, sound: Sound, w
         return None, 0.0
     look = max(int(round(FLOOR_S / HOP_S)), 2)
     for k in range(max(first, look), len(p)):
-        floor = float(np.percentile(p[k - look:k], 20))
+        floor = float(np.median(p[k - look:k]))
         rise = floor * 10 ** (RISE_DB / 10)
         if p[k] < rise or p[k - 1] >= rise:
             continue  # only a frame that rises through the line counts

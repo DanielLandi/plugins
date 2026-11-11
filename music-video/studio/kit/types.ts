@@ -1,6 +1,8 @@
 // The JSON written by music-video align (timing.json) and music-video analyze (analysis.json).
 export type TimingWord = {
   i: number; text: string; start: number; end: number; conf: number; source: string; line: number; backing: boolean;
+  /** Set by onsets: the first sound's kind, how sure the measurement was, and how far it moved the start (s). */
+  sound?: 'fricative' | 'stop' | 'voiced'; onset_conf?: number; moved?: number;
 };
 export type TimingLine = {
   i: number; text: string; section: number; backing: boolean; start: number; end: number; words: [number, number];
