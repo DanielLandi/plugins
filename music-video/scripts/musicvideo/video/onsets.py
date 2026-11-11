@@ -38,14 +38,19 @@ def _letters(word: str) -> str:
 # These start with a voiced th (as in "the"): a soft voiced sound with little hiss, so the voice marks the start.
 _VOICED_TH = {"the", "this", "that", "these", "those", "them", "they", "their", "theirs", "there", "then", "than",
               "though", "thus", "thee", "thou", "thy", "thine"}
+# A g before e, i or y is soft (gentle, giant) except in these common words.
+_HARD_G = ("get", "giv", "girl", "gift", "gigg", "gear", "geese", "gidd", "gimm", "gild", "girth", "gizm")
 
 
 def _english(w: str) -> Sound:
     a, b = w[0], w[1:2]
-    if "".join(c for c in w if c.isalpha()) in _VOICED_TH:
+    head = w.replace("\u2019", "'").split("'")[0]  # that's, they're: the word before the apostrophe
+    if "".join(c for c in head if c.isalpha()) in _VOICED_TH:
         return "voiced"
     if w.startswith(("sh", "ch", "ph", "th")) or a in "sfvzxj":
         return "fricative"
+    if w.startswith(_HARD_G):
+        return "stop"
     if a in "cg":
         return "fricative" if b in _SOFT else "stop"
     if a in "pbtdkq":

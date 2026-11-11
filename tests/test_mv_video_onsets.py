@@ -17,6 +17,15 @@ def test_first_sound_english(word, kind):
 
 
 @pytest.mark.parametrize("word,kind", [
+    ("get", "stop"), ("give", "stop"), ("girl", "stop"), ("gift", "stop"), ("begin", "stop"), ("giggle", "stop"),
+    ("gear", "stop"), ("Getting", "stop"), ("given", "stop"), ("gentle", "fricative"), ("giant", "fricative"),
+    ("that's", "voiced"), ("there's", "voiced"), ("they're", "voiced"), ("that’s", "voiced"), ("thing's", "fricative"),
+])
+def test_first_sound_english_hard_g_and_voiced_th_contractions(word, kind):
+    assert first_sound(word, "en") == kind
+
+
+@pytest.mark.parametrize("word,kind", [
     ("saudade", "fricative"), ("Chão", "fricative"), ("céu", "fricative"), ("cinema", "fricative"),
     ("ça", "fricative"), ("rua", "fricative"), ("Rosa", "fricative"), ("gente", "fricative"), ("janela", "fricative"),
     ("casa", "stop"), ("gato", "stop"), ("quero", "stop"), ("pão", "stop"),
