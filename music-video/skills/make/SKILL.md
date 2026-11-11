@@ -416,8 +416,12 @@ is the user's. When they ask for a description to post with it, draft:
 **YouTube end screen** (cards for other videos need 5–20 s at the end): when the song ends too soon after its last
 picture, add a silent tail. Carry the last scene on past the song in its own composition (an `Excerpt` from the song's
 end, 10 s; check the scene still moves sensibly there, and stop anything that follows the beat), render or blur it
-like the final, join it to the final's silent render (`ffmpeg -f concat -c copy`, same settings), then
-`mux ... --tail 10` and `qc ... --tail 10`. Keep the song-length final too: the tail is for YouTube only.
+like the final, then join it to the final's silent render by decoding both in order and encoding once at the
+video's frame rate. Never join with `-c copy`: a stream-copy join starts the picture about 21 ms late and leaves
+uneven frame timing that players show as repeated or dropped frames. Write `list.txt` with one `file '<path>'` line
+per part (the final's silent render first, then the tail), and run
+`ffmpeg -f concat -safe 0 -i list.txt -vf "setpts=N/(30*TB)" -fps_mode cfr -r 30 -c:v libx264 -crf 18 -pix_fmt yuv420p "<renders>/final-tail-silent.mp4"`
+(30 is the video's fps, 18 the final's CRF: match both), then `mux ... --tail 10` and `qc ... --tail 10` on it. Keep the song-length final too: the tail is for YouTube only.
 
 Point out the platform's AI-content disclosure (an AI-generated voice counts on most platforms).
 

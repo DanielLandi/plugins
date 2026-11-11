@@ -124,6 +124,19 @@ def test_cli_mux_and_qc(mv_ws, filed_song, media, capsys):
     assert main(["qc", str(final), "--spec", spec_id, "--excerpt", "3-1"]) == 2  # a bad argument is an error; a failed check is 1
 
 
+def test_cli_mux_and_qc_with_a_video_that_borrows_a_song(mv_ws, filed_song, media, capsys):
+    # a test-bed video's video.yaml says `song: <song id>`: --spec <video id> means that song
+    spec_id, _ = filed_song(seconds=4.0)
+    vdir = mv_ws.video_dir("test-bed")
+    vdir.mkdir(parents=True)
+    (vdir / "video.yaml").write_text(f"song: {spec_id}\n", encoding="utf-8")
+    song, video, tmp = media
+    final = tmp / "bed-final.mp4"
+    assert main(["mux", str(video("bed.mp4")), "--spec", "test-bed", "--out", str(final)]) == 0
+    assert main(["qc", str(final), "--spec", "test-bed", "--size", "320x240"]) == 0
+    assert "PASS  audio" in capsys.readouterr().out
+
+
 def test_a_tail_runs_silent_past_the_song(media):
     # an end screen: the video runs 2 s past the 4 s song; mux pads the song with silence, qc expects the longer length
     song, video, tmp = media

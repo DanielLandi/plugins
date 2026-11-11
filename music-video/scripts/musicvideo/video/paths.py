@@ -6,6 +6,8 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+import yaml
+
 from ..workspace import Workspace, filed_path
 from ..errors import MVError
 from ..spec import find_spec, load_spec
@@ -103,6 +105,20 @@ class VideoSong:
     spec: dict
     source: Path
     paths: VideoPaths
+
+
+def song_for(ws: Workspace, name: str) -> str:
+    """The song spec that --spec names: a song id as is, or a video id whose video.yaml borrows another video's
+    song (`song: <song id>`, as a test-bed video does). Anything else keeps the "no spec" error."""
+    if (ws.specs_dir / f"{name}.yaml").is_file():
+        return name
+    meta_file = ws.video_dir(name) / "video.yaml"
+    meta = (yaml.safe_load(meta_file.read_text(encoding="utf-8")) or {}) if meta_file.is_file() else {}
+    song = meta.get("song") if isinstance(meta, dict) else None
+    if not song:
+        find_spec(ws, name)  # raises "no spec '<name>'"
+        return name
+    return str(song)
 
 
 def video_song(ws: Workspace, spec_id: str) -> VideoSong:

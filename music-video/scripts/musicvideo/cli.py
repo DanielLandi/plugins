@@ -22,7 +22,7 @@ from .video.align import align
 from .video.analyze import analyze
 from .video.loop import make_loop
 from .video.mux import mux
-from .video.paths import VideoPaths, open_file, video_song
+from .video.paths import VideoPaths, open_file, song_for, video_song
 from .video.preview import preview
 from .video.qc import run_qc
 from .video.review import build_page, load_versions, record_version, version_label
@@ -226,7 +226,8 @@ def _size(text: str) -> tuple[int, int]:
 
 
 def cmd_mux(args) -> int:
-    song = video_song(load_workspace(), args.spec)
+    ws = load_workspace()
+    song = video_song(ws, song_for(ws, args.spec))
     excerpt = _range(args.excerpt) if args.excerpt else None
     print(mux(Path(args.video), lifted_song(song.paths), Path(args.out), excerpt, args.tail))
     return 0
@@ -247,7 +248,8 @@ def cmd_loop(args) -> int:
 
 
 def cmd_qc(args) -> int:
-    song = video_song(load_workspace(), args.spec)
+    ws = load_workspace()
+    song = video_song(ws, song_for(ws, args.spec))
     report = run_qc(Path(args.video), lifted_song(song.paths), song.paths.qc,
                     size=_size(args.size) if args.size else None, fps=args.fps,
                     excerpt=_range(args.excerpt) if args.excerpt else None,

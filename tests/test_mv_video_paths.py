@@ -133,3 +133,34 @@ def test_clean_keeps_the_corrections(mv_ws, filed_song):
     p.fixes.write_text("[]\n", encoding="utf-8")
     assert main(["clean", spec_id]) == 0
     assert p.fixes.is_file()
+
+
+def _borrowing_video(ws, video_id, song):
+    vdir = ws.video_dir(video_id)
+    vdir.mkdir(parents=True, exist_ok=True)
+    (vdir / "video.yaml").write_text(f"song: {song}\n", encoding="utf-8")
+
+
+def test_song_for_resolves_a_video_that_borrows_a_song(mv_ws, filed_song):
+    from musicvideo.video.paths import song_for
+    spec_id, _ = filed_song()
+    _borrowing_video(mv_ws, "test-bed", spec_id)
+    assert song_for(mv_ws, "test-bed") == spec_id
+    assert song_for(mv_ws, spec_id) == spec_id  # a plain song id is kept as is
+
+
+def test_song_for_prefers_a_song_spec_over_a_video_of_the_same_name(mv_ws, filed_song):
+    from musicvideo.video.paths import song_for
+    spec_id, _ = filed_song()
+    _borrowing_video(mv_ws, spec_id, "some-other-song")
+    assert song_for(mv_ws, spec_id) == spec_id
+
+
+def test_song_for_names_the_missing_spec_otherwise(mv_ws):
+    from musicvideo.video.paths import song_for
+    with pytest.raises(MVError, match="no spec 'nowhere'"):
+        song_for(mv_ws, "nowhere")
+    mv_ws.video_dir("no-song").mkdir(parents=True)
+    (mv_ws.video_dir("no-song") / "video.yaml").write_text("gl: angle\n", encoding="utf-8")
+    with pytest.raises(MVError, match="no spec 'no-song'"):
+        song_for(mv_ws, "no-song")
