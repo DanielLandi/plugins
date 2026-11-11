@@ -214,6 +214,15 @@ def test_onsets_follow_video_yaml(mv_ws, filed_song):
     assert result.moves[0]["text"] == "the"
 
 
+@pytest.mark.parametrize("text", ["- onsets\n- true\n", "onsets on\n"])
+def test_a_video_yaml_that_is_not_a_mapping_leaves_onsets_off(mv_ws, filed_song, text):
+    spec_id, _ = filed_song()
+    _with_stem(spec_id, _the_stem())
+    _video_yaml(spec_id).write_text(text, encoding="utf-8")
+    result = align(load_workspace(), spec_id, runner=fake_worker([]))
+    assert result.onsets == "off (not set in video.yaml)" and result.moves == []
+
+
 def test_a_cli_override_wins_for_one_run(mv_ws, filed_song):
     spec_id, _ = filed_song()
     _with_stem(spec_id, _the_stem())

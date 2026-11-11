@@ -56,22 +56,26 @@ def _lyrics(song: VideoSong) -> tuple[Lyrics, str]:
     return parse_lyrics(spec_lyrics(song.spec)), "spec"
 
 
+def _video_meta(ws: Workspace, spec_id: str) -> dict:
+    """The song's video.yaml, or {} when it is missing or not a mapping."""
+    meta_file = ws.video_dir(spec_id) / "video.yaml"
+    meta = yaml.safe_load(meta_file.read_text(encoding="utf-8")) if meta_file.is_file() else None
+    return meta if isinstance(meta, dict) else {}
+
+
 def onsets_setting(ws: Workspace, spec_id: str) -> bool:
     """`onsets:` in the song's video.yaml. Off when the file or the key is missing: videos made before onsets keep
     their timing."""
-    meta_file = ws.video_dir(spec_id) / "video.yaml"
-    meta = (yaml.safe_load(meta_file.read_text(encoding="utf-8")) or {}) if meta_file.is_file() else {}
-    return meta.get("onsets") is True
+    return _video_meta(ws, spec_id).get("onsets") is True
 
 
 def _onsets_state(ws: Workspace, spec_id: str, override: bool | None) -> tuple[bool, str]:
     if override is not None:
         return override, "on (--onsets)" if override else "off (--no-onsets)"
-    meta_file = ws.video_dir(spec_id) / "video.yaml"
-    meta = (yaml.safe_load(meta_file.read_text(encoding="utf-8")) or {}) if meta_file.is_file() else {}
+    meta = _video_meta(ws, spec_id)
     if "onsets" not in meta:
         return False, "off (not set in video.yaml)"
-    on = onsets_setting(ws, spec_id)
+    on = meta["onsets"] is True
     return on, "on (video.yaml)" if on else "off (video.yaml)"
 
 
