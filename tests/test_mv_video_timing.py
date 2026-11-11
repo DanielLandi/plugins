@@ -162,3 +162,55 @@ def test_fix_with_a_non_numeric_value_names_the_fix():
     words = [W("night", 115.0, 115.5)]
     with pytest.raises(MVError, match="timing fix 'night' at 1:55: shift must be a number"):
         apply_fixes(words, [{"at": "1:55", "word": "night", "shift": "0,2"}])
+
+
+def test_fixed_indices_names_the_words_a_fix_touches():
+    from musicvideo.video.timing import fixed_indices
+    words = [W("Rain", 1.0, 1.5), W("rain", 5.0, 5.5)]
+    fixes = [{"at": 5.1, "word": "rain", "shift": 0.1}, {"word": "nine", "show": "9"}]
+    assert fixed_indices(words, fixes) == {1}
+
+
+def test_fixed_indices_follow_fixes_in_order():
+    """The editor writes a fix's `at` as the start the page showed, so a second fix finds the word where the first put
+    it: the words a fix touches are matched the way apply_fixes matches them, one fix after another."""
+    from musicvideo.video.timing import fixed_indices
+    words = [W("love", 10.0, 10.5)]
+    fixes = [{"at": 10.0, "word": "love", "start": 14.0, "end": 14.5}, {"at": 14.0, "word": "love", "start": 14.1}]
+    assert apply_fixes(words, fixes)[0].start == 14.1
+    assert fixed_indices(words, fixes) == {0}
+
+
+def test_fixed_indices_follow_a_repeated_word_where_an_earlier_fix_put_it():
+    from musicvideo.video.timing import fixed_indices
+    words = [W("go", 1.0, 1.25), W("go", 1.3, 1.55), W("go", 1.6, 1.9)]
+    # The first go moves to 1.55; the second fix, at 1.55, is that same go (not the third, which starts 0.05 s away).
+    fixes = [{"at": 1.0, "word": "go", "start": 1.55, "end": 1.62}, {"at": 1.55, "word": "go", "start": 1.5}]
+    out = apply_fixes(words, fixes)
+    assert [w.source for w in out] == ["fixed", "align", "align"]
+    assert fixed_indices(words, fixes) == {0}
+
+
+def test_apply_fixes_can_take_the_words_already_matched():
+    from musicvideo.video.timing import fix_targets
+    words = [W("go", 1.0, 1.25), W("go", 1.3, 1.55)]
+    fixes = [{"word": "go", "show": "Go"}, {"at": 1.3, "word": "go", "shift": 0.1}]
+    targets = fix_targets(words, fixes)
+    assert targets == [None, 1]
+    moved = [W("go", 1.0, 1.25), W("go", 2.0, 2.25)]  # measured elsewhere since: the fix still changes word 1
+    assert apply_fixes(moved, fixes, targets)[1].start == 2.1
+
+
+def test_build_timing_writes_the_onset_fields():
+    lyrics = parse_lyrics("[Verse]\nTime flies\n")
+    words = [Word("Time", 1.0, 1.4, 0.9, "onset", sound="stop", onset_conf=0.8, moved=-0.05),
+             Word("flies", 1.4, 2.0, 0.9)]
+    out = build_timing(words, lyrics, 3.0)["words"]
+    assert {k: out[0][k] for k in ("sound", "onset_conf", "moved")} == {"sound": "stop", "onset_conf": 0.8, "moved": -0.05}
+    assert not {"sound", "onset_conf", "moved"} & out[1].keys()
+
+
+def test_build_timing_gives_a_fixed_word_its_sound_but_no_move():
+    lyrics = parse_lyrics("[Verse]\nTime\n")
+    out = build_timing([Word("Time", 1.0, 1.4, 0.9, "fixed", sound="stop")], lyrics, 3.0)["words"][0]
+    assert out["sound"] == "stop" and "moved" not in out and "onset_conf" not in out

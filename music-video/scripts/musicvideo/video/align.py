@@ -4,7 +4,7 @@ import os
 import subprocess
 from collections import Counter
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
@@ -14,9 +14,11 @@ from ..workspace import Workspace, install_dir
 from ..errors import MVError
 from .lyrics import Lyrics, parse_lyrics
 from .media import decode_mono, duration_s, rms_envelope
+from .onsets import ONSET_SR, refine_onsets
 from .paths import VideoSong, video_song
 from .subtitles import to_lrc, to_srt, to_vtt
-from .timing import (VOICE_FRAME_S, apply_fixes, build_timing, show_words, line_ends, match_heard, missing_lines,
+from .timing import (VOICE_FRAME_S, apply_fixes, build_timing, fix_targets, is_show_only, line_ends, match_heard,
+                     missing_lines, show_words,
                      reconcile, snap_to_voice, suspects, words_from_json)
 
 WORKER = Path(__file__).with_name("worker.py")
@@ -44,6 +46,8 @@ class AlignResult:
     suspects: list[dict]
     missing: list[dict]
     counts: dict[str, int]
+    onsets: str = ""                                   # on/off, and why
+    moves: list[dict] = field(default_factory=list)    # words the onsets moved, biggest first
 
 
 def _lyrics(song: VideoSong) -> tuple[Lyrics, str]:
@@ -52,8 +56,31 @@ def _lyrics(song: VideoSong) -> tuple[Lyrics, str]:
     return parse_lyrics(spec_lyrics(song.spec)), "spec"
 
 
+def _video_meta(ws: Workspace, spec_id: str) -> dict:
+    """The song's video.yaml, or {} when it is missing or not a mapping."""
+    meta_file = ws.video_dir(spec_id) / "video.yaml"
+    meta = yaml.safe_load(meta_file.read_text(encoding="utf-8")) if meta_file.is_file() else None
+    return meta if isinstance(meta, dict) else {}
+
+
+def onsets_setting(ws: Workspace, spec_id: str) -> bool:
+    """`onsets:` in the song's video.yaml. Off when the file or the key is missing: videos made before onsets keep
+    their timing."""
+    return _video_meta(ws, spec_id).get("onsets") is True
+
+
+def _onsets_state(ws: Workspace, spec_id: str, override: bool | None) -> tuple[bool, str]:
+    if override is not None:
+        return override, "on (--onsets)" if override else "off (--no-onsets)"
+    meta = _video_meta(ws, spec_id)
+    if "onsets" not in meta:
+        return False, "off (not set in video.yaml)"
+    on = meta["onsets"] is True
+    return on, "on (video.yaml)" if on else "off (video.yaml)"
+
+
 def align(ws: Workspace, spec_id: str, lang: str = "en", force: bool = False,
-          runner: Runner | None = None) -> AlignResult:
+          runner: Runner | None = None, onsets: bool | None = None) -> AlignResult:
     runner = runner or run_worker
     song = video_song(ws, spec_id)
     if is_instrumental(song.spec):
@@ -84,10 +111,21 @@ def align(ws: Workspace, spec_id: str, lang: str = "en", force: bool = False,
     words = reconcile(aligned, heard, ends)
     envelope = rms_envelope(decode_mono(p.vocals, ENVELOPE_SR), ENVELOPE_SR, VOICE_FRAME_S)
     words = snap_to_voice(words, envelope)
-    fixes = yaml.safe_load(p.fixes.read_text(encoding="utf-8")) if p.fixes.is_file() else None
-    words = apply_fixes(words, fixes or [])
+    fixes = (yaml.safe_load(p.fixes.read_text(encoding="utf-8")) if p.fixes.is_file() else None) or []
+    on, state = _onsets_state(ws, spec_id, onsets)
+    if on:
+        stem = decode_mono(p.vocals, ONSET_SR)
+        targets = None
+        if any(not is_show_only(fix) for fix in fixes):
+            # The editor writes a fix's `at` as the start the page showed: the measured start, or where an earlier
+            # fix put the word. Match the fixes there, then measure again leaving those words alone.
+            targets = fix_targets(refine_onsets(words, stem, ONSET_SR, lang, set()), fixes)
+        words = refine_onsets(words, stem, ONSET_SR, lang, {i for i in targets or [] if i is not None})
+        words = apply_fixes(words, fixes, targets)
+    else:
+        words = apply_fixes(words, fixes)
 
-    timing = show_words(build_timing(words, lyrics, duration_s(p.song)), fixes or [])
+    timing = show_words(build_timing(words, lyrics, duration_s(p.song)), fixes)
     p.timing.write_text(json.dumps(timing, indent=1, ensure_ascii=False), encoding="utf-8")
     title, artist = song.spec["title"], ws.artist
     p.subtitle("lrc").write_text(to_lrc(timing, title, artist), encoding="utf-8")
@@ -101,4 +139,7 @@ def align(ws: Workspace, spec_id: str, lang: str = "en", force: bool = False,
         missing=[{"i": i, "text": lyrics.lines[i].text}
                  for i in missing_lines(aligned, lyrics, match_heard(aligned, heard))],
         counts=dict(Counter(w.source for w in words)),
+        onsets=state,
+        moves=sorted(({"i": i, "text": timing["words"][i]["text"], "start": w.start, "moved": w.moved}
+                      for i, w in enumerate(words) if w.source == "onset"), key=lambda m: -abs(m["moved"])),
     )

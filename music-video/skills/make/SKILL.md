@@ -201,7 +201,10 @@ request done with `--video <id>`.
 
 1. Word timings (the first run on a machine installs the alignment models; give it time). A new take or a
    language change is detected automatically; `--force` redoes everything by hand. Then the song map and a
-   karaoke preview:
+   karaoke preview. A video made from the template has `onsets: true` in `video.yaml`: `align` moves each word's
+   start onto its first sound, measured on the vocals (an s on its hiss, a p on its burst, a vowel or an m on the
+   voice; never a breath). Videos made before 0.8.3 have no such line and keep their timing; switch one on only when
+   the user asks (`onsets: true` in its `video.yaml`).
 
    ```bash
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" align <id> --lang <lang>
@@ -209,7 +212,7 @@ request done with `--video <id>`.
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" preview <id> --open
    ```
 
-2. Show the user: the align summary (repairs, unsure words with times, possibly missing lines), the tempo and the
+2. Show the user: the align summary (repairs, the onsets line, unsure words with times, possibly missing lines), the tempo and the
    sections, and ask them to watch the preview. Its bottom panel shows the vocal waveform 10 s at a time with a
    moving playhead, 0.1 s ticks and a mark at each word's start: a word's true start is where the waveform rises
    after a dip, so a fix can be read off it to the tenth of a second.
@@ -226,8 +229,9 @@ request done with `--video <id>`.
      uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" edit-timing <id> --open
      ```
 
-   - Bad words → write `<video>/timing-fixes.yaml` entries (`- at: "1:13"` / `word: thunder` / `shift: 0.2`, or
-     `start:`/`end:`), re-run align and preview.
+   - Bad words → write `<video>/timing-fixes.yaml` entries with the times read off the preview or the editor
+     (`- at: "1:13"` / `word: thunder` / `start: 73.42`, and `end:` when it is wrong too), re-run align and preview.
+     Never write `shift:`: it is added to the aligner's start, not to the start the preview shows.
    - A word sung one way but written another (a number sung as words: "nine-to-five" shown as "9-to-5") → a
      `timing-fixes.yaml` entry `- word: Nine-to-five` / `show: "9-to-5"` (every occurrence; add `at:` for one).
      Only the text in timing.json and the subtitles changes; the times stay. Re-run align and preview.

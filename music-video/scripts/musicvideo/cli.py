@@ -156,12 +156,20 @@ def cmd_ingest(args) -> int:
 
 
 def cmd_align(args) -> int:
-    r = align(load_workspace(), args.id, lang=args.lang, force=args.force)
+    r = align(load_workspace(), args.id, lang=args.lang, force=args.force, onsets=args.onsets)
     t = r.timing
     print(f"timing: {r.timing_path} ({len(t['words'])} words, {len(t['lines'])} lines; "
           f"lyrics from the {r.lyrics_source})")
     print(f"repaired: {r.counts.get('transcript', 0)} from the transcription, "
           f"{r.counts.get('snapped', 0)} moved onto the voice, {r.counts.get('fixed', 0)} fixed by you")
+    if r.onsets.startswith("on"):
+        shifts = sorted(m["moved"] for m in r.moves)
+        median = f"{shifts[len(shifts) // 2]:+.2f}" if shifts else "+0.00"
+        biggest = ", ".join(f"{clock(m['start'])} {m['text']} {m['moved']:+.2f} s" for m in r.moves[:5])
+        print(f"onsets: {r.onsets}: {len(r.moves)} of {len(r.timing['words'])} words moved (median {median} s)"
+              + (f"; biggest: {biggest}" if biggest else ""))
+    else:
+        print(f"onsets: {r.onsets}")
     unsure = " · ".join(f"{clock(w['start'])} {w['text']} ({w['conf']:.2f})" for w in r.suspects)
     print(f"unsure words ({len(r.suspects)}): {unsure or 'none'}")
     missing = "; ".join(repr(m["text"]) for m in r.missing)
@@ -555,6 +563,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("id")
     p.add_argument("--lang", default="en", help="sung language, e.g. en or pt")
     p.add_argument("--force", action="store_true", help="redo vocal separation and transcription too")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--onsets", dest="onsets", action="store_true", default=None,
+                   help="this run only: word starts on the first sound, whatever video.yaml says")
+    g.add_argument("--no-onsets", dest="onsets", action="store_false",
+                   help="this run only: keep the aligner's word starts, whatever video.yaml says")
     p = sub.add_parser("analyze", help="tempo, beats, sections, energy and big moments")
     p.add_argument("id")
     p = sub.add_parser("preview", help="full-song karaoke preview to check word and beat sync")

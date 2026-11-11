@@ -137,3 +137,135 @@ def test_the_worker_keeps_its_environment_and_models_in_the_install_folder(tmp_p
     assert seen["env"]["UV_CACHE_DIR"] == str(install / "uv")
     assert seen["env"]["TORCH_HOME"] == str(install / "models" / "torch")
     assert seen["env"]["HF_HOME"] == str(install / "models" / "huggingface")
+
+
+# ---------------------------------------------------------------- word starts on the first sound (onsets)
+
+import wave
+
+import numpy as np
+
+ONSET_RATE = 44100
+_rng = np.random.default_rng(3)
+
+
+def _tone(s, f=220.0):
+    t = np.arange(int(s * ONSET_RATE)) / ONSET_RATE
+    return 0.3 * (np.sin(2 * np.pi * f * t) + 0.5 * np.sin(4 * np.pi * f * t))
+
+
+def _silence(s):
+    return _rng.normal(0, 1e-4, int(s * ONSET_RATE))
+
+
+def _hiss(s):
+    x = _rng.normal(0, 1, int(s * ONSET_RATE))
+    spec = np.fft.rfft(x)
+    spec[np.fft.rfftfreq(len(x), 1 / ONSET_RATE) < 4000] = 0
+    y = np.fft.irfft(spec, len(x))
+    return 0.1 * y / np.abs(y).max()
+
+
+def _write_wav(path, samples):
+    data = (np.clip(samples, -1, 1) * 32767).astype("<i2").tobytes()
+    with wave.open(str(path), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(ONSET_RATE)
+        f.writeframes(data)
+
+
+def _with_stem(spec_id, samples):
+    """Align once (so the cache key exists), then put a synthetic vocal stem in place of the separated one."""
+    align(load_workspace(), spec_id, runner=fake_worker([]), onsets=False)
+    _write_wav(video_song(load_workspace(), spec_id).paths.vocals, samples)
+
+
+def _the_stem():
+    """'the' (word 2, a voiced th) is aligned at 0.80 s; the voice comes back at 0.73 s, after a gap (within 0.05 s of
+    the end of 'on', at 0.75 s)."""
+    return np.concatenate([_tone(0.60), _silence(0.13), _tone(3.5)])
+
+
+def _video_yaml(spec_id, **values):
+    folder = load_workspace().video_dir(spec_id)
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "video.yaml").write_text(yaml.safe_dump({"id": spec_id, **values}), encoding="utf-8")
+    return folder / "video.yaml"
+
+
+def test_onsets_are_off_without_the_setting(mv_ws, filed_song):
+    spec_id, _ = filed_song()
+    _with_stem(spec_id, _the_stem())
+    result = align(load_workspace(), spec_id, runner=fake_worker([]))
+    assert result.onsets == "off (not set in video.yaml)"
+    assert result.timing["words"][2]["start"] == 0.8 and not any("moved" in w for w in result.timing["words"])
+
+
+def test_onsets_follow_video_yaml(mv_ws, filed_song):
+    spec_id, _ = filed_song()
+    _with_stem(spec_id, _the_stem())
+    _video_yaml(spec_id, onsets=True)
+    result = align(load_workspace(), spec_id, runner=fake_worker([]))
+    words = result.timing["words"]
+    assert result.onsets == "on (video.yaml)"
+    assert abs(words[2]["start"] - 0.73) <= 0.01 and words[2]["source"] == "onset"
+    assert words[1]["end"] == words[2]["start"]
+    assert result.moves[0]["text"] == "the"
+
+
+@pytest.mark.parametrize("text", ["- onsets\n- true\n", "onsets on\n"])
+def test_a_video_yaml_that_is_not_a_mapping_leaves_onsets_off(mv_ws, filed_song, text):
+    spec_id, _ = filed_song()
+    _with_stem(spec_id, _the_stem())
+    _video_yaml(spec_id).write_text(text, encoding="utf-8")
+    result = align(load_workspace(), spec_id, runner=fake_worker([]))
+    assert result.onsets == "off (not set in video.yaml)" and result.moves == []
+
+
+def test_a_cli_override_wins_for_one_run(mv_ws, filed_song):
+    spec_id, _ = filed_song()
+    _with_stem(spec_id, _the_stem())
+    yaml_file = _video_yaml(spec_id, onsets=True)
+    before = yaml_file.read_text(encoding="utf-8")
+    result = align(load_workspace(), spec_id, runner=fake_worker([]), onsets=False)
+    assert result.onsets == "off (--no-onsets)" and result.moves == []
+    assert yaml_file.read_text(encoding="utf-8") == before
+
+
+def test_a_shift_fix_keeps_its_old_meaning(mv_ws, filed_song):
+    spec_id, _ = filed_song()
+    _with_stem(spec_id, np.concatenate([_silence(0.1), _tone(4.0)]))  # the voice starts 0.1 s before Headlights
+    _video_yaml(spec_id, onsets=True)
+    paths = video_song(load_workspace(), spec_id).paths
+    paths.fixes.write_text(yaml.safe_dump([{"at": 0.2, "word": "Headlights", "shift": 0.1}]), encoding="utf-8")
+    first = align(load_workspace(), spec_id, runner=fake_worker([])).timing["words"][0]
+    assert (first["start"], first["source"]) == (0.3, "fixed")
+
+
+def test_two_fixes_in_a_row_with_onsets_on(mv_ws, filed_song):
+    """The timing editor saved twice: Headlights moved more than 3 s, then nudged from where the page showed it."""
+    spec_id, _ = filed_song()
+    _with_stem(spec_id, _the_stem())
+    _video_yaml(spec_id, onsets=True)
+    paths = video_song(load_workspace(), spec_id).paths
+    paths.fixes.write_text(yaml.safe_dump([{"at": 0.2, "word": "Headlights", "start": 3.6, "end": 3.7},
+                                           {"at": 3.6, "word": "Headlights", "start": 3.65, "end": 3.75}]),
+                           encoding="utf-8")
+    words = align(load_workspace(), spec_id, runner=fake_worker([])).timing["words"]
+    assert (words[0]["start"], words[0]["end"], words[0]["source"]) == (3.65, 3.75, "fixed")
+    assert "moved" not in words[0]
+
+
+def test_cli_summary_reports_onsets(mv_ws, filed_song, monkeypatch, capsys):
+    spec_id, _ = filed_song()
+    _with_stem(spec_id, _the_stem())
+    monkeypatch.setattr("musicvideo.video.align.run_worker", fake_worker([]))
+    assert main(["align", spec_id, "--lang", "en", "--onsets"]) == 0
+    line = next(l for l in capsys.readouterr().out.splitlines() if l.startswith("onsets:"))
+    assert line.startswith("onsets: on (--onsets): 1 of 12 words moved")
+
+
+def test_the_template_switches_onsets_on():
+    template = Path(__file__).parents[1] / "music-video" / "studio" / "template" / "video.yaml"
+    assert yaml.safe_load(template.read_text(encoding="utf-8"))["onsets"] is True

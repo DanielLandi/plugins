@@ -153,6 +153,7 @@ const now = () => playing()
 const reported = () => S.ctx ? (S.ctx.baseLatency || 0) + (S.ctx.outputLatency || 0) : 0;
 const delay = () => S.delay !== null ? S.delay : reported();
 // until set by hand, the slider shows what the browser reports
+const SOUND_LABEL = { fricative: "F", stop: "S", voiced: "V" };
 const showDelay = () => { const ms = Math.round(delay() * 1000); $("delay").value = ms; $("delayMs").textContent = `${ms} ms`; };
 const r3 = (t) => Math.round(t * 1000) / 1000;
 const remember = (k, v) => { try { localStorage.setItem(`timing-editor.${k}`, v); } catch { } };
@@ -407,6 +408,10 @@ function draw() {
     }
     cx.font = "600 13px -apple-system, sans-serif";
     cx.fillText(wd.text, x + 4, y);
+    if (SOUND_LABEL[wd.sound]) {   // the first sound the start was placed on: F hiss, S burst, V voice
+      cx.save(); cx.globalAlpha = 0.6; cx.font = "600 11px -apple-system, sans-serif"; cx.textAlign = "right";
+      cx.fillText(SOUND_LABEL[wd.sound], x - 3, y); cx.restore();
+    }
     const xe = Math.min(xOf(wd.end), w);
     cx.globalAlpha = 0.55; cx.fillRect(x, y + 4, Math.max(1, xe - x), 3); cx.globalAlpha = 1;
     if (onPage(wd.end) || wd.end === (S.page + 1) * PAGE) cx.fillRect(xe - 3, y + 1, 6, 9);
