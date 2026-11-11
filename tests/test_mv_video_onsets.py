@@ -148,6 +148,13 @@ def test_refine_trims_the_previous_word():
     assert abs(w.start - 0.50) <= 0.01 and prev.end == w.start
 
 
+def test_refine_never_trims_a_kept_previous_word():
+    """A word a fix changes keeps its end too: the next word starts no earlier than that end."""
+    words = [Word("a", 0.10, 0.53, 0.9), Word("sun", 0.70, 1.0, 0.9)]  # the hiss at 0.50 is under the kept word
+    prev, w = refine_onsets(words, s_word_stem(), ONSET_SR, "en", keep={0})
+    assert prev.end == 0.53 and w.start >= 0.53
+
+
 def test_refine_will_not_squeeze_the_previous_word():
     words = [Word("a", 0.46, 0.62, 0.9), Word("sun", 0.70, 1.0, 0.9)]
     prev, w = refine_onsets(words, s_word_stem(), ONSET_SR, "en", keep=set())

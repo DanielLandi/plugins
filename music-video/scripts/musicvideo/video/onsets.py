@@ -211,8 +211,8 @@ ONSET_LATE_S = 0.35   # the aligner tends to start words early (tuned on real co
 
 def refine_onsets(words: list[Word], samples: np.ndarray, sr: int, lang: str, keep: set[int]) -> list[Word]:
     """Each word's start moved onto its first sound, measured on the vocal stem. Words in `keep` (the ones a timing
-    fix changes) keep their start. A start that moves into the word before trims that word's end, unless the trim
-    would leave it too short; then the start stays."""
+    fix changes) keep their start and end. A start that moves into the word before trims that word's end, unless the
+    trim would leave it too short (then the start stays) or that word is kept (then the start stays after its end)."""
     out = list(words)
     for i, w in enumerate(out):
         sound = first_sound(w.text, lang)
@@ -223,6 +223,8 @@ def refine_onsets(words: list[Word], samples: np.ndarray, sr: int, lang: str, ke
         # Never earlier than the previous word allows: past its first MIN_WORD_S, and at most OVERLAP_S into its end.
         lo = max(0.0, w.start - ONSET_EARLY_S, prev.start + MIN_WORD_S if prev else 0.0,
                  prev.end - OVERLAP_S if prev else 0.0)
+        if prev and i - 1 in keep:
+            lo = max(lo, prev.end)
         hi = min(w.start + ONSET_LATE_S, w.end - MIN_WORD_S)
         if hi <= lo:
             out[i] = replace(w, sound=sound)
@@ -230,7 +232,7 @@ def refine_onsets(words: list[Word], samples: np.ndarray, sr: int, lang: str, ke
         t, conf = measure_onset(samples, sr, lo, hi, w.start, sound)
         start = round(t, 3) if t is not None and conf >= ONSET_MIN_CONF else w.start
         if prev and start < prev.end:
-            if too_short(prev.start, start):
+            if too_short(prev.start, start) or i - 1 in keep:
                 start = w.start
             else:
                 out[i - 1] = replace(prev, end=start)
