@@ -29,7 +29,8 @@ from .video.review import build_page, load_versions, record_version, version_lab
 from .video.songfix import lifted_song
 from .video.timing import clock
 from .video import timing_editor
-from .workspace import cache_dir, init_workspace, install_dir, load_private_names, load_workspace, workspace_home
+from .workspace import (cache_dir, init_workspace, install_dir, load_private_names, load_workspace,
+                        warn_if_no_private_names, workspace_home)
 
 
 
@@ -68,6 +69,7 @@ def cmd_validate(args) -> int:
     ws = load_workspace()
     names = load_private_names(ws)
     paths = [p for p, _ in iter_specs(ws)] if args.all else [find_spec(ws, args.id)]
+    warn_if_no_private_names(ws)
     failed = 0
     for path in paths:
         data = load_spec(path)

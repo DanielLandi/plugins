@@ -8,7 +8,7 @@ from .albums import credit, load_album, write_manifest
 from .errors import MVError
 from .spec import find_spec, iter_specs, load_spec, now_iso, parse_dt, save_spec, validate
 from .tagging import write_tags
-from .workspace import Workspace, load_private_names, stored_path
+from .workspace import Workspace, load_private_names, stored_path, warn_if_no_private_names
 
 AUDIO_EXTS = {".mp3"}
 SINCE_SLACK = timedelta(seconds=5)
@@ -67,6 +67,7 @@ def ingest(ws: Workspace, spec_id: str, file: Path | None = None) -> Path:
     if data.get("status") in ("drafted", "generated"):
         data["status"] = "downloaded"
     album = load_album(ws, data["album"]) if data.get("album") else None
+    warn_if_no_private_names(ws)
     errors = validate(data, load_private_names(ws), album)
     if errors:
         raise MVError("spec invalid:\n" + "\n".join(f"  - {e}" for e in errors))

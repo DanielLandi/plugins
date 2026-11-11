@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.3
+
+- `validate` and `ingest` warn when the workspace has no `private-names.txt`: `warning: no private-names.txt in
+  <workspace>; private names were not checked`, with the path to create it. The check was skipped silently before.
+  The warning never fails the command, and a file with no names in it (only comments) is taken as a deliberate
+  empty list and does not warn.
+
 ## 0.8.2
 
 - Requests are never lost when the home and Claude's `requests` command write a queue at the same moment: the

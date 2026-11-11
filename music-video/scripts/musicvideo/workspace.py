@@ -220,9 +220,29 @@ def filed_path(ws: Workspace, stored: str) -> Path:
     return path if path.is_absolute() else ws.home / path
 
 
+PRIVATE_NAMES = "private-names.txt"
+
+
 def load_private_names(ws: Workspace) -> list[str]:
-    path = ws.home / "private-names.txt"
+    path = ws.home / PRIVATE_NAMES
     if not path.is_file():
         return []
     lines = (line.strip() for line in path.read_text(encoding="utf-8").splitlines())
     return [line for line in lines if line and not line.startswith("#")]
+
+
+def private_names_warning(ws: Workspace) -> str | None:
+    """What to tell the user when the workspace keeps no private-names.txt, so no name was checked.
+    A file with no names in it is a deliberate empty list and says nothing."""
+    path = ws.home / PRIVATE_NAMES
+    if path.is_file():
+        return None
+    return (f"warning: no {PRIVATE_NAMES} in {ws.home}; private names were not checked "
+            f"(list them one per line in {path})")
+
+
+def warn_if_no_private_names(ws: Workspace) -> None:
+    """Print the missing-file warning to stderr; it never changes the command's outcome."""
+    warning = private_names_warning(ws)
+    if warning:
+        print(warning, file=sys.stderr)

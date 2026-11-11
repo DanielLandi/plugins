@@ -130,3 +130,30 @@ def test_a_link_outside_downloads_is_kept_even_if_it_points_into_them(mv_ws, wri
     link.symlink_to(download)
     ingest(mv_ws, SPEC_ID, link)
     assert link.is_symlink()  # the user's own link, outside the downloads folder, stays
+
+
+def test_ingest_warns_when_private_names_are_missing(mv_ws, write_spec, make_mp3, capsys):
+    write_spec(status="generated")
+    make_mp3(mv_ws.downloads_dir / "Night Drive.mp3")
+    assert main(["ingest", SPEC_ID]) == 0  # filed all the same
+    captured = capsys.readouterr()
+    assert captured.err.count("warning: no private-names.txt in") == 1
+    assert "private names were not checked" in captured.err
+    assert captured.out.strip().endswith("Test Artist - Night Drive.mp3")
+
+
+def test_ingest_with_an_empty_private_names_file_does_not_warn(mv_ws, write_spec, make_mp3, capsys):
+    write_spec(status="generated")
+    make_mp3(mv_ws.downloads_dir / "Night Drive.mp3")
+    (mv_ws.home / "private-names.txt").write_text("# nobody yet\n", encoding="utf-8")
+    assert main(["ingest", SPEC_ID]) == 0
+    assert "private-names.txt" not in capsys.readouterr().err
+
+
+def test_ingest_refuses_a_listed_private_name(mv_ws, write_spec, make_mp3, capsys):
+    write_spec(status="generated", title="Alex on the Road")
+    make_mp3(mv_ws.downloads_dir / "Alex on the Road.mp3")
+    (mv_ws.home / "private-names.txt").write_text("Alex\n", encoding="utf-8")
+    with pytest.raises(MVError, match="private name 'Alex' appears in the song"):
+        ingest(mv_ws, SPEC_ID)
+    assert "private-names.txt" not in capsys.readouterr().err
