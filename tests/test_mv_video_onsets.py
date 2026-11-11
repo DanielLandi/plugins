@@ -5,12 +5,12 @@ from musicvideo.video.onsets import first_sound
 
 @pytest.mark.parametrize("word,kind", [
     ("sunlight", "fricative"), ("shine", "fricative"), ("Charlie", "fricative"), ("photo", "fricative"),
-    ("the", "fricative"), ("very", "fricative"), ("zero", "fricative"), ("city", "fricative"), ("gentle", "fricative"),
+    ("thin", "fricative"), ("very", "fricative"), ("zero", "fricative"), ("city", "fricative"), ("gentle", "fricative"),
     ("jump", "fricative"), ("xylophone", "fricative"),
     ("paper", "stop"), ("better", "stop"), ("time", "stop"), ("door", "stop"), ("kite", "stop"), ("car", "stop"),
     ("queen", "stop"), ("go", "stop"),
     ("moon", "voiced"), ("night", "voiced"), ("love", "voiced"), ("road", "voiced"), ("we", "voiced"),
-    ("you", "voiced"), ("open", "voiced"), ("home", "voiced"),
+    ("you", "voiced"), ("open", "voiced"), ("home", "voiced"), ("the", "voiced"), ("them", "voiced"), ("this", "voiced"),
 ])
 def test_first_sound_english(word, kind):
     assert first_sound(word, "en") == kind
@@ -127,8 +127,14 @@ def test_refine_skips_kept_words():
     assert (w.start, w.sound, w.moved, w.source) == (0.70, "fricative", 0.0, "align")
 
 
+def test_refine_never_reaches_into_the_previous_word():
+    words = [Word("a", 0.10, 0.62, 0.9), Word("sun", 0.70, 1.0, 0.9)]  # the hiss at 0.50 is under the previous word
+    prev, w = refine_onsets(words, s_word_stem(), ONSET_SR, "en", keep=set())
+    assert w.start >= 0.62 - 0.05
+
+
 def test_refine_trims_the_previous_word():
-    words = [Word("a", 0.10, 0.62, 0.9), Word("sun", 0.70, 1.0, 0.9)]
+    words = [Word("a", 0.10, 0.53, 0.9), Word("sun", 0.70, 1.0, 0.9)]
     prev, w = refine_onsets(words, s_word_stem(), ONSET_SR, "en", keep=set())
     assert abs(w.start - 0.50) <= 0.01 and prev.end == w.start
 

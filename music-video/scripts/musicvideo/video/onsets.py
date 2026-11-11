@@ -35,8 +35,15 @@ def _letters(word: str) -> str:
     return text[i:]
 
 
+# These start with a voiced th (as in "the"): a soft voiced sound with little hiss, so the voice marks the start.
+_VOICED_TH = {"the", "this", "that", "these", "those", "them", "they", "their", "theirs", "there", "then", "than",
+              "though", "thus", "thee", "thou", "thy", "thine"}
+
+
 def _english(w: str) -> Sound:
     a, b = w[0], w[1:2]
+    if "".join(c for c in w if c.isalpha()) in _VOICED_TH:
+        return "voiced"
     if w.startswith(("sh", "ch", "ph", "th")) or a in "sfvzxj":
         return "fricative"
     if a in "cg":
@@ -186,7 +193,8 @@ def measure_onset(samples: np.ndarray, sr: int, lo: float, hi: float, guess: flo
 
 ONSET_MIN_CONF = 0.5
 ONSET_EARLY_S = 0.30
-ONSET_LATE_S = 0.25
+OVERLAP_S = 0.05      # how far a start may reach into the previous word's end
+ONSET_LATE_S = 0.35   # the aligner tends to start words early (tuned on real corrections)
 
 
 def refine_onsets(words: list[Word], samples: np.ndarray, sr: int, lang: str, keep: set[int]) -> list[Word]:
@@ -200,7 +208,9 @@ def refine_onsets(words: list[Word], samples: np.ndarray, sr: int, lang: str, ke
             out[i] = replace(w, sound=sound)
             continue
         prev = out[i - 1] if i > 0 else None
-        lo = max(0.0, w.start - ONSET_EARLY_S, prev.start + MIN_WORD_S if prev else 0.0)
+        # Never earlier than the previous word allows: past its first MIN_WORD_S, and at most OVERLAP_S into its end.
+        lo = max(0.0, w.start - ONSET_EARLY_S, prev.start + MIN_WORD_S if prev else 0.0,
+                 prev.end - OVERLAP_S if prev else 0.0)
         hi = min(w.start + ONSET_LATE_S, w.end - MIN_WORD_S)
         if hi <= lo:
             out[i] = replace(w, sound=sound)

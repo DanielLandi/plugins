@@ -182,8 +182,9 @@ def _with_stem(spec_id, samples):
 
 
 def _the_stem():
-    """'the' (word 2, a fricative) is aligned at 0.80 s; its hiss starts at 0.65 s."""
-    return np.concatenate([_tone(0.60), _silence(0.05), _hiss(0.15), _tone(3.4)])
+    """'the' (word 2, a voiced th) is aligned at 0.80 s; the voice comes back at 0.73 s, after a gap (within 0.05 s of
+    the end of 'on', at 0.75 s)."""
+    return np.concatenate([_tone(0.60), _silence(0.13), _tone(3.5)])
 
 
 def _video_yaml(spec_id, **values):
@@ -208,7 +209,7 @@ def test_onsets_follow_video_yaml(mv_ws, filed_song):
     result = align(load_workspace(), spec_id, runner=fake_worker([]))
     words = result.timing["words"]
     assert result.onsets == "on (video.yaml)"
-    assert abs(words[2]["start"] - 0.65) <= 0.01 and words[2]["source"] == "onset"
+    assert abs(words[2]["start"] - 0.73) <= 0.01 and words[2]["source"] == "onset"
     assert words[1]["end"] == words[2]["start"]
     assert result.moves[0]["text"] == "the"
 
