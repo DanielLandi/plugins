@@ -6,7 +6,7 @@ import pytest
 
 from musicvideo.cli import main
 from musicvideo.errors import MVError
-from musicvideo.video.review import build_page, load_versions, record_version, review_dir
+from musicvideo.video.review import TEMPLATE, build_page, load_versions, mark_review, record_version, review_dir
 from musicvideo.workspace import load_workspace
 from mv_fixtures import BT709
 
@@ -108,3 +108,62 @@ def test_cli_version_and_review(checked, capsys):
     assert main(["version", spec_id, str(clip), "--scene", "counter", "--excerpt", "1-3", "--at", "2"]) == 2
     assert main(["review", spec_id]) == 0
     assert "counter: v1 " in capsys.readouterr().out
+
+
+def test_a_new_version_waits_for_review_and_only_the_newest_of_a_scene_waits(checked):
+    spec_id, make = checked
+    ws = load_workspace()
+    record_version(ws, spec_id, make("relay"), "relay")
+    record_version(ws, spec_id, make("relay"), "relay", variant="b")
+    record_version(ws, spec_id, make("street"), "street")
+    assert [v["review"]["state"] for v in load_versions(ws, spec_id)] == ["waiting", "waiting", "waiting"]
+    record_version(ws, spec_id, make("relay"), "relay")
+    states = [(v["scene"], v["n"], v["review"]["state"]) for v in load_versions(ws, spec_id)]
+    # relay v1 is replaced by v3; the variant (v2) and the other scene still wait
+    assert states == [("relay", 1, "replaced"), ("relay", 2, "waiting"), ("street", 1, "waiting"),
+                      ("relay", 3, "waiting")]
+    assert load_versions(ws, spec_id)[0]["review"]["by"] == 3
+
+
+def test_reviewed_keeps_the_users_words_and_known_issues_stay_on_top(checked):
+    spec_id, make = checked
+    ws = load_workspace()
+    record_version(ws, spec_id, make("roof"), "roof", issues=["2:10.4: the sign flickers for two frames"])
+    mark_review(ws, spec_id, "roof:v1", issue="the moon pops in at 2:14.0")
+    v = mark_review(ws, spec_id, "roof:v1", reviewed="the stars should be brighter")
+    assert v["review"]["state"] == "reviewed" and v["review"]["said"] == "the stars should be brighter"
+    assert v["review"]["at"]
+    saved = load_versions(ws, spec_id)[0]   # persisted in the review data
+    assert saved["issues"] == ["2:10.4: the sign flickers for two frames", "the moon pops in at 2:14.0"]
+    assert saved["review"]["state"] == "reviewed"
+    page = build_page(ws, spec_id).read_text(encoding="utf-8")
+    data = json.loads(page.split("const DATA = ", 1)[1].split(";\n", 1)[0].replace("<\\/", "</"))
+    assert data["versions"][0]["issues"][1] == "the moon pops in at 2:14.0"
+    assert mark_review(ws, spec_id, "roof v1", waiting=True)["review"]["state"] == "waiting"
+    with pytest.raises(MVError, match="no version roof:v9"):
+        mark_review(ws, spec_id, "roof:v9", waiting=True)
+    with pytest.raises(MVError, match="scene:vN"):
+        mark_review(ws, spec_id, "roof", waiting=True)
+
+
+def test_the_page_puts_known_issues_first_and_shows_the_marks():
+    page = TEMPLATE.read_text(encoding="utf-8")
+    card = page.split("function card(", 1)[1].split("\n}\n", 1)[0]
+    assert card.index("issues") < card.index("<dl>")          # known issues right under the title, before the facts
+    assert "waiting review" in page and "reviewed" in page
+
+
+def test_cli_issues_and_review_marks(checked, capsys):
+    spec_id, make = checked
+    clip = make("counter", seconds=2, excerpt="1-3")
+    assert main(["version", spec_id, str(clip), "--scene", "counter", "--excerpt", "1-3",
+                 "--issue", "0:01.5: the timer's hand jumps", "--issue", "no shadow yet"]) == 0
+    assert "2 known issues" in capsys.readouterr().out
+    assert main(["review", spec_id]) == 0
+    assert "counter: v1 " in (out := capsys.readouterr().out) and "waiting review" in out
+    assert main(["review", spec_id, "--version", "counter:v1", "--reviewed", "slower, and keep the shadow"]) == 0
+    assert main(["review", spec_id]) == 0
+    assert "reviewed: slower, and keep the shadow" in capsys.readouterr().out
+    assert main(["review", spec_id, "--version", "counter:v1", "--issue", "the egg cracks late"]) == 0
+    assert load_versions(load_workspace(), spec_id)[0]["issues"][-1] == "the egg cracks late"
+    assert main(["review", spec_id, "--reviewed", "x"]) == 2   # a mark needs --version

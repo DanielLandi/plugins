@@ -25,7 +25,7 @@ from .video.mux import mux
 from .video.paths import VideoPaths, open_file, song_for, video_song
 from .video.preview import preview
 from .video.qc import run_qc
-from .video.review import build_page, load_versions, record_version, version_label
+from .video.review import build_page, load_versions, mark_review, record_version, review_mark, version_label
 from .video.songfix import lifted_song
 from .video.timing import clock
 from .video import timing_editor
@@ -284,22 +284,31 @@ def cmd_version(args) -> int:
     start = _range(args.excerpt)[0] if args.excerpt else args.at
     ws = load_workspace()
     v = record_version(ws, args.id, Path(args.file), args.scene, start=start, note=args.note or "",
-                       variant=args.variant)
+                       variant=args.variant, issues=args.issue)
     shows = f"{clock(v['start'])}–{clock(v['start'] + v['duration'])}" if v["kind"] == "video" else "a still"
-    print(f"kept {version_label(v)} ({shows}{', code ' + v['code'] if v['code'] else ''})")
+    issues = f", {len(v['issues'])} known issue{'s' if len(v['issues']) != 1 else ''}" if v["issues"] else ""
+    print(f"kept {version_label(v)} ({shows}{', code ' + v['code'] if v['code'] else ''}{issues}), waiting review")
     print(f"review: {build_page(ws, args.id)}")
     return 0
 
 
 def cmd_review(args) -> int:
     ws = load_workspace()
+    if args.reviewed is not None or args.waiting or args.issue:
+        if not args.version:
+            raise MVError("say which version: --version scene:vN (e.g. relay:v2)")
+        v = mark_review(ws, args.id, args.version, reviewed=args.reviewed, waiting=args.waiting, issue=args.issue)
+        print(f"{version_label(v)}: {review_mark(v) or 'no mark'}"
+              + (f"; {len(v.get('issues', []))} known issues" if v.get("issues") else ""))
     versions = load_versions(ws, args.id)
     page = build_page(ws, args.id, versions)
     scenes: dict[str, list[dict]] = {}
     for v in versions:
         scenes.setdefault(v["scene"], []).append(v)
     for scene, vs in scenes.items():
-        print(f"{scene}: " + " · ".join(f"v{v['n']} {v['at'][5:16].replace('T', ' ')}" for v in vs))
+        print(f"{scene}: " + " · ".join(
+            f"v{v['n']} {v['at'][5:16].replace('T', ' ')}" + (f" [{review_mark(v)}]" if review_mark(v) else "")
+            + (f" ({len(v['issues'])} known issues)" if v.get("issues") else "") for v in vs))
     print(page if versions else f"{page} (no versions yet: keep one with music-video version)")
     if args.open:
         open_file(page)
@@ -621,8 +630,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--at", type=float, help="the song time a still shows, in seconds")
     p.add_argument("--note", help="what changed in this version (the notes it answers)")
     p.add_argument("--variant", help="keep it as a named variant of the scene (b, from-above…), to compare on the sections page")
+    p.add_argument("--issue", action="append", help="something you already know is wrong in it, shown first on the review page (repeatable)")
     p = sub.add_parser("review", help="the review page: every version of every scene, two at a time in sync")
     p.add_argument("id")
+    p.add_argument("--version", metavar="SCENE:vN", help="the version to mark (with --reviewed, --waiting or --issue)")
+    p.add_argument("--reviewed", metavar="WORDS", help="mark it reviewed, with what the user said about it (reviewed is not approved)")
+    p.add_argument("--waiting", action="store_true", help="mark it waiting review again")
+    p.add_argument("--issue", help="add a known issue to it")
     p.add_argument("--open", action="store_true", help="open the page in the browser")
     p = sub.add_parser("sections", help="every scene of the newest draft on one page; open one to watch it large and leave notes on its frames")
     p.add_argument("id")

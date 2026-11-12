@@ -326,6 +326,16 @@ Follow `references/storyboard.md`:
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" sections <id> --open
    ```
 
+   Keep every version the moment it passes qc, never batching or holding one back. Give it `--issue "<what is
+   wrong, with its song time>"` for each thing you already know is wrong (qc flags you judged real, frames you
+   still have to fix): the review page shows a version's known issues first. A kept version is marked waiting
+   review (it replaces the mark of the scene's earlier version). When the user gives notes on it, mark it reviewed
+   with their words, verbatim (reviewed is not approved):
+
+   ```bash
+   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" review <id> --version draft:v<n> --reviewed "<their words>"
+   ```
+
    The sections page lays the newest draft out by the scenes in `scenes.ts`: every section on one screen, each
    playable alone, in order (**Play the flow**) or with its neighbours' joins. Opening a section gives a large player
    with frame stepping, a filmstrip, and a notes panel: a note keeps the frame on screen (song time, frame number,

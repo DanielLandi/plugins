@@ -72,6 +72,16 @@
     padding: 6px 12px; border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   .toast.show { opacity: 1; }
   .keys { color: var(--dim); font-size: 12px; margin-top: 10px; }
+  .mark { display: inline-block; margin-top: 2px; padding: 0 6px; border-radius: 3px; font-size: 11px; font-style: normal;
+    border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+  .mark.waiting { border-color: var(--a); color: var(--a); }
+  .mark.reviewed { border-color: var(--b); color: var(--b); }
+  .warn { color: #e8735a; font-size: 11px; margin-left: 6px; }
+  .issues { margin: 6px 0 8px; padding: 6px 8px 6px 24px; background: #e8735a1f; border-left: 3px solid #e8735a;
+    border-radius: 4px; }
+  .issues li { margin: 2px 0; }
+  .issues:empty { display: none; }
+  .said { margin: 6px 0 0; color: var(--b); white-space: pre-wrap; }
   .none { padding: 40px; color: var(--dim); }
   @media (max-width: 900px) {
     .app { grid-template-columns: 1fr; }
@@ -151,7 +161,9 @@ function range() {
 }
 
 function list() {
-  $('count').textContent = `${VERS.length} version${VERS.length === 1 ? '' : 's'}`;
+  const waiting = VERS.filter((v) => state(v) === 'waiting').length;
+  $('count').textContent = `${VERS.length} version${VERS.length === 1 ? '' : 's'}` +
+    (waiting ? ` · ${waiting} waiting review` : '');
   const scenes = [];
   for (const v of VERS) if (!scenes.includes(v.scene)) scenes.push(v.scene);
   scenes.sort((x, y) => latest(y).at.localeCompare(latest(x).at));
@@ -173,8 +185,14 @@ function list() {
       img.loading = 'lazy';
       const t = document.createElement('div');
       t.className = 't';
-      t.innerHTML = `<b></b> <small></small><small></small>`;
+      t.innerHTML = `<b></b><span class="warn"></span> <small></small><small></small><em class="mark"></em>`;
       t.querySelector('b').textContent = `v${v.n}`;
+      const issues = (v.issues || []).length;
+      t.querySelector('.warn').textContent = issues ? `⚠ ${issues} known issue${issues === 1 ? '' : 's'}` : '';
+      const mk = t.querySelector('.mark');
+      mk.textContent = markText(v);
+      mk.className = `mark ${state(v)}`;
+      if (!mk.textContent) mk.remove();
       const [s1, s2] = t.querySelectorAll('small');
       s1.textContent = `${when(v)} · ${v.kind === 'video' ? `${clock(v.start)}–${clock(v.end)}` : `still${v.start == null ? '' : ` at ${clock(v.start)}`}`}`;
       s2.textContent = v.note || '';
@@ -194,6 +212,16 @@ function list() {
     }
     $('list').appendChild(box);
   }
+}
+
+// Review marks: a kept version waits for review; the user's notes make it reviewed (never the same as approved).
+const state = (v) => (v.review && v.review.state) || '';
+function markText(v) {
+  const r = v.review || {};
+  if (r.state === 'waiting') return 'waiting review';
+  if (r.state === 'reviewed') return 'reviewed';
+  if (r.state === 'replaced') return `replaced by v${r.by}`;
+  return '';
 }
 
 function latest(scene) {
@@ -267,10 +295,18 @@ function setPair(a, b) {
 }
 
 function card(box, v, side) {
-  box.innerHTML = '<h3></h3><dl></dl><p></p>';
+  // Known issues first, right under the title: what is already known to be wrong is read before anything else.
+  box.innerHTML = '<h3></h3><ul class="issues"></ul><dl></dl><p></p><p class="said"></p>';
   box.querySelector('h3').textContent = `${side} · ${name(v)}`;
+  const ul = box.querySelector('.issues');
+  for (const text of v.issues || []) {
+    const li = document.createElement('li');
+    li.textContent = text;
+    ul.appendChild(li);
+  }
   const rows = [['made', when(v)], ['shows', v.kind === 'video' ? `${clock(v.start)}–${clock(v.end)} of the song` : (v.start == null ? 'a still' : `a still at ${clock(v.start)}`)],
-    ['code', v.code || '–'], ['qc', v.qc || (v.kind === 'video' ? '–' : 'not a video')], ['from', v.source]];
+    ['code', v.code || '–'], ['qc', v.qc || (v.kind === 'video' ? '–' : 'not a video')], ['from', v.source],
+    ['review', markText(v) ? `${markText(v)}${v.review.at ? ` · ${when({ at: v.review.at })}` : ''}` : '–']];
   if (v.size) rows.push(['size', `${v.size[0]}×${v.size[1]}`]);
   const dl = box.querySelector('dl');
   for (const [k, val] of rows) {
@@ -279,6 +315,8 @@ function card(box, v, side) {
     dl.append(dt, dd);
   }
   box.querySelector('p').textContent = v.note || '';
+  const r = v.review || {};
+  box.querySelector('.said').textContent = r.state === 'reviewed' && r.said ? `The user said: “${r.said}”` : '';
 }
 
 function mode(m) {
