@@ -7,12 +7,12 @@ import { bundle } from '@remotion/bundler';
 import { webpackOverride } from '../webpack-override';
 import { openBrowser, renderStill, selectComposition } from '@remotion/renderer';
 import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
-import { registerHooks } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { PNG } from 'pngjs';
 import { layoutSeries, type CutSpec, type SceneSpec } from '../kit/series';
 import { downscale, hstack, judgeFrame, type Rgba } from './pixels';
+import { stubModelFiles } from './stub-assets';
 
 const studio = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const id = process.argv[2];
@@ -26,10 +26,7 @@ const publicDir = process.env.MV_PUBLIC ?? join(root, 'public');
 const videoDir = process.env.MV_VIDEO_DIR ?? join(studio, 'fixture');
 // scenes.ts imports the scenes themselves; in Node only their ids and times are needed, so 3D model files (which only
 // the bundler can load) are stubbed out here.
-registerHooks({
-  load: (url, context, next) =>
-    /\.(glb|gltf)$/.test(url) ? { format: 'module', source: 'export default "";', shortCircuit: true } : next(url, context),
-});
+stubModelFiles();
 const { scenes } = (await import(pathToFileURL(join(videoDir, 'scenes.ts')).href)) as { scenes: SceneSpec[] };
 const { cuts } = (await import(pathToFileURL(join(videoDir, 'cuts.ts')).href)) as { cuts: CutSpec[] };
 const analysis = JSON.parse(readFileSync(join(publicDir, 'analysis.json'), 'utf8')) as { duration: number };

@@ -17,6 +17,7 @@ from pathlib import Path
 import yaml
 
 from . import __version__
+from .avatars import avatar_dir
 from .errors import MVError
 from .filelock import file_lock
 from .spec import is_instrumental
@@ -463,6 +464,7 @@ def tool_env(rt: Path, ctx: VideoContext, entry: Path) -> dict[str, str]:
     `@mv/kit` (the engine's tsconfig paths, which tsx applies) resolve from the engine."""
     node_options = " ".join(filter(None, [os.environ.get("NODE_OPTIONS", ""), "--preserve-symlinks"]))
     return {**os.environ, "MV_STUDIO": str(rt), "MV_ENTRY": str(entry), "MV_PUBLIC": str(ctx.public),
+            "MV_AVATARS": str(avatar_dir()),
             "MV_WORK": str(ctx.work), "MV_VIDEO": ctx.id, "MV_VIDEO_DIR": str(linked_video(rt, ctx)),
             "MV_GL": ctx.gl, "NODE_OPTIONS": node_options, "INIT_CWD": os.getcwd()}
 

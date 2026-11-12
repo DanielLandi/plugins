@@ -159,3 +159,27 @@ def test_cli_status_install_add(fake, tmp_path, capsys):
     assert len(re.findall(r"(?m)^ok\s+test-sample-\d\.vrm", capsys.readouterr().out)) == 2
     assert main(["avatars", "add"]) == 2  # add needs a file
 
+
+def test_render_stops_when_avatar_missing(fake, mv_ws):
+    vdir = mv_ws.video_dir("duel")
+    (vdir / "bakeoff").mkdir(parents=True)
+    (vdir / "bakeoff" / "vrm.tsx").write_text(
+        "import a from '@mv/avatars/test-sample-1.vrm';\nimport b from \"@mv/avatars/test-sample-2.vrm\";\n"
+        "import mine from './hero.vrm';\n", encoding="utf-8")
+    (vdir / "index.tsx").write_text("export const x = 1;\n", encoding="utf-8")
+    assert avatars.imported(vdir) == {"test-sample-1.vrm", "test-sample-2.vrm"}
+    with pytest.raises(MVError, match=r"test-sample-1\.vrm.*music-video avatars install"):
+        avatars.check_video(vdir)
+    avatars.install()
+    avatars.check_video(vdir)  # all there: no error
+    (vdir / "bakeoff" / "vrm.tsx").write_text("import a from '@mv/avatars/nobody.vrm';\n", encoding="utf-8")
+    with pytest.raises(MVError, match="nobody.vrm"):
+        avatars.check_video(vdir)
+
+
+def test_a_video_without_avatars_needs_none(mv_ws):
+    vdir = mv_ws.video_dir("plain")
+    vdir.mkdir(parents=True)
+    (vdir / "index.tsx").write_text("import x from './car.glb';\n", encoding="utf-8")
+    assert avatars.imported(vdir) == set()
+    avatars.check_video(vdir)

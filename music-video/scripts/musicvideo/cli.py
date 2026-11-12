@@ -476,10 +476,12 @@ def cmd_avatars(args) -> int:
     return 0
 
 
-def _prepare(video_id):
+def _prepare(video_id, need_avatars: bool = True):
     ws = load_workspace()
     rt = studio.ensure_ready(video_id, ws.lane)  # with this command's lease on the engine, released when it ends (main)
     ctx = studio.video_context(ws, video_id)
+    if need_avatars:
+        avatars.check_video(ctx.dir)  # a missing avatar stops here in one line, not in the bundler
     entry = studio.write_entry(rt, ctx.dir, video_id, lane=ctx.lane)
     return rt, ctx, entry, studio.tool_env(rt, ctx, entry)
 
@@ -550,7 +552,7 @@ def cmd_new_video(args) -> int:
 
 
 def cmd_typecheck(args) -> int:
-    rt, ctx, entry, env = _prepare(args.id)
+    rt, ctx, entry, env = _prepare(args.id, need_avatars=False)  # types need no model files
     return studio.run_node([*studio.tool(rt, "tsc"), "-p", str(studio.typecheck_config(rt, ctx))], rt, env)
 
 

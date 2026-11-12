@@ -62,6 +62,15 @@ Downloaded from Poly Pizza. CC0 does not require credit; it is given anyway.
 | `woman-headset-overscore.glb` | Woman wearing headset | overscore_media | https://poly.pizza/m/Qy6esq7e1z | CC0 1.0 |
 | `business-dude-polygonal.glb` | Business Dude | Polygonal Mind | https://poly.pizza/m/odKDM2t8Cr | CC0 1.0 |
 
+## Character avatars (CC0 1.0; downloaded by `doctor`, not shipped)
+
+The `vrm` character engine uses the four VRoid β sample avatars (β Ver AvatarSample_1 to 4, by VRoid Project,
+pixiv Inc.). pixiv waives copyright on them (CC0): https://vroid.pixiv.help/hc/en-us/articles/4402614652569. They
+are not in this repo: `music-video doctor` (or `music-video avatars install`) downloads them into the install
+folder, from the OpenGameArt CC0 mirror (https://opengameart.org/content/vroid-studio-cc0-models), and keeps a file
+only when its sha256 matches the one pinned in `scripts/musicvideo/avatars.py`. The install folder's `SOURCES.md`
+lists each one. AvatarSample_A, B and C have other terms and are never used.
+
 ## Fonts
 
 - **Outfit** (SIL Open Font License 1.1), by The Outfit Project Authors: converted to a static typeface JSON in
@@ -73,6 +82,9 @@ Downloaded from Poly Pizza. CC0 does not require credit; it is given anyway.
 
 - **three.js** (MIT), **React** (MIT), **@react-three/fiber** (MIT), **Vite** (MIT, builds the web page), and
   their dependencies under their own licences.
+- **@pixiv/three-vrm** 3.5.5 (MIT, Copyright (c) 2019-2026 pixiv Inc.) and its `@pixiv/three-vrm-*` packages: VRM
+  loading, MToon shading, spring bones, expressions and look-at for the `vrm` character engine. The kit's
+  `kit/three/vrm/` follows its documented use; none of its code is copied into this repo.
 - **Remotion** (`remotion`, `@remotion/*`, including `@remotion/player`, which a built web page ships): Remotion's
   own licence. Remotion is free for individuals and companies
   of up to 3 people; larger companies need a company licence from remotion.pro. The licence is between you and

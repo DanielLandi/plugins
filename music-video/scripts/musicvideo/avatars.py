@@ -8,6 +8,7 @@ the user downloaded themselves when it is byte-identical. Scenes import them as 
 import hashlib
 import json
 import os
+import re
 import shutil
 import zipfile
 from collections.abc import Callable
@@ -233,3 +234,28 @@ def doctor_lines(install_them: bool, fetch: Fetch | None = None) -> list[str]:
                 "run music-video avatars install"]
     except Exception as e:  # noqa: BLE001 - doctor must never fail on the optional avatars
         return [f"note the character avatars could not be checked ({e}): run music-video avatars install"]
+
+
+IMPORT_RE = re.compile(r"""["']@mv/avatars/([^"'/]+)["']""")
+
+
+def imported(video_dir: Path) -> set[str]:
+    """The installed avatars a video's code imports (`@mv/avatars/<file>`)."""
+    found: set[str] = set()
+    for f in video_dir.rglob("*"):
+        if f.suffix in (".ts", ".tsx") and f.is_file() and "node_modules" not in f.parts:
+            found |= set(IMPORT_RE.findall(f.read_text(encoding="utf-8", errors="replace")))
+    return found
+
+
+def check_video(video_dir: Path) -> None:
+    """Before a render: every avatar the video imports is installed and intact, or one line says how to get it."""
+    known = {a.file: a for a in _avatars()}
+    folder = avatar_dir()
+    gone = sorted(f for f in imported(video_dir) if f not in known or state(known[f], folder) != "ok")
+    if gone:
+        unknown = [f for f in gone if f not in known]
+        hint = (f" ({', '.join(unknown)} is not one of the samples: they are {', '.join(sorted(known))})"
+                if unknown else "")
+        raise MVError(f"this video uses character avatars that are not installed: {', '.join(gone)}{hint}. Run "
+                      "music-video avatars install (or music-video avatars add <file> with a copy you downloaded)")
