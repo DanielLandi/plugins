@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.10.0
+
+- New make-skill references adapted from Imaginative-Prompting/claude-video-skills (MIT, credited in
+  `THIRD_PARTY_NOTICES.md`): animation principles, shot design, the shot card and shot balance data. The skill reads
+  them before scene code and camera moves.
+- Jolts are a per-video question at the look step, recorded in `LOOK.md`, `look.ts` and `video.yaml` (`jolts:`);
+  no answer means no jolts.
+- `qc` checks for flicker, pops, stray hard cuts inside a scene, camera jitter and BT.709 colour tags. Scene changes
+  and `video.yaml` `cuts:` (or `--cut`) declare designed cuts; `jolts: true` skips the jitter scan.
+- Renders are BT.709, converted and tagged as such (before: BT.601 conversion, untagged), so colours shift slightly.
+  Earlier renders fail the new colour check until they are re-rendered.
+- `analyze` measures drum hits (kick, snare, hat, crash) on the mix minus the vocal stem, and how far the beat grid
+  sits from them. The kit's `useJolt(jolts)` uses them only when the video jolts.
+- The review page shows each version's known issues first, with "waiting review → reviewed" marks
+  (`version --issue`, `review --version <scene>:v<n> --reviewed "…"`).
+- 3D references add real CC0 textures (Poly Haven), "only real lights glow" and real falloff. Scene agents receive
+  the user's notes word for word.
+
 ## 0.9.0
 
 - In a git worktree of the project folder, music-video works on that worktree's specs and video code. Its working
