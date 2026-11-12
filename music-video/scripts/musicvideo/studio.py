@@ -78,7 +78,14 @@ def touch_owner(rt: Path) -> None:
         return
     owner.update(checkout=str(checkout), last_used=_iso(now), used_at=now)
     rt.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(owner), encoding="utf-8")
+    # Written beside it and moved over it, so a reader never sees half a record. The record is only a hint for
+    # finding stale engines: if it cannot be written, the old one stays and the command goes on.
+    tmp = path.with_name(f"{OWNER}.{os.getpid()}-{secrets.token_hex(4)}.tmp")
+    try:
+        tmp.write_text(json.dumps(owner), encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError:
+        tmp.unlink(missing_ok=True)
 
 
 def _iso(t: float) -> str:

@@ -432,3 +432,21 @@ def test_seed_copies_what_a_symlink_points_to_when_symlinks_fail(tmp_path, monke
     a, b = src / "node_modules/remotion/index.js", rt / "node_modules/remotion/index.js"
     assert os.stat(a).st_ino == os.stat(b).st_ino  # the rest is still linked, not copied
     assert studio.is_installed(rt)
+
+
+def test_an_interrupted_owner_write_leaves_the_old_record_whole(tmp_path, monkeypatch):
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins"))
+    rt = studio.runtime_dir()
+    rt.mkdir(parents=True)
+    old = {"created": "2026-01-01T00:00:00Z", "checkout": "/somewhere/else", "used_at": 0}
+    (rt / studio.OWNER).write_text(json.dumps(old), encoding="utf-8")
+    real = Path.write_text
+
+    def half(self, text, *a, **k):  # the disk fills (or the command is stopped) half-way through the write
+        real(self, text[: len(text) // 2], *a, **k)
+        raise OSError(28, "No space left on device")
+    monkeypatch.setattr(Path, "write_text", half)
+    studio.touch_owner(rt)  # the record is a hint for finding stale engines: never fatal to the command
+    monkeypatch.undo()
+    assert json.loads((rt / studio.OWNER).read_text(encoding="utf-8")) == old
+    assert [p.name for p in rt.iterdir()] == [studio.OWNER]
