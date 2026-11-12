@@ -8,6 +8,7 @@ import os
 import re
 import secrets
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -401,6 +402,129 @@ def ensure_ready(video_id: str | None = None, lane: str | None = None) -> Path:
             take_lease(rt, video_id, lane)  # released when the command ends (cli.main)
     touch_owner(rt)
     return rt
+
+
+TRASH = ".trash"  # install/.trash: an engine being removed is moved here first, so no command sees it half-deleted
+
+
+@dataclass
+class Pruned:
+    engine: Path
+    checkout: str
+    removed: bool
+    freed: int = 0  # bytes given back to the disk (files shared with another engine by hard links not counted)
+    why: str = ""  # why it was kept
+
+
+def _owner_checkout(rt: Path) -> Path | None:
+    """The checkout an engine's record names, or None when there is no readable, absolute one (then: keep it)."""
+    try:
+        owner = json.loads((rt / OWNER).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    checkout = owner.get("checkout") if isinstance(owner, dict) else None
+    if not isinstance(checkout, str) or not checkout or not Path(checkout).is_absolute():
+        return None
+    return Path(checkout)
+
+
+def _is_link(path: str, st: os.stat_result | None = None) -> bool:
+    """A symlink, or on Windows any reparse point (a junction, as .entries holds): removed, never entered."""
+    st = st or os.lstat(path)
+    return stat.S_ISLNK(st.st_mode) or bool(getattr(st, "st_file_attributes", 0) & 0x400)  # REPARSE_POINT
+
+
+def _freed_bytes(root: Path) -> int:
+    """What removing root gives back: a file counts only when all its hard links are inside root."""
+    seen: dict[tuple[int, int], list[int]] = {}  # (dev, ino) -> [size, links, links found here]
+    stack = [str(root)]
+    while stack:
+        with os.scandir(stack.pop()) as entries:
+            for e in entries:
+                st = os.lstat(e.path)  # DirEntry.stat leaves st_ino at 0 on Windows
+                if _is_link(e.path, st):
+                    continue
+                if stat.S_ISDIR(st.st_mode):
+                    stack.append(e.path)
+                elif stat.S_ISREG(st.st_mode):
+                    seen.setdefault((st.st_dev, st.st_ino), [st.st_size, st.st_nlink, 0])[2] += 1
+    return sum(size for size, links, found in seen.values() if found >= links)
+
+
+def _long(path: Path) -> str:
+    """node_modules nests deep: on Windows the \\\\?\\ form lifts the 260-character path limit."""
+    text = str(path.resolve())
+    return text if sys.platform != "win32" or text.startswith("\\\\?\\") else "\\\\?\\" + text
+
+
+def _writable_and_retry(func, path, _exc) -> None:
+    """npm leaves some files and folders read-only (Windows will not delete those): make them writable, try again.
+    A link is never followed to the folder it points to."""
+    for p in (os.path.dirname(path), path):
+        with contextlib.suppress(OSError):
+            if not _is_link(p):
+                os.chmod(p, stat.S_IREAD | stat.S_IWRITE | stat.S_IEXEC)
+    func(path)
+
+
+def _remove_tree(path: Path) -> None:
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(_long(path), onexc=_writable_and_retry)
+    else:
+        shutil.rmtree(_long(path), onerror=_writable_and_retry)
+
+
+def prune_engines() -> list[Pruned]:
+    """Remove the engines of plugin checkouts that no longer exist (a worktree merged and removed). Only folders in
+    install/engines whose record names a checkout that is gone while the folder that held it is still there; never
+    the installed engine, this command's own engine, one in use (a live lease) or one whose record is missing or
+    unreadable. Each is moved aside first, then deleted, so another command never finds half an engine; what an
+    earlier run left half-deleted is finished first."""
+    root = install_dir()
+    trash = root / TRASH
+    if trash.is_dir():
+        for left in trash.iterdir():
+            with contextlib.suppress(OSError):
+                _remove_tree(left)
+    folder = root / "engines"
+    if not folder.is_dir():
+        return []
+    current = runtime_dir().resolve()
+    results = []
+    for rt in sorted(folder.iterdir()):
+        if _is_link(str(rt)) or not rt.is_dir() or rt.resolve() == current:
+            continue
+        checkout = _owner_checkout(rt)
+        if checkout is None or checkout.exists() or not checkout.parent.is_dir():
+            continue
+        try:
+            with engine_lock(rt, timeout=0):
+                if leases := live_leases(rt):
+                    lease = leases[0]
+                    results.append(Pruned(rt, str(checkout), False, why=(
+                        f"in use by music-video {lease.get('version')} (pid {lease.get('pid')}, "
+                        f"video {lease.get('video')})")))
+                    continue
+                freed = _freed_bytes(rt)
+        except MVError:
+            results.append(Pruned(rt, str(checkout), False, why="another music-video command is updating it"))
+            continue
+        # Moved once the lock is let go: Windows renames no folder holding an open file.
+        aside = trash / f"{rt.name}-{secrets.token_hex(4)}"
+        try:
+            trash.mkdir(parents=True, exist_ok=True)
+            os.replace(rt, aside)
+        except OSError as e:
+            results.append(Pruned(rt, str(checkout), False, why=f"it could not be moved aside ({e})"))
+            continue
+        try:
+            _remove_tree(aside)
+        except OSError as e:  # out of the way already: the next doctor finishes it
+            results.append(Pruned(rt, str(checkout), True, freed,
+                                  why=f"part of it is left in {aside} ({e}); the next doctor removes it"))
+            continue
+        results.append(Pruned(rt, str(checkout), True, freed))
+    return results
 
 
 def entry_dir(rt: Path, video_id: str, lane: str | None = None) -> Path:
