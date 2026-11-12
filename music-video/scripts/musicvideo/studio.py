@@ -27,6 +27,7 @@ KEEP = {"node_modules", ".entries"}  # runtime-only folders, never synced or pru
 LOCK_STAMP = ".installed-lock"
 SYNCED = ".synced.json"  # what the last sync copied: the only files a sync may delete
 SEED_SKIP = {".cache", ".vite", ".vite-temp"}  # tool caches written in place: never shared between engines
+SEED_COPY = {".package-lock.json"}  # npm's hidden lockfile, rewritten in place by npm: each engine gets its own copy
 LEASES = ".leases"  # one file per command using the engine (removed when it ends)
 LEASE_MAX_AGE = 48 * 3600  # a lease older than this is stale whatever its pid says (pids get reused)
 OWNER = ".owner.json"  # a checkout's engine: which checkout it serves, when it was last used
@@ -77,7 +78,14 @@ def touch_owner(rt: Path) -> None:
         return
     owner.update(checkout=str(checkout), last_used=_iso(now), used_at=now)
     rt.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(owner), encoding="utf-8")
+    # Written beside it and moved over it, so a reader never sees half a record. The record is only a hint for
+    # finding stale engines: if it cannot be written, the old one stays and the command goes on.
+    tmp = path.with_name(f"{OWNER}.{os.getpid()}-{secrets.token_hex(4)}.tmp")
+    try:
+        tmp.write_text(json.dumps(owner), encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError:
+        tmp.unlink(missing_ok=True)
 
 
 def _iso(t: float) -> str:
@@ -158,7 +166,36 @@ def pid_alive(pid: int) -> bool:
     return True
 
 
-_held: list[Path] = []
+def process_started(pid: int) -> float | None:
+    """When the process with this pid started (epoch seconds), or None when that cannot be told."""
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return None
+        try:
+            times = [wintypes.FILETIME() for _ in range(4)]  # creation, exit, kernel, user
+            if not kernel32.GetProcessTimes(handle, *(ctypes.byref(t) for t in times)):
+                return None
+            created = (times[0].dwHighDateTime << 32) | times[0].dwLowDateTime  # 100 ns steps since 1601
+            return created / 1e7 - 11644473600
+        finally:
+            kernel32.CloseHandle(handle)
+    try:  # elapsed time as [[dd-]hh:]mm:ss, the same on macOS and Linux and in every locale
+        out = subprocess.run(["ps", "-o", "etime=", "-p", str(pid)], capture_output=True, text=True,
+                             encoding="utf-8", timeout=5).stdout.strip()
+        days, _, clock = out.rpartition("-")
+        seconds = 0
+        for part in clock.split(":"):
+            seconds = seconds * 60 + int(part)
+        return time.time() - seconds - int(days or 0) * 86400
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
+_held: list[Path] = []  # the leases this process holds: release_leases() removes them when the command ends
 
 
 def take_lease(rt: Path, video_id: str) -> Path:
@@ -178,17 +215,26 @@ def release_leases() -> None:
         _held.pop().unlink(missing_ok=True)
 
 
+def _lease_holds(lease: dict) -> bool:
+    started, pid = float(lease["started"]), int(lease["pid"])
+    if time.time() - started >= LEASE_MAX_AGE or not pid_alive(pid):
+        return False
+    # A process that started after the lease was written did not write it: its pid was reused.
+    born = process_started(pid)
+    return born is None or born <= started + 5
+
+
 def live_leases(rt: Path) -> list[dict]:
-    """Leases of commands still running; dead, stale or unreadable ones are deleted on sight."""
+    """Leases of commands still running, each with its "file"; dead, stale or unreadable ones are deleted on sight."""
     live = []
     for path in sorted((rt / LEASES).glob("*.json")) if (rt / LEASES).is_dir() else []:
         try:
             lease = json.loads(path.read_text(encoding="utf-8"))
-            ok = time.time() - float(lease["started"]) < LEASE_MAX_AGE and pid_alive(int(lease["pid"]))
+            ok = _lease_holds(lease)
         except (OSError, ValueError, KeyError, TypeError):
             ok = False
         if ok:
-            live.append(lease)
+            live.append({**lease, "file": str(path)})
         else:
             path.unlink(missing_ok=True)
     return live
@@ -196,7 +242,8 @@ def live_leases(rt: Path) -> list[dict]:
 
 def _in_use(lease: dict) -> str:
     return (f"the engine is in use by music-video {lease.get('version')} (pid {lease.get('pid')}, "
-            f"video {lease.get('video')}): wait for it to finish, then run again")
+            f"video {lease.get('video')}): wait for it to finish, then run again. If no music-video command is "
+            f"running, delete {lease.get('file')}")
 
 
 def lock_hash(rt: Path) -> str:
@@ -233,12 +280,12 @@ def install(rt: Path) -> None:
     npm = shutil.which("npm")
     if not npm:
         raise MVError("Node.js (npm) not found: install Node 20 or newer, then run music-video doctor")
-    # --include=dev: the build tools (tsx, typescript) are dev dependencies, which an npm set to omit them would skip.
     if leases := live_leases(rt):
         raise MVError(_in_use(leases[0]))
     # npm ci deletes and re-extracts node_modules: until it is done, the engine must not look installed (a checkout
     # seeding from it then would link a half-extracted tree).
     (rt / LOCK_STAMP).unlink(missing_ok=True)
+    # --include=dev: the build tools (tsx, typescript) are dev dependencies, which an npm set to omit them would skip.
     if subprocess.run([npm, "ci", "--include=dev", "--no-audit", "--no-fund"], cwd=rt).returncode:
         raise MVError(f"npm ci failed in {rt}")
     if subprocess.run([*tool(rt, "remotion"), "browser", "ensure"], cwd=rt).returncode:
@@ -255,11 +302,27 @@ def find_seed(rt: Path) -> Path | None:
                  and (c / LOCK_STAMP).read_text(encoding="utf-8") == want), None)
 
 
-def link_tree(src: Path, dest: Path, skip: frozenset[str] | set[str] = frozenset()) -> None:
-    """dest as a tree of hard links to src's files (symlinks re-created), leaving out the top-level names in skip.
-    npm ci replaces files rather than rewriting them, so a later install in src never changes dest. Where hard
-    links fail (another volume, an odd file system), dest becomes a full copy instead."""
-    def link(s: Path, d: Path, top: bool) -> None:
+def link_tree(src: Path, dest: Path, skip: frozenset[str] | set[str] = frozenset(),
+              copy: frozenset[str] | set[str] = frozenset()) -> None:
+    """dest as a tree of hard links to src's files (symlinks re-created), leaving out the top-level names in skip and
+    copying the top-level files in copy. npm ci replaces files rather than rewriting them, so a later install in src
+    never changes dest. Where hard links fail (another volume, an odd file system) the files are copied instead, and
+    it says so; where a symlink cannot be made (Windows without Developer Mode) what it points to stands in for it."""
+    linking = True
+
+    def place(s: str, d: Path) -> None:
+        nonlocal linking
+        if linking:
+            try:
+                os.link(s, d)
+                return
+            except OSError as e:
+                linking = False
+                print(f"hard links from {src} to {dest} are not possible ({e}): copying the packages instead "
+                      "(about 1.7 GB, once)…", file=sys.stderr, flush=True)
+        shutil.copy2(s, d)
+
+    def walk(s: Path, d: Path, top: bool) -> None:
         d.mkdir(parents=True, exist_ok=True)
         with os.scandir(s) as entries:
             for e in entries:
@@ -267,17 +330,22 @@ def link_tree(src: Path, dest: Path, skip: frozenset[str] | set[str] = frozenset
                     continue
                 target = d / e.name
                 if e.is_symlink():
-                    os.symlink(os.readlink(e.path), target)
+                    try:
+                        os.symlink(os.readlink(e.path), target, target_is_directory=e.is_dir())
+                        continue
+                    except OSError:
+                        real = Path(e.path).resolve()
+                    if real.is_dir() and not Path(s).resolve().is_relative_to(real):  # never a loop upwards
+                        walk(real, target, False)
+                    elif real.is_file():
+                        place(str(real), target)
                 elif e.is_dir():
-                    link(Path(e.path), target, False)
+                    walk(Path(e.path), target, False)
+                elif top and e.name in copy:
+                    shutil.copy2(e.path, target)
                 else:
-                    os.link(e.path, target)
-    try:
-        link(src, dest, True)
-    except OSError:
-        shutil.rmtree(dest, ignore_errors=True)
-        shutil.copytree(src, dest, symlinks=True, ignore=lambda folder, names: [
-            n for n in names if Path(folder) == src and n in skip])
+                    place(e.path, target)
+    walk(src, dest, True)
 
 
 def seed_modules(rt: Path) -> Path | None:
@@ -289,16 +357,18 @@ def seed_modules(rt: Path) -> Path | None:
     if leases := live_leases(rt):  # replacing node_modules under a running command breaks it, as npm ci would
         raise MVError(_in_use(leases[0]))
     shutil.rmtree(rt / "node_modules", ignore_errors=True)  # an earlier seed may have stopped half-way
-    link_tree(seed / "node_modules", rt / "node_modules", SEED_SKIP)
+    link_tree(seed / "node_modules", rt / "node_modules", SEED_SKIP, SEED_COPY)
     (rt / LOCK_STAMP).write_text(lock_hash(rt), encoding="utf-8")
     return seed
 
 
 def refuse_other_source(rt: Path) -> None:
     """Before a sync that would change files: another plugin copy (another version, across an update) may be
-    rendering from them. The same copy's own edits proceed, as always. Call under engine_lock."""
-    if any(sync_plan(PLUGIN_STUDIO, rt)):
-        for lease in live_leases(rt):
+    rendering from them. The same copy's own edits proceed, as always. Dead leases are swept every time, so a
+    stale one never waits for the next update to be found. Call under engine_lock."""
+    leases = live_leases(rt)
+    if leases and any(sync_plan(PLUGIN_STUDIO, rt)):
+        for lease in leases:
             if lease.get("source") != str(PLUGIN_STUDIO):
                 raise MVError(_in_use(lease))
 
@@ -316,14 +386,18 @@ def engine_lock(rt: Path, timeout: float = 600.0, notice_after: float = 2.0):
         yield rt
 
 
-def ensure_ready() -> Path:
+def ensure_ready(video_id: str | None = None) -> Path:
+    """The engine, synced and installed. With a video id, this command's lease on it is taken before the engine
+    lock is let go, so no other plugin copy can sync over it in between."""
     with engine_lock(runtime_dir()) as rt:
         refuse_other_source(rt)
         sync_runtime(dest=rt)
         if not is_installed(rt) and (seed := seed_modules(rt)):
-            print(f"seeded the engine for this checkout from {seed}", file=sys.stderr)
-    if not is_installed(rt):
-        raise MVError("the video engine's packages are not installed or are out of date: run music-video doctor")
+            print(f"seeded the engine's packages in {rt} from {seed}", file=sys.stderr)
+        if not is_installed(rt):
+            raise MVError("the video engine's packages are not installed or are out of date: run music-video doctor")
+        if video_id is not None:
+            take_lease(rt, video_id)  # released when the command ends (cli.main)
     touch_owner(rt)
     return rt
 

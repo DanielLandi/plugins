@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.8.6
+
+- An install folder that refuses file locks (some network drives) stops at once with an error naming the lock file,
+  instead of waiting 10 minutes as if the engine were busy.
+- When hard links fail, the engine is copied file by file with one message saying so; a symlink that cannot be made
+  is replaced by what it points to (no traceback). Each engine gets its own copy of npm's hidden lockfile.
+- Stopping `web` with Ctrl-C no longer leaves a `web-data-*` folder behind.
+- Dead engine leases are swept on every run, a lease whose process id now belongs to a newer process counts as
+  stale, and the "engine in use" message names the lease file to delete.
+- The engine's owner record is written atomically, and a render takes its lease before the engine lock is let go.
+
+## 0.8.5
+
+- A word that is a number takes its first sound from the whole number as sung, not its first digit: "12" starts
+  like "twelve", "20" like "twenty" ("vinte" in Portuguese), "1984" like "nineteen eighty-four", "1st" like "first"
+  (English and Portuguese, up to 999,999; decimals, leading zeros and other languages keep the first digit).
+- A Portuguese word-initial "r" stays classed as a hiss: there are no corrected Portuguese timings yet to check it
+  against (the rule's comment says how to re-check).
+
 ## 0.8.4
 
 - Word starts follow the first sound: `align` moves each word's start onto the onset of its first sound, measured

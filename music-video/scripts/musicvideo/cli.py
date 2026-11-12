@@ -3,6 +3,7 @@ import json
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from collections import Counter
 from datetime import date
@@ -452,8 +453,7 @@ def cmd_doctor(args) -> int:
 
 def _prepare(video_id):
     ws = load_workspace()
-    rt = studio.ensure_ready()
-    studio.take_lease(rt, video_id)  # released when the command ends (main)
+    rt = studio.ensure_ready(video_id)  # with this command's lease on the engine, released when it ends (main)
     ctx = studio.video_context(ws, video_id)
     entry = studio.write_entry(rt, ctx.dir, video_id)
     return rt, ctx, entry, studio.tool_env(rt, ctx, entry)
@@ -496,7 +496,8 @@ def _tool(script, output_index=None):
 def cmd_web(args) -> int:
     rt, ctx, entry, env = _prepare(args.id)
     ws = load_workspace()
-    env["MV_WEB_ENTRY"] = str(studio.web_entry(rt, ctx))
+    web_entry = studio.web_entry(rt, ctx)
+    env["MV_WEB_ENTRY"] = str(web_entry)
     out = Path(args.out).expanduser().resolve() if args.out else ws.results_for(args.id) / "web"
     studio.check_web_out(out)
     cmd = [*studio.tool(rt, "tsx"), "tools/web.ts", args.id, "--out", str(out)]
@@ -508,7 +509,14 @@ def cmd_web(args) -> int:
     for flag in ("title", "description", "label", "background"):
         if getattr(args, flag):
             cmd += [f"--{flag}", getattr(args, flag)]
-    return studio.run_node(cmd, rt, env)
+    # This build's song data stages in a folder of its own, made and removed here: Ctrl-C stops node before its own
+    # clean-up runs, and would leave the folder beside the entry.
+    stage = Path(tempfile.mkdtemp(prefix="web-data-", dir=web_entry.parent))
+    env["MV_WEB_STAGE"] = str(stage)
+    try:
+        return studio.run_node(cmd, rt, env)
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
 
 
 def cmd_new_video(args) -> int:

@@ -308,7 +308,9 @@ def test_install_refuses_while_leased(shared_engine, sleeper, monkeypatch):
     write_lease(shared_engine, sleeper.pid, "/other/studio")
     ran = []
     monkeypatch.setattr(studio.shutil, "which", lambda name: f"/usr/bin/{name}")
-    monkeypatch.setattr(studio.subprocess, "run", lambda *a, **k: ran.append(a))
+    real = subprocess.run
+    monkeypatch.setattr(studio.subprocess, "run",  # npm is faked; ps (who holds the lease) runs for real
+                        lambda cmd, *a, **k: real(cmd, *a, **k) if cmd[0] == "ps" else ran.append(cmd))
     with pytest.raises(MVError, match="in use by music-video"):
         studio.install(shared_engine)
     assert ran == []
@@ -367,3 +369,130 @@ def test_install_clears_the_stamp_before_npm_runs(tmp_path, monkeypatch):
     with pytest.raises(MVError, match="npm ci failed"):
         studio.install(rt)
     assert seen == [False] and not studio.is_installed(rt)
+
+
+def test_a_folder_that_refuses_locks_fails_at_once_not_as_busy(tmp_path, monkeypatch):
+    # A network drive may refuse locks outright (ENOLCK, ENOTSUP): waiting 10 minutes for "another command" misleads.
+    import errno
+    from musicvideo import filelock
+    if sys.platform == "win32":
+        import msvcrt
+        target, name = msvcrt, "locking"
+    else:
+        import fcntl
+        target, name = fcntl, "flock"
+
+    def refuse(*_a, **_k):
+        raise OSError(errno.ENOLCK, "No locks available")
+    monkeypatch.setattr(target, name, refuse)
+    t = time.monotonic()
+    with pytest.raises(MVError, match=r"cannot lock .*\.lock.*No locks available") as e:
+        with filelock.file_lock(tmp_path / "engine" / ".lock", timeout=5, busy="another command is updating it"):
+            pass
+    assert time.monotonic() - t < 1 and "another command" not in str(e.value)
+
+
+def test_seed_gives_the_engine_its_own_hidden_npm_lockfile(tmp_path, monkeypatch):
+    # npm rewrites node_modules/.package-lock.json in place: a hard link would let one engine's npm edit the other's.
+    src = installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    (src / "node_modules/.package-lock.json").write_text('{"packages": {}}', encoding="utf-8")
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 1}'))
+    rt = studio.ensure_ready()
+    a, b = src / "node_modules/.package-lock.json", rt / "node_modules/.package-lock.json"
+    assert b.read_text(encoding="utf-8") == '{"packages": {}}' and os.stat(a).st_ino != os.stat(b).st_ino
+    assert os.stat(src / "node_modules/remotion/index.js").st_ino == os.stat(rt / "node_modules/remotion/index.js").st_ino
+
+
+def test_seed_says_so_when_it_must_copy_the_packages(tmp_path, monkeypatch, capsys):
+    # Copying is about 1.7 GB: never silently.
+    installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 1}'))
+
+    def no_links(*_a, **_k):
+        raise OSError("hard links not supported")
+    monkeypatch.setattr(os, "link", no_links)
+    rt = studio.ensure_ready()
+    err = capsys.readouterr().err
+    assert "hard links not supported" in err and "copying" in err and str(rt / "node_modules") in err
+
+
+def test_seed_copies_what_a_symlink_points_to_when_symlinks_fail(tmp_path, monkeypatch):
+    # Windows without Developer Mode cannot make symlinks: no traceback, the engine still works.
+    src = installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    if not (src / "node_modules/.bin/remotion").is_symlink():
+        pytest.skip("no symlinks on this machine")
+    os.symlink("remotion", src / "node_modules/linked", target_is_directory=True)  # a linked package (a folder)
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 1}'))
+
+    def no_symlinks(*_a, **_k):
+        raise OSError("symbolic links not permitted")
+    monkeypatch.setattr(os, "symlink", no_symlinks)
+    rt = studio.ensure_ready()
+    shim = rt / "node_modules/.bin/remotion"
+    assert not shim.is_symlink() and shim.read_text(encoding="utf-8") == "remotion"
+    assert (rt / "node_modules/linked/index.js").read_text(encoding="utf-8") == "remotion"
+    a, b = src / "node_modules/remotion/index.js", rt / "node_modules/remotion/index.js"
+    assert os.stat(a).st_ino == os.stat(b).st_ino  # the rest is still linked, not copied
+    assert studio.is_installed(rt)
+
+
+def test_an_interrupted_owner_write_leaves_the_old_record_whole(tmp_path, monkeypatch):
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins"))
+    rt = studio.runtime_dir()
+    rt.mkdir(parents=True)
+    old = {"created": "2026-01-01T00:00:00Z", "checkout": "/somewhere/else", "used_at": 0}
+    (rt / studio.OWNER).write_text(json.dumps(old), encoding="utf-8")
+    real = Path.write_text
+
+    def half(self, text, *a, **k):  # the disk fills (or the command is stopped) half-way through the write
+        real(self, text[: len(text) // 2], *a, **k)
+        raise OSError(28, "No space left on device")
+    monkeypatch.setattr(Path, "write_text", half)
+    studio.touch_owner(rt)  # the record is a hint for finding stale engines: never fatal to the command
+    monkeypatch.undo()
+    assert json.loads((rt / studio.OWNER).read_text(encoding="utf-8")) == old
+    assert [p.name for p in rt.iterdir()] == [studio.OWNER]
+
+
+def test_the_lease_is_taken_before_the_engine_lock_is_let_go(shared_engine, monkeypatch):
+    # Taken after the lock, another plugin copy could take the lock in between, see no lease and sync over the
+    # engine this command is about to use.
+    from musicvideo import filelock
+    real, seen = studio.take_lease, []
+
+    def take(rt, video_id):
+        with open(rt / ".lock", "a+b") as fd:  # held by someone else, it cannot be taken from a second handle
+            free = filelock._try_lock(fd, rt / ".lock")
+            if free:
+                filelock._unlock(fd)
+        seen.append(free)
+        return real(rt, video_id)
+    monkeypatch.setattr(studio, "take_lease", take)
+    try:
+        assert studio.ensure_ready("night-drive") == shared_engine
+        assert seen == [False]
+        assert [x["video"] for x in studio.live_leases(shared_engine)] == ["night-drive"]
+    finally:
+        studio.release_leases()
+
+
+def test_dead_leases_are_swept_even_when_nothing_is_to_sync(shared_engine):
+    gone = subprocess.Popen([sys.executable, "-c", "pass"])
+    gone.wait()
+    dead = write_lease(shared_engine, gone.pid, "/other/studio")
+    assert studio.ensure_ready() == shared_engine
+    assert not dead.exists()
+
+
+def test_a_lease_whose_pid_now_names_a_newer_process_is_stale(shared_engine, sleeper):
+    # The command that wrote it died and its pid went to another process (here the sleeper, started after it).
+    reused = write_lease(shared_engine, sleeper.pid, "/other/studio", started=time.time() - 3600)
+    assert studio.live_leases(shared_engine) == [] and not reused.exists()
+
+
+def test_a_refusal_names_the_lease_to_delete(shared_engine, sleeper):
+    lease = write_lease(shared_engine, sleeper.pid, "/other/studio")
+    (studio.PLUGIN_STUDIO / "kit.ts").write_text("changed", encoding="utf-8")
+    with pytest.raises(MVError) as e:
+        studio.ensure_ready()
+    assert str(lease) in str(e.value)

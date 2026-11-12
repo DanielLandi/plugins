@@ -1,6 +1,6 @@
 import pytest
 
-from musicvideo.video.onsets import first_sound
+from musicvideo.video.onsets import first_sound, spell_number
 
 
 @pytest.mark.parametrize("word,kind", [
@@ -42,6 +42,45 @@ def test_first_sound_portuguese(word, kind):
 ])
 def test_first_sound_odd_words(word, lang, kind):
     assert first_sound(word, lang) == kind
+
+
+# A number is sung as its whole name, so its first sound comes from that name, not from its first digit (#27).
+@pytest.mark.parametrize("word,kind", [
+    ("12", "stop"), ("20", "stop"), ("100", "voiced"), ("13", "fricative"), ("11", "voiced"), ("70", "fricative"),
+    ("1500", "fricative"), ("1999", "voiced"), ("2024", "stop"), ("24/7", "stop"), ("9-to-5", "voiced"),
+    ("1st", "fricative"), ("2nd", "fricative"), ("3rd", "fricative"), ("12th", "stop"), ("80s", "voiced"),
+    ("90's", "voiced"),
+])
+def test_first_sound_english_number_is_its_whole_name(word, kind):
+    assert first_sound(word, "en") == kind
+
+
+@pytest.mark.parametrize("word,kind", [
+    ("12", "stop"), ("20", "fricative"), ("100", "fricative"), ("101", "fricative"), ("11", "voiced"),
+    ("16", "stop"), ("50", "fricative"), ("500", "stop"), ("1000", "voiced"), ("2000", "stop"), ("9-to-5", "voiced"),
+])
+def test_first_sound_portuguese_number_is_its_whole_name(word, kind):
+    assert first_sound(word, "pt") == kind
+
+
+@pytest.mark.parametrize("n,lang,words", [
+    (0, "en", "zero"), (12, "en", "twelve"), (21, "en", "twenty-one"), (100, "en", "one hundred"),
+    (305, "en", "three hundred and five"), (1500, "en", "fifteen hundred"), (1984, "en", "nineteen eighty-four"),
+    (1905, "en", "nineteen oh five"), (2024, "en", "two thousand and twenty-four"),
+    (9999, "en", "nine thousand nine hundred and ninety-nine"),
+    (0, "pt", "zero"), (12, "pt", "doze"), (21, "pt", "vinte e um"), (100, "pt", "cem"), (101, "pt", "cento e um"),
+    (515, "pt", "quinhentos e quinze"), (1000, "pt", "mil"), (1985, "pt", "mil novecentos e oitenta e cinco"),
+    (2000, "pt", "dois mil"), (9999, "pt", "nove mil novecentos e noventa e nove"),
+])
+def test_spell_number(n, lang, words):
+    assert spell_number(n, lang) == words
+
+
+@pytest.mark.parametrize("word,lang", [("12.5", "en"), ("3,5", "pt"), ("1234567890", "en"), ("007", "pt"),
+                                       ("1º", "pt"), ("4ever", "en"), ("12", "de")])
+def test_first_sound_other_numbers_fall_back_to_the_first_digit(word, lang):
+    digit = {"en": "zero one two three four", "pt": "zero um dois tres quatro", "de": "zero one two three four"}
+    assert first_sound(word, lang) == first_sound(digit[lang].split()[int(word[0])], lang)
 
 
 # ---------------------------------------------------------------- measuring on the vocal stem (synthetic audio)
