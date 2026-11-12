@@ -18,6 +18,9 @@ jolts: false
 gl: angle
 # Designed still or black stretches qc must accept, as [start, end] seconds.
 holds: []
+# Designed hard cuts inside a scene (a camera key with ease: 'cut'), in song seconds: qc's hard-cut scan accepts
+# them (scene changes are read from analysis.json).
+cuts: []
 checklist:
   - concept approved
   - lyrics approved

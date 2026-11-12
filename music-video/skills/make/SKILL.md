@@ -58,7 +58,7 @@ Read once per session before step 1: `references/lyric-craft.md`, and the song s
 `<work>`, `<public>`, `<renders>`, `<results>` and `<web>` mean those paths; always write them out in full in
 commands.
 
-- Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds), `CONCEPT.md`,
+- Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds, cuts, jolts), `CONCEPT.md`,
   `lyric-options.yaml`, `lyrics.md`, `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`, `JOURNAL.md`,
   `SOURCES.md`, `README.md`, `look.ts`, `video.ts`, `scenes.ts`, `cuts.ts`, `scenes/*.tsx`; `notes/` and
   `requests/` (written by the pages).
@@ -281,7 +281,10 @@ Follow `references/storyboard.md`:
    ```
 
    Add a `--hold a-b` to each qc for every designed hold in `video.yaml`: song time, the same values as there,
-   even though these are excerpts (qc shifts them into the clip).
+   even though these are excerpts (qc shifts them into the clip). qc reads the rest on its own: scene changes
+   (`analysis.json`), designed hard cuts inside a scene (list each `ease: 'cut'` key in `video.yaml` `cuts:`, song
+   seconds), word starts and the jolts answer. Its flicker, pop, hard-cut and jitter lines name frames: step through
+   each one; a designed effect gets a hold or a cut entry, anything else is a bug to fix.
 
    Keep the clean sample as the first version on the review page (it refuses a render that has not passed qc):
 

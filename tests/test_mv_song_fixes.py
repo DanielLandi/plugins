@@ -88,8 +88,9 @@ def test_mux_and_qc_use_the_lifted_song(song, tmp_path):
     spec_id, s = song
     write_fixes(s, "- {at: 2.0, to: 4.0, gain_db: 9}\n")
     silent = tmp_path / "silent.mp4"
+    # testsrc, not testsrc2: testsrc2 grows its grey box for one frame at 3.5 s (qc flicker)
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
-                    "testsrc2=size=320x240:rate=30:duration=6", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an",
+                    "testsrc=size=320x240:rate=30:duration=6", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an",
                     str(silent)], check=True)
     out = tmp_path / "draft.mp4"
     assert main(["mux", str(silent), "--spec", spec_id, "--out", str(out)]) == 0

@@ -140,7 +140,8 @@ def test_cli_mux_and_qc_with_a_video_that_borrows_a_song(mv_ws, filed_song, medi
 def test_a_tail_runs_silent_past_the_song(media):
     # an end screen: the video runs 2 s past the 4 s song; mux pads the song with silence, qc expects the longer length
     song, video, tmp = media
-    out = mux(video("tail.mp4", src="testsrc2=size=320x240:rate=30:duration=6"), song, tmp / "tail-out.mp4", tail=2.0)
+    # testsrc, not testsrc2: testsrc2 grows its grey box for one frame at 3.5 s, which the flicker scan catches
+    out = mux(video("tail.mp4", src="testsrc=size=320x240:rate=30:duration=6"), song, tmp / "tail-out.mp4", tail=2.0)
     report = run_qc(out, song, tmp / "qc", size=(320, 240), tail=2.0)
     assert report["result"] == "PASS", report
     assert {"duration", "audio"} <= failed(run_qc(out, song, tmp / "qc"))
@@ -154,7 +155,7 @@ def test_cli_tail(mv_ws, filed_song, media):
     spec_id, _ = filed_song(seconds=4.0)
     song, video, tmp = media
     final = tmp / "cli-tail.mp4"
-    clip = video("cli-tail-silent.mp4", src="testsrc2=size=320x240:rate=30:duration=7")
+    clip = video("cli-tail-silent.mp4", src="testsrc=size=320x240:rate=30:duration=7")  # see above
     assert main(["mux", str(clip), "--spec", spec_id, "--out", str(final), "--tail", "3"]) == 0
     assert main(["qc", str(final), "--spec", spec_id, "--tail", "3"]) == 0
     assert main(["qc", str(final), "--spec", spec_id]) == 1
@@ -268,7 +269,8 @@ def test_a_single_white_frame_fails_flash(media):
 @pytest.mark.parametrize("parts", [((SRC, 60), (DARK, 60)), ((DARK, 60), (SRC, 60))], ids=["bright-to-dark", "dark-to-bright"])
 def test_a_hard_cut_between_bright_and_dark_is_a_step_not_a_flash(media, parts):
     song, _, tmp = media
-    assert run_qc(spliced(media, "cut.mp4", *parts), song, tmp / "qc")["result"] == "PASS"
+    # a scene change: declared, as qc --spec does from analysis.json (an undeclared one fails hard-cut, below)
+    assert run_qc(spliced(media, "cut.mp4", *parts), song, tmp / "qc", cuts=[2.0])["result"] == "PASS"
 
 
 def test_a_fade_through_dark_is_not_a_flash(media):
@@ -282,4 +284,129 @@ def test_a_flash_inside_a_declared_hold_passes(media):
     song, _, tmp = media
     out = spliced(media, "heldflash.mp4", (SRC, 60), (NEAR_BLACK, 1), (SRC, 59))
     assert "flash" in failed(run_qc(out, song, tmp / "qc"))
-    assert run_qc(out, song, tmp / "qc", holds=[(1.9, 2.2)])["result"] == "PASS"
+    assert motion(run_qc(out, song, tmp / "qc", holds=[(1.9, 2.2)])) == set()
+
+
+# The motion scans (flicker, pop, hard-cut, jitter): each fails on a planted fault, passes on a clean clip, and a
+# designed hold over the fault lets it through.
+BOX = "drawbox=x=120:y=90:w=48:h=48:color=0xf0d070:t=fill"
+# A still set with one small thing drifting across it (still enough for freezedetect: these tests read only the
+# motion scans).
+STILL_BG = ("color=c=0x3a4a5a:size=320x240:rate=30:duration=4,drawgrid=w=40:h=40:t=2:c=0x8090a0,"
+            "drawbox=x='10+20*t':y=200:w=10:h=10:color=white:t=fill")
+
+
+def planted(media, name, vf, src=f"{SRC}:duration=4"):
+    song, video, tmp = media
+    v = video(name, src=src, extra=("-vf", vf))
+    return mux(v, song, tmp / f"{Path(name).stem}-out.mp4")
+
+
+def motion(report):
+    return failed(report) & {"flicker", "pop", "hard-cut", "jitter"}
+
+
+def detail(report, check):
+    return next(c["detail"] for c in report["checks"] if c["id"] == check)
+
+
+@pytest.mark.parametrize("src", [f"{SRC}:duration=4", STILL_BG], ids=["moving", "still"])
+def test_a_clean_clip_passes_every_motion_scan(media, src):
+    song, _, tmp = media
+    report = run_qc(planted(media, "clean.mp4", "null", src=src), song, tmp / "qc")
+    assert motion(report) == set(), report
+    assert "in 120 frames" in detail(report, "flicker")   # it says how much it compared
+
+
+def test_a_box_shown_for_one_frame_flickers(media):
+    song, _, tmp = media
+    out = planted(media, "flick.mp4", f"{BOX}:enable='eq(n,60)'", src=STILL_BG)
+    report = run_qc(out, song, tmp / "qc")
+    assert motion(report) == {"flicker"}
+    assert "2.00–2.03 s" in detail(report, "flicker")
+    assert motion(run_qc(out, song, tmp / "qc", holds=[(1.9, 2.2)])) == set()
+
+
+def test_a_box_that_appears_in_one_frame_pops(media):
+    song, _, tmp = media
+    out = planted(media, "pop.mp4", f"{BOX}:enable='gte(n,60)'", src=STILL_BG)
+    report = run_qc(out, song, tmp / "qc")
+    assert motion(report) == {"pop"}
+    assert "2.00 s" in detail(report, "pop")
+    assert motion(run_qc(out, song, tmp / "qc", holds=[(1.9, 2.2)])) == set()
+    # on a sung word's first frames it is taken for the subtitles' word highlight
+    assert motion(run_qc(out, song, tmp / "qc", words=[2.0])) == set()
+
+
+def test_an_entrance_over_eight_frames_is_not_a_pop(media):
+    song, _, tmp = media
+    _, video, _ = media
+    vf = (f"{STILL_BG}[a];color=c=0xf0d070:size=48x48:rate=30:duration=4,format=yuva420p,"
+          "fade=t=in:st=2.0:d=0.27:alpha=1[o];[a][o]overlay=120:90")
+    v = video("ease.mp4", src="nullsrc=size=320x240:rate=30:duration=4", extra=("-filter_complex", vf))
+    out = mux(v, song, tmp / "ease-out.mp4")
+    assert motion(run_qc(out, song, tmp / "qc")) == set()
+
+
+def test_a_hard_cut_inside_a_scene_fails_unless_declared(media):
+    song, _, tmp = media
+    out = spliced(media, "cut2.mp4", (SRC, 60), ("smptebars=size=320x240:rate=30", 60))
+    report = run_qc(out, song, tmp / "qc")
+    assert motion(report) == {"hard-cut"}
+    assert "2.00 s" in detail(report, "hard-cut")
+    assert run_qc(out, song, tmp / "qc", cuts=[2.0])["result"] == "PASS"            # a scene change or --cut
+    assert motion(run_qc(out, song, tmp / "qc", holds=[(1.9, 2.2)])) == set()
+
+
+def test_declared_cuts_are_song_time_and_shift_into_an_excerpt(media):
+    song, video, tmp = media
+    graph = (f"{SRC},trim=end_frame=30,setpts=PTS-STARTPTS[a];smptebars=size=320x240:rate=30,trim=end_frame=30,"
+             "setpts=PTS-STARTPTS[b];[a][b]concat=n=2:v=1:a=0")
+    clip = video("cutclip.mp4", src="nullsrc=size=320x240:rate=30:duration=2", extra=("-filter_complex", graph))
+    out = mux(clip, song, tmp / "cutclip-out.mp4", excerpt=(1.0, 3.0))
+    assert "hard-cut" in failed(run_qc(out, song, tmp / "qc", excerpt=(1.0, 3.0)))
+    assert run_qc(out, song, tmp / "qc", excerpt=(1.0, 3.0), cuts=[2.0])["result"] == "PASS"
+
+
+# A still, textured picture larger than the frame, for camera moves made with crop.
+WANDER = "smptehdbars=size=400x300:rate=30:duration=4,drawgrid=w=23:h=17:t=1:c=black"
+
+
+def test_a_camera_that_wanders_and_comes_back_jitters(media):
+    song, _, tmp = media
+    out = planted(media, "jitter.mp4", "crop=320:240:x='40+5*sin(2*PI*3*t)':y=30", src=WANDER)
+    report = run_qc(out, song, tmp / "qc")
+    assert motion(report) == {"jitter"}
+    assert run_qc(out, song, tmp / "qc", holds=[(0.0, 4.0)])["result"] == "PASS"
+    # a video that jolts on the beat by design is not scanned
+    jolted = run_qc(out, song, tmp / "qc", jolts=True)
+    assert jolted["result"] == "PASS" and "jolts" in detail(jolted, "jitter")
+
+
+def test_a_steady_pan_is_not_jitter(media):
+    song, _, tmp = media
+    out = planted(media, "pan.mp4", "crop=320:240:x='10+15*t':y=30", src=WANDER)
+    assert motion(run_qc(out, song, tmp / "qc")) == set()
+
+
+def test_cli_qc_reads_scene_changes_cuts_words_and_jolts(mv_ws, filed_song, media, capsys):
+    spec_id, _ = filed_song(seconds=4.0)
+    song, video, tmp = media
+    paths = video_song(load_workspace(), spec_id).paths
+    graph = (f"{SRC},trim=end_frame=60,setpts=PTS-STARTPTS[a];smptebars=size=320x240:rate=30,trim=end_frame=60,"
+             "setpts=PTS-STARTPTS[b];[a][b]concat=n=2:v=1:a=0")
+    final = tmp / "ctx-final.mp4"
+    assert main(["mux", str(video("ctx.mp4", src="nullsrc=size=320x240:rate=30:duration=4",
+                                  extra=("-filter_complex", graph))), "--spec", spec_id, "--out", str(final)]) == 0
+    assert main(["qc", str(final), "--spec", spec_id]) == 1
+    assert "FAIL  hard-cut" in capsys.readouterr().out
+    assert main(["qc", str(final), "--spec", spec_id, "--cut", "2.0"]) == 0
+    vdir = mv_ws.video_dir(spec_id)
+    vdir.mkdir(parents=True, exist_ok=True)
+    (vdir / "video.yaml").write_text("cuts: [2.0]\n", encoding="utf-8")
+    assert main(["qc", str(final), "--spec", spec_id]) == 0
+    (vdir / "video.yaml").write_text("cuts: []\njolts: true\n", encoding="utf-8")
+    paths.analysis.write_text(json.dumps({"sections": [{"start": 0.0}, {"start": 2.0}]}), encoding="utf-8")
+    capsys.readouterr()
+    assert main(["qc", str(final), "--spec", spec_id]) == 0   # a scene change, from analysis.json
+    assert "not scanned: the video jolts" in capsys.readouterr().out

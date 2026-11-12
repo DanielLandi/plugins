@@ -120,7 +120,7 @@ Claude picks the skill from what you ask; you can also name one.
 - **No generated images or video.** Every picture is drawn in code. Outside assets (models, textures, fonts) are
   CC0 or OFL only, listed in the video's `SOURCES.md`.
 - **Checked before you see it.** Every render goes through `qc` (size, length, black, flash or frozen frames,
-  sync) and Claude looks at its frame sheet before showing it. A render that fails is fixed, never shown.
+  flicker, pops, stray hard cuts, camera jitter, sync) and Claude looks at its frame sheet before showing it. A render that fails is fixed, never shown.
 - **It never uploads or publishes.** Posting the video is yours; Claude can draft the description and chapters,
   and reminds you of the platform's AI-content disclosure.
 

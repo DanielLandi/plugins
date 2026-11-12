@@ -12,6 +12,7 @@ import numpy as np
 
 from ..errors import MVError
 from .media import audio_duration_s, decode_mono, duration_s, need, probe, run
+from .scans import Exempt, find_cuts, find_flicker, find_jitter, find_pops, measure
 
 EDGE_S = 0.6           # a fade from or to black at the very start or end is fine
 BLACK_MIN_S = 0.09     # 3 frames at 30 fps: a short black burst (a broken transition) must fail
@@ -85,10 +86,13 @@ def check_format(info: dict, size, fps: float, expected_s: float) -> list[Check]
                   f"video {duration:.3f} s, expected {expected_s:.3f} s")]
 
 
-def detect_black(video: Path, total: float, holds) -> Check:
+def detect_black(video: Path, total: float, holds, found: list | None = None) -> Check:
     log = run([need("ffmpeg"), "-nostdin", "-i", str(video), "-an", "-vf",
                f"blackdetect=d={BLACK_MIN_S}:pix_th={BLACK_PIX_TH}", "-f", "null", "-"], "black-frame scan").stderr.decode()
-    bad = [(a, b) for a, b in _spans(log, "black_start", "black_end", total)
+    spans = _spans(log, "black_start", "black_end", total)
+    if found is not None:
+        found += spans
+    bad = [(a, b) for a, b in spans
            if not (b <= EDGE_S + BLACK_MIN_S or a >= total - EDGE_S - BLACK_MIN_S or _covered(a, b, holds))]
     return Check("black", not bad,
                  ", ".join(f"{a:.1f}–{b:.1f} s" for a, b in bad) or "none outside the edges and declared holds")
@@ -132,12 +136,56 @@ def find_flashes(frames: list[tuple[float, float]], fps: float) -> list[tuple[fl
     return found
 
 
-def detect_flash(video: Path, total: float, holds, fps: float) -> Check:
-    bad = [(a, n, kind) for a, b, n, kind in find_flashes(_frame_luma(video), fps)
+def detect_flash(video: Path, total: float, holds, fps: float, found: list | None = None) -> Check:
+    flashes = find_flashes(_frame_luma(video), fps)
+    if found is not None:
+        found += [(a, b) for a, b, _, _ in flashes]
+    bad = [(a, n, kind) for a, b, n, kind in flashes
            if not (a < EDGE_S or b > total - EDGE_S or _covered(a, b, holds))]
     return Check("flash", not bad,
                  ", ".join(f"{kind} at {a:.2f} s ({n} frame{'s' if n > 1 else ''})" for a, n, kind in bad)
                  or "no blank or flash frames outside the edges and declared holds")
+
+
+def _list(events: list[str], limit: int = 6) -> str:
+    more = len(events) - limit
+    return ", ".join(events[:limit]) + (f", and {more} more" if more > 0 else "")
+
+
+def detect_motion(video: Path, info: dict, total: float, fps: float, holds, cuts, words, reported,
+                  jolts: bool = False) -> list[Check]:
+    """Flicker, pop, hard-cut and jitter scans (scans.py), on one small decode of every frame."""
+    stream = next(s for s in info["streams"] if s["codec_type"] == "video")
+    m = measure(video, fps, int(stream["width"]), int(stream["height"]))
+    ex = Exempt(total=total, edge=EDGE_S, holds=list(holds), cuts=list(cuts), words=list(words),
+                reported=list(reported))
+    scanned = f"in {m.count} frames"
+    flicker = find_flicker(m, ex)
+    pops = find_pops(m, ex)
+    hard = find_cuts(m, ex)
+    checks = [
+        Check("flicker", not flicker,
+              (_list([f"{a:.2f}–{b:.2f} s ({share:.1%} of the frame)" for a, b, share in flicker])
+               + ": something changes for 1–3 frames and back (coplanar faces, a decal off its surface, a shader "
+               "threshold); step those frames, or --hold a designed blink") if flicker else f"none {scanned}"),
+        Check("pop", not pops,
+              (_list([f"{t:.2f} s ({share:.1%} of the frame)" for t, share in pops])
+               + ": something appears or vanishes in one frame; step those frames, or --hold a designed snap")
+              if pops else f"none {scanned}"),
+        Check("hard-cut", not hard,
+              (_list([f"{t:.2f} s" for t in hard]) + ": a hard cut inside a scene; a designed one goes into "
+               "video.yaml cuts (song time) or --cut") if hard else "none outside scene changes and declared cuts"),
+    ]
+    if jolts:
+        checks.append(Check("jitter", True, "not scanned: the video jolts on the beat (jolts: true in video.yaml)"))
+    else:
+        jitter = find_jitter(m, ex)
+        checks.append(Check("jitter", not jitter,
+                            (_list([f"{a:.1f}–{b:.1f} s (path {p:.0f} px, net {n:.0f} px at 640 wide)"
+                                    for a, b, p, n in jitter])
+                             + ": the camera wanders and comes back instead of moving once") if jitter
+                            else f"none {scanned}"))
+    return checks
 
 
 def check_audio(video: Path, song: Path, excerpt, fps: float, tail: float = 0.0) -> Check:
@@ -173,6 +221,12 @@ def _sync(video: Path, song: Path, start: float, end: float, fps: float) -> Chec
     offset = lag / SYNC_SR
     return Check("audio", abs(offset) <= 1.0 / fps,
                  f"excerpt offset {offset * 1000:+.0f} ms (peak {peak:.2f}) against the song at {start:.3f}–{end:.3f} s")
+
+
+def _clip_times(times, excerpt, length: float) -> list[float]:
+    """Song times (cuts, word starts) shifted into the clip, keeping those inside it."""
+    shift = excerpt[0] if excerpt else 0.0
+    return [t - shift for t in times if 0.0 <= t - shift <= length]
 
 
 def _clip_holds(holds, excerpt, length: float) -> list[tuple[float, float]]:
@@ -215,8 +269,10 @@ def frame_sheet(video: Path, total: float, out_png: Path) -> Path:
 
 
 def run_qc(video: Path, song: Path, out_dir: Path, *, size=None, fps: float = 30,
-           excerpt: tuple[float, float] | None = None, holds=(), tail: float = 0.0) -> dict:
-    """`tail`: seconds the full video runs on past the song, silent (mux --tail)."""
+           excerpt: tuple[float, float] | None = None, holds=(), tail: float = 0.0, cuts=(), words=(),
+           jolts: bool = False) -> dict:
+    """`tail`: seconds the full video runs on past the song, silent (mux --tail). `cuts` (scene changes and designed
+    hard cuts) and `words` (sung word starts) are song time, like `holds`; `jolts` skips the jitter scan."""
     if tail and excerpt:
         raise MVError("--tail is for the full song only, not an excerpt")
     info = probe(video)
@@ -224,8 +280,11 @@ def run_qc(video: Path, song: Path, out_dir: Path, *, size=None, fps: float = 30
     expected = excerpt[1] - excerpt[0] if excerpt else float(probe(song)["format"]["duration"]) + tail
     holds = _clip_holds(holds, excerpt, total)
     checks = check_format(info, size, fps, expected)
-    checks += [detect_black(video, total, holds), detect_flash(video, total, holds, fps),
+    reported: list[tuple[float, float]] = []
+    checks += [detect_black(video, total, holds, reported), detect_flash(video, total, holds, fps, reported),
                detect_frozen(video, total, holds)]
+    checks += detect_motion(video, info, total, fps, holds, _clip_times(cuts, excerpt, total),
+                            _clip_times(words, excerpt, total), reported, jolts)
     has_audio = any(s["codec_type"] == "audio" for s in info["streams"])
     checks.append(check_audio(video, song, excerpt, fps, tail) if has_audio else Check("audio", False, "no audio stream"))
     out_dir.mkdir(parents=True, exist_ok=True)

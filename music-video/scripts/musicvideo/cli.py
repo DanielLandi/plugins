@@ -249,13 +249,29 @@ def cmd_loop(args) -> int:
     return 0
 
 
+def _qc_context(ws, spec: str, song) -> tuple[list[float], list[float], bool]:
+    """What qc reads on its own, all song time: the scene changes (analysis.json sections) and the video's designed
+    hard cuts (video.yaml `cuts:`), the sung word starts (timing.json), and the jolts answer (video.yaml)."""
+    meta_file = ws.video_dir(spec) / "video.yaml"
+    meta = yaml.safe_load(meta_file.read_text(encoding="utf-8")) if meta_file.is_file() else None
+    meta = meta if isinstance(meta, dict) else {}
+    cuts = [float(c) for c in meta.get("cuts") or []]
+    if song.paths.analysis.is_file():
+        cuts += [float(s["start"]) for s in json.loads(song.paths.analysis.read_text(encoding="utf-8"))["sections"]]
+    words = ([float(w["start"]) for w in json.loads(song.paths.timing.read_text(encoding="utf-8")).get("words", [])]
+             if song.paths.timing.is_file() else [])
+    return cuts, words, meta.get("jolts") is True
+
+
 def cmd_qc(args) -> int:
     ws = load_workspace()
     song = video_song(ws, song_for(ws, args.spec))
+    cuts, words, jolts = _qc_context(ws, args.spec, song)
     report = run_qc(Path(args.video), lifted_song(song.paths), song.paths.qc,
                     size=_size(args.size) if args.size else None, fps=args.fps,
                     excerpt=_range(args.excerpt) if args.excerpt else None,
-                    holds=[_range(h) for h in args.hold or []], tail=args.tail)
+                    holds=[_range(h) for h in args.hold or []], tail=args.tail,
+                    cuts=cuts + list(args.cut or []), words=words, jolts=jolts)
     for check in report["checks"]:
         print(f"{'PASS' if check['ok'] else 'FAIL'}  {check['id']:<9} {check['detail']}")
     print(f"sheet: {report['sheet']} (look at it)")
@@ -588,12 +604,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", required=True)
     p.add_argument("--excerpt", help="start-end in seconds, for the sample and the vertical cut")
     p.add_argument("--tail", type=float, default=0.0, help="seconds of silence after the song, for a video that runs on past it (an end screen)")
-    p = sub.add_parser("qc", help="check a render: format, black/flash/frozen frames, audio, frame sheet")
+    p = sub.add_parser("qc", help="check a render: format, black/flash/frozen frames, flicker, pops, hard cuts, jitter, audio, frame sheet")
     p.add_argument("video")
     p.add_argument("--spec", required=True)
     p.add_argument("--excerpt", help="start-end in seconds when the video is an excerpt")
     p.add_argument("--hold", action="append", help="a designed still or black stretch, start-end in song time (as in video.yaml holds); repeatable")
     p.add_argument("--tail", type=float, default=0.0, help="seconds the video runs on past the song, silent (as given to mux)")
+    p.add_argument("--cut", type=float, action="append", help="a designed hard cut inside a scene, in song seconds (scene changes and video.yaml cuts are read on their own); repeatable")
     p.add_argument("--size", help="expected WIDTHxHEIGHT")
     p.add_argument("--fps", type=float, default=30)
     p = sub.add_parser("version", help="keep a checked render (or a still) as the next version of a scene, for review")

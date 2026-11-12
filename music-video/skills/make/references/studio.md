@@ -28,8 +28,9 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 ## 3D (`@mv/kit/three`; the video's `video.yaml` keeps `gl: angle`)
 - `<Stage>` is the full-frame canvas; inside it every kit hook works (it re-provides the song context).
 - `<CameraRig keys>` drives the camera from keys on the song clock (`{ t, pos, look, fov?, roll?, ease? }`). Land a
-  key on each sung word you show; `ease: 'cut'` is a hard cut. Keep moves continuous: a camera that stops and
-  jumps reads as a glitch.
+  key on each sung word you show; `ease: 'cut'` is a hard cut (only when `shot-design.md` allows one; list its
+  song time in `video.yaml` `cuts:` so `qc` accepts it). Keep moves continuous: a camera that stops and jumps
+  reads as a glitch.
 - Lyrics can be objects in the world: `<Text3D>` is one extruded word; `<Letters place>` animates letter by letter.
   `advance()` measures text for layout; `findLine`/`findWord` give the words' timings; `entrance()` and
   `smooth()` time the moves. The type is Outfit ExtraBold (OFL); `studio/tools/typeface.py` converts other OFL fonts.
