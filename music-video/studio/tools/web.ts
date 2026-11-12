@@ -49,7 +49,8 @@ const score = entry.words ? loopScore(data, entry.words) : data;
 
 // This build's song data, in a folder of its own next to the video's entry (main.tsx imports it as
 // @mv/web-data/score.json): two builds at once, of any videos, never read each other's. Removed when the build ends.
-const stage = mkdtempSync(join(dirname(entryFile), 'web-data-'));
+// music-video makes it (MV_WEB_STAGE) and removes it again even when Ctrl-C stops this script before `finally`.
+const stage = process.env.MV_WEB_STAGE ?? mkdtempSync(join(dirname(entryFile), 'web-data-'));
 try {
   const audioDir = arg('audio');
   let audio: Record<string, unknown> | null = null;

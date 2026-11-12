@@ -300,6 +300,10 @@ def test_the_page_plays_the_flow_and_saves_notes_on_the_frame_shown(sections_ser
         assert page.evaluate("!document.querySelector('.card video').paused")
         assert page.evaluate("[...document.querySelectorAll('.card')].findIndex(c => c.querySelector('video'))") == 1
         page.click("#flowBtn")
+        # Opening carries on from where the card stopped, which is wherever the flow got to: past 0.9 s on a slow
+        # runner, so the roof would open on frame 9 and never show frame 8 (#25). Put the card at its start first.
+        scrub = page.locator(".card").nth(1).locator(".scrub")
+        scrub.click(position={"x": 1, "y": scrub.bounding_box()["height"] / 2})
         # open the roof, step to a frame, write a note: it keeps that frame
         page.locator(".card").nth(1).locator("[data-a=open]").click()
         page.wait_for_function("document.querySelector('#dtime').textContent.includes('frame 8')")

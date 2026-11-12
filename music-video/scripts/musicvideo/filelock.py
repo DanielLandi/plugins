@@ -3,6 +3,7 @@
 Each holder opens the lock file on its own, so two threads of one process exclude each other too. The lock is
 released when the holder leaves the block, or by the OS when its process dies. Not re-entrant."""
 import contextlib
+import errno
 import sys
 import time
 from pathlib import Path
@@ -18,7 +19,7 @@ def file_lock(lock_file: Path, timeout: float, busy: str, every: float = 0.1, no
     lock_file.parent.mkdir(parents=True, exist_ok=True)
     with open(lock_file, "a+b") as fd:
         start, told = time.monotonic(), False
-        while not _try_lock(fd):
+        while not _try_lock(fd, lock_file):
             waited = time.monotonic() - start
             if waited >= timeout:
                 raise MVError(busy)
@@ -32,7 +33,12 @@ def file_lock(lock_file: Path, timeout: float, busy: str, every: float = 0.1, no
             _unlock(fd)
 
 
-def _try_lock(fd) -> bool:
+# What a held lock answers: flock says EWOULDBLOCK (EAGAIN), msvcrt.locking EACCES or EDEADLOCK. Anything else (a network
+# drive that refuses locks: ENOLCK, ENOTSUP) will not change by waiting.
+BUSY = {errno.EAGAIN, errno.EWOULDBLOCK, errno.EACCES, getattr(errno, "EDEADLOCK", errno.EDEADLK)}
+
+
+def _try_lock(fd, lock_file: Path) -> bool:
     try:
         if sys.platform == "win32":
             import msvcrt
@@ -42,8 +48,11 @@ def _try_lock(fd) -> bool:
             import fcntl
             fcntl.flock(fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         return True
-    except OSError:
-        return False
+    except OSError as e:
+        if e.errno in BUSY:
+            return False
+        raise MVError(f"cannot lock {lock_file}: {e.strerror or e}. Its folder must be on a disk that supports file "
+                      "locks (a local disk; not every network drive does)") from e
 
 
 def _unlock(fd) -> None:
