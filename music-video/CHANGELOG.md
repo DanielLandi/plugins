@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.9.0
+
+- In a git worktree of the project folder, music-video works on that worktree's specs and video code. Its working
+  files go to `work/.lanes/<worktree>/`, its video finals to `<results>/.lanes/<worktree>/` (hidden from the
+  library), and its engine entries are its own. A session moves into a worktree only when the worktree belongs to
+  the saved project folder's own git repository (its `.git` file and git's record of it agree); any other folder
+  keeps the saved project folder.
+- Songs and albums are filed into the shared results folder. The download budget counts every worktree (a spec
+  another worktree cannot read is skipped with a warning). `ingest` refuses to file over another worktree's
+  different take of the same song.
+- `init` in a worktree no longer re-points the saved workspace.
+- `home` in a worktree serves that worktree's videos and requests on a free port and prints its address; the
+  project folder's home stays on 8646. Request folders are never committed (each holds a `.gitignore`).
+- No change for a project folder that is not a git worktree.
+
 ## 0.8.6
 
 - An install folder that refuses file locks (some network drives) stops at once with an error naming the lock file,

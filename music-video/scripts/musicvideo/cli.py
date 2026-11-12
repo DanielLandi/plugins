@@ -18,7 +18,8 @@ from .albums import load_album, write_manifest
 from .errors import MVError
 from .ingest import ingest
 from .budget import cycle_start, downloads_in_cycle
-from .spec import STATUSES, find_spec, iter_specs, load_spec, now_iso, save_spec, slugify, validate
+from .spec import (STATUSES, find_spec, iter_specs, iter_worktree_specs, load_spec, now_iso, save_spec, slugify,
+                   validate)
 from .video.align import align
 from .video.analyze import analyze
 from .video.loop import make_loop
@@ -30,18 +31,21 @@ from .video.review import build_page, load_versions, record_version, version_lab
 from .video.songfix import lifted_song
 from .video.timing import clock
 from .video import timing_editor
-from .workspace import (cache_dir, init_workspace, install_dir, load_private_names, load_workspace,
-                        warn_if_no_private_names, workspace_home)
+from .workspace import (cache_dir, config_path, init_workspace, install_dir, load_private_names, load_workspace,
+                        saved_home, warn_if_no_private_names, workspace_home)
+from .worktrees import linked_worktree
 
 
 
 def cmd_init(args) -> int:
     home = Path(args.path).expanduser() if args.path else workspace_home()
-    if not (home / "config.yaml").is_file() and not args.artist:
+    if not config_path(home).is_file() and not args.artist:
         raise MVError("a new workspace needs --artist (the name your songs are credited to)")
     home, created = init_workspace(home, args.artist or "", args.billing_day, args.download_budget,
                                    Path(args.results_dir).expanduser() if args.results_dir else None)
     print(f"{'created' if created else 'using existing'} workspace {home}")
+    if (wt := linked_worktree(home)) is not None:
+        print(f"this is a worktree of {wt.main}; the saved workspace stays {saved_home() or 'unset'}")
     return 0
 
 
@@ -125,7 +129,7 @@ def cmd_downloaded(args) -> int:
     billing_day, budget = _budget(ws)
     today = date.today()
     start = cycle_start(today, billing_day)
-    used = downloads_in_cycle((d for _, d in iter_specs(ws)), today, billing_day)
+    used = downloads_in_cycle((d for _, d in iter_worktree_specs(ws)), today, billing_day)  # every worktree
     if used >= budget and not args.paid_extra:
         raise MVError(f"download budget used up: {used} of {budget} since {start}; "
                       "pass --paid-extra only if the user confirmed buying an extra download")
@@ -144,7 +148,7 @@ def cmd_status(args) -> int:
         print("Downloads: not tracked (set billing_day and download_budget in config.yaml)")
     else:
         today = date.today()
-        used = downloads_in_cycle(specs, today, ws.billing_day)
+        used = downloads_in_cycle((d for _, d in iter_worktree_specs(ws)), today, ws.billing_day)
         left = max(ws.download_budget - used, 0)
         start = cycle_start(today, ws.billing_day)
         print(f"Downloads: {used} of {ws.download_budget} used since {start} ({left} left)")
@@ -366,7 +370,8 @@ def cmd_requests(args) -> int:
 
 def cmd_home(args) -> int:
     from .video import home
-    home.serve(load_workspace(), port=args.port, open_page=args.open)
+    ws = load_workspace()
+    home.serve(ws, port=args.port if args.port is not None else home.default_port(ws), open_page=args.open)
     return 0
 
 
@@ -376,9 +381,12 @@ def cmd_paths(args) -> int:
     meta = (yaml.safe_load(meta_file.read_text(encoding="utf-8")) or {}) if meta_file.is_file() else {}
     song = str(meta.get("song") or args.id)  # a video can borrow another song's timings
     p = VideoPaths(ws.work_for(args.id), ws.results_for(args.id))
-    print(json.dumps({"video": str(ws.video_dir(args.id)), "work": str(p.root),
-                      "public": str(ws.work_for(song) / "public"), "renders": str(p.renders), "qc": str(p.qc),
-                      "results": str(p.deliver), "web": str(p.deliver / "web")}, indent=2))
+    out = {"video": str(ws.video_dir(args.id)), "work": str(p.root),
+           "public": str(ws.work_for(song) / "public"), "renders": str(p.renders), "qc": str(p.qc),
+           "results": str(p.deliver), "web": str(p.deliver / "web")}
+    if ws.lane:  # only in a git worktree: a main checkout's output is unchanged
+        out["lane"] = ws.lane
+    print(json.dumps(out, indent=2))
     return 0
 
 
@@ -391,10 +399,11 @@ def cmd_clean(args) -> int:
     if not studio.ID_RE.match(args.id or ""):
         raise MVError(f"'{args.id}' is not a video id (lowercase words joined by hyphens): nothing was deleted")
     ws = load_workspace()
+    work_root = ws.work_root.expanduser().resolve()  # work_dir, or work_dir/.lanes/<key> in a git worktree
+    work = (work_root / args.id).resolve()
+    if work.parent != work_root:
+        raise MVError(f"{work} is not inside the work folder {work_root}: nothing was deleted")
     work_dir = ws.work_dir.expanduser().resolve()
-    work = (work_dir / args.id).resolve()
-    if work.parent != work_dir:
-        raise MVError(f"{work} is not inside the work folder {work_dir}: nothing was deleted")
     for name, other in (("results", ws.results_dir), ("project", ws.home), ("install", install_dir())):
         if _overlaps(work, other.expanduser().resolve()):
             raise MVError(f"work_dir {work_dir} overlaps the {name} folder {other}: set its own work_dir in "
@@ -420,9 +429,9 @@ def cmd_doctor(args) -> int:
 
 def _prepare(video_id):
     ws = load_workspace()
-    rt = studio.ensure_ready(video_id)  # with this command's lease on the engine, released when it ends (main)
+    rt = studio.ensure_ready(video_id, ws.lane)  # with this command's lease on the engine, released when it ends (main)
     ctx = studio.video_context(ws, video_id)
-    entry = studio.write_entry(rt, ctx.dir, video_id)
+    entry = studio.write_entry(rt, ctx.dir, video_id, lane=ctx.lane)
     return rt, ctx, entry, studio.tool_env(rt, ctx, entry)
 
 
@@ -627,7 +636,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true")
     p.add_argument("--taken", type=int, metavar="ROUND", help="mark every new note as taken into this round")
     p = sub.add_parser("home", help="one page with every song and video and its stage; its buttons queue requests for Claude")
-    p.add_argument("--port", type=int, default=8646)
+    p.add_argument("--port", type=int, default=None, help="default 8646; a free port in a git worktree")
     p.add_argument("--open", action="store_true", help="open the page in the browser")
     p = sub.add_parser("requests", help="what the user asked for on the home and sections pages, for Claude to carry out")
     p.add_argument("id", nargs="?", help="only this video's requests")

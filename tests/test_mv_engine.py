@@ -460,13 +460,13 @@ def test_the_lease_is_taken_before_the_engine_lock_is_let_go(shared_engine, monk
     from musicvideo import filelock
     real, seen = studio.take_lease, []
 
-    def take(rt, video_id):
+    def take(rt, video_id, lane=None):
         with open(rt / ".lock", "a+b") as fd:  # held by someone else, it cannot be taken from a second handle
             free = filelock._try_lock(fd, rt / ".lock")
             if free:
                 filelock._unlock(fd)
         seen.append(free)
-        return real(rt, video_id)
+        return real(rt, video_id, lane)
     monkeypatch.setattr(studio, "take_lease", take)
     try:
         assert studio.ensure_ready("night-drive") == shared_engine
@@ -496,3 +496,38 @@ def test_a_refusal_names_the_lease_to_delete(shared_engine, sleeper):
     with pytest.raises(MVError) as e:
         studio.ensure_ready()
     assert str(lease) in str(e.value)
+
+
+def test_entries_are_keyed_by_lane(mv_lane, tmp_path, monkeypatch):
+    from musicvideo.workspace import load_workspace
+    ws_main, ws_a = load_workspace(mv_lane.main), load_workspace(mv_lane.a)
+    dirs = []
+    for ws in (ws_main, ws_a):
+        d = ws.video_dir("night-drive")
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "index.tsx").write_text("export const Compositions = () => null;\n", encoding="utf-8")
+        dirs.append(d)
+    main_dir, a_dir = dirs
+    key_a = ws_a.lane
+
+    def ctx(ws, d):
+        return studio.VideoContext("night-drive", d, "night-drive", "angle", ws.work_for("night-drive") / "public",
+                                   ws.work_for("night-drive"), lane=ws.lane)
+
+    ctx_main, ctx_a = ctx(ws_main, main_dir), ctx(ws_a, a_dir)
+    rt = tmp_path / "rt"
+    assert studio.write_entry(rt, main_dir, "night-drive") == rt / ".entries" / "night-drive" / "index.ts"
+    assert (studio.write_entry(rt, a_dir, "night-drive", lane=key_a)
+            == rt / ".entries" / f".lane-{key_a}" / "night-drive" / "index.ts")
+    assert studio.linked_video(rt, ctx_main).resolve() == main_dir.resolve()
+    assert studio.linked_video(rt, ctx_a).resolve() == a_dir.resolve()  # main's link is not re-pointed
+    assert studio.linked_video(rt, ctx_main).resolve() == main_dir.resolve()
+    assert studio.linked_video(rt, ctx_a) == rt / ".entries" / f".lane-{key_a}" / "night-drive" / "src"
+
+
+def test_a_lease_names_its_lane(tmp_path):
+    path = studio.take_lease(tmp_path / "rt", "night-drive", lane="lane-a-1234abcd")
+    lease = json.loads(path.read_text(encoding="utf-8"))
+    assert lease["lane"] == "lane-a-1234abcd"
+    assert "worktree lane-a-1234abcd" in studio._in_use(lease)
+    studio.release_leases()

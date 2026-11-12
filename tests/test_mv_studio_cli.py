@@ -52,9 +52,9 @@ def fake_node(mv_ws, monkeypatch, tmp_path):
         (rt / script).parent.mkdir(parents=True, exist_ok=True)
         (rt / script).write_text("", encoding="utf-8")
 
-    def ready(video_id=None):  # as the real one, it takes the command's lease on the engine
+    def ready(video_id=None, lane=None):  # as the real one, it takes the command's lease on the engine
         if video_id is not None:
-            studio.take_lease(rt, video_id)
+            studio.take_lease(rt, video_id, lane)
         return rt
     monkeypatch.setattr(studio, "ensure_ready", ready)
     monkeypatch.setattr(studio, "node", lambda: "node")

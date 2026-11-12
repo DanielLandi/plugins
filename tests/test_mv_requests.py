@@ -1,4 +1,6 @@
 import json
+import shutil
+import subprocess
 import threading
 import time
 
@@ -114,7 +116,7 @@ def test_two_requests_at_once_are_both_kept(mv_ws, video, monkeypatch):
     assert sorted(r["data"]["note"] for r in reqs) == ["approve it", "make the boats red"]
     assert sorted(r["id"] for r in reqs) == ["r1", "r2"]
     # no writer's temporary file is left behind; requests.lock is the queue's cross-process lock
-    assert sorted(f.name for f in (mv_ws.video_dir(video) / "requests").iterdir()) == ["requests.json",
+    assert sorted(f.name for f in (mv_ws.video_dir(video) / "requests").iterdir()) == [".gitignore", "requests.json",
                                                                                        "requests.lock"]
 
 
@@ -168,3 +170,25 @@ def test_wait_returns_when_a_request_arrives_and_times_out_otherwise(mv_ws, vide
     q.take("r1")
     assert main(["requests", "--wait", "--timeout", "0.2"]) == 0
     assert "no new requests" in capsys.readouterr().out
+
+
+def test_a_queue_folder_ignores_itself(mv_ws, video):
+    folder = mv_ws.video_dir(video) / "requests"
+    rq.video_queue(mv_ws, video).add("message", {"note": "warmer"})
+    assert (folder / ".gitignore").read_text(encoding="utf-8") == "*\n"
+    (folder / ".gitignore").write_text("requests.json\n", encoding="utf-8")  # a hand-edited one is kept
+    rq.video_queue(mv_ws, video).add("message", {"note": "cooler"})
+    assert (folder / ".gitignore").read_text(encoding="utf-8") == "requests.json\n"
+
+
+@pytest.mark.skipif(not shutil.which("git"), reason="git not installed")
+def test_git_ignores_a_queue(mv_ws, tmp_path):
+    proj = mv_ws.home
+    subprocess.run(["git", "init", "-q"], cwd=proj, check=True)
+    (mv_ws.video_dir("x")).mkdir(parents=True)
+    rq.video_queue(mv_ws, "x").add("message", {"note": "warmer"})
+    rq.home_queue(mv_ws).add("new-video", {"topic": "fog horns"})
+    out = subprocess.run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=proj, check=True,
+                         capture_output=True, text=True, encoding="utf-8").stdout
+    assert "requests" not in out
+    assert "config.yaml" in out  # git does see the project's own files

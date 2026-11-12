@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .albums import credit, load_album, write_manifest
 from .errors import MVError
-from .spec import find_spec, iter_specs, load_spec, now_iso, parse_dt, save_spec, validate
+from .spec import find_spec, iter_worktree_specs, load_spec, now_iso, parse_dt, save_spec, validate
 from .tagging import write_tags
 from .workspace import Workspace, load_private_names, stored_path, warn_if_no_private_names
 
@@ -73,13 +73,21 @@ def ingest(ws: Workspace, spec_id: str, file: Path | None = None) -> Path:
         raise MVError("spec invalid:\n" + "\n".join(f"  - {e}" for e in errors))
 
     who = credit(ws, data)
-    dest_dir = ws.album_dir(album.id) if album else ws.results_for(spec_id)
+    dest_dir = ws.album_dir(album.id) if album else ws.song_dir(spec_id)  # shared by every git worktree
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / library_filename(who.artist, data["title"])
     rel = stored_path(ws, dest)
-    for other_path, other in iter_specs(ws):
-        if other_path != spec_path and (other.get("kept") or {}).get("file") == rel:
+    # Song folders are shared by every worktree: another branch's spec may already own this file. The same spec in
+    # another worktree (the same file name) is this song, not another.
+    for other_path, other in iter_worktree_specs(ws):
+        other_kept = other.get("kept") or {}
+        if other_path == spec_path or other_kept.get("file") != rel:
+            continue
+        if other_path.stem != spec_path.stem:
             raise MVError(f"{dest.name} already belongs to spec '{other['id']}' — change this song's title")
+        if other_kept.get("take_url") != kept.get("take_url"):  # another branch filed its own take of this song
+            raise MVError(f"{dest} already holds another take of '{spec_id}' ({other_kept.get('take_url')}), filed "
+                          f"from {other_path}: merge that branch's spec, or keep one take, before filing this one")
 
     tmp = dest.with_name(dest.name + ".part")
     shutil.copy2(file, tmp)
