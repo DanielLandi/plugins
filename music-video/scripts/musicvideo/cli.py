@@ -27,7 +27,7 @@ from .video.mux import mux
 from .video.paths import VideoPaths, open_file, song_for, video_song
 from .video.preview import preview
 from .video.qc import run_qc
-from .video.review import build_page, load_versions, record_version, version_label
+from .video.review import build_page, load_versions, mark_review, record_version, review_mark, version_label
 from .video.songfix import lifted_song
 from .video.timing import clock
 from .video import timing_editor
@@ -190,6 +190,14 @@ def cmd_analyze(args) -> int:
     for s in data["sections"]:
         print(f"  {clock(s['start'])}–{clock(s['end'])}  {s['name']} ({s['id']}){'' if s['sung'] else ' · no vocals'}")
     print("big moments: " + (", ".join(clock(h["t"]) for h in data["hits"]) or "none"))
+    d = data["drums"]
+    counts = Counter(h["kind"] for h in d["hits"])
+    source = ("the mix minus the vocal stem (there is no drum stem: align separates only the vocals)"
+              if d["source"] == "mix minus vocals" else "the whole mix (no vocal stem to take off)")
+    print(f"drums: {counts['kick']} kicks, {counts['snare']} snares, {counts['hat']} hats, {counts['crash']} crashes, "
+          f"from {source}" + (f"; the beat grid sits {d['grid']:.2f} beat from them"
+                              + (" (more than 0.1: check the grid)" if d["grid"] > 0.1 else "")
+                              if d["grid"] is not None else ""))
     return 0
 
 
@@ -254,13 +262,29 @@ def cmd_loop(args) -> int:
     return 0
 
 
+def _qc_context(ws, spec: str, song) -> tuple[list[float], list[float], bool]:
+    """What qc reads on its own, all song time: the scene changes (analysis.json sections) and the video's designed
+    hard cuts (video.yaml `cuts:`), the sung word starts (timing.json), and the jolts answer (video.yaml)."""
+    meta_file = ws.video_dir(spec) / "video.yaml"
+    meta = yaml.safe_load(meta_file.read_text(encoding="utf-8")) if meta_file.is_file() else None
+    meta = meta if isinstance(meta, dict) else {}
+    cuts = [float(c) for c in meta.get("cuts") or []]
+    if song.paths.analysis.is_file():
+        cuts += [float(s["start"]) for s in json.loads(song.paths.analysis.read_text(encoding="utf-8"))["sections"]]
+    words = ([float(w["start"]) for w in json.loads(song.paths.timing.read_text(encoding="utf-8")).get("words", [])]
+             if song.paths.timing.is_file() else [])
+    return cuts, words, meta.get("jolts") is True
+
+
 def cmd_qc(args) -> int:
     ws = load_workspace()
     song = video_song(ws, song_for(ws, args.spec))
+    cuts, words, jolts = _qc_context(ws, args.spec, song)
     report = run_qc(Path(args.video), lifted_song(song.paths), song.paths.qc,
                     size=_size(args.size) if args.size else None, fps=args.fps,
                     excerpt=_range(args.excerpt) if args.excerpt else None,
-                    holds=[_range(h) for h in args.hold or []], tail=args.tail)
+                    holds=[_range(h) for h in args.hold or []], tail=args.tail,
+                    cuts=cuts + list(args.cut or []), words=words, jolts=jolts)
     for check in report["checks"]:
         print(f"{'PASS' if check['ok'] else 'FAIL'}  {check['id']:<9} {check['detail']}")
     print(f"sheet: {report['sheet']} (look at it)")
@@ -273,22 +297,31 @@ def cmd_version(args) -> int:
     start = _range(args.excerpt)[0] if args.excerpt else args.at
     ws = load_workspace()
     v = record_version(ws, args.id, Path(args.file), args.scene, start=start, note=args.note or "",
-                       variant=args.variant)
+                       variant=args.variant, issues=args.issue)
     shows = f"{clock(v['start'])}–{clock(v['start'] + v['duration'])}" if v["kind"] == "video" else "a still"
-    print(f"kept {version_label(v)} ({shows}{', code ' + v['code'] if v['code'] else ''})")
+    issues = f", {len(v['issues'])} known issue{'s' if len(v['issues']) != 1 else ''}" if v["issues"] else ""
+    print(f"kept {version_label(v)} ({shows}{', code ' + v['code'] if v['code'] else ''}{issues}), waiting review")
     print(f"review: {build_page(ws, args.id)}")
     return 0
 
 
 def cmd_review(args) -> int:
     ws = load_workspace()
+    if args.reviewed is not None or args.waiting or args.issue:
+        if not args.version:
+            raise MVError("say which version: --version scene:vN (e.g. relay:v2)")
+        v = mark_review(ws, args.id, args.version, reviewed=args.reviewed, waiting=args.waiting, issue=args.issue)
+        print(f"{version_label(v)}: {review_mark(v) or 'no mark'}"
+              + (f"; {len(v.get('issues', []))} known issues" if v.get("issues") else ""))
     versions = load_versions(ws, args.id)
     page = build_page(ws, args.id, versions)
     scenes: dict[str, list[dict]] = {}
     for v in versions:
         scenes.setdefault(v["scene"], []).append(v)
     for scene, vs in scenes.items():
-        print(f"{scene}: " + " · ".join(f"v{v['n']} {v['at'][5:16].replace('T', ' ')}" for v in vs))
+        print(f"{scene}: " + " · ".join(
+            f"v{v['n']} {v['at'][5:16].replace('T', ' ')}" + (f" [{review_mark(v)}]" if review_mark(v) else "")
+            + (f" ({len(v['issues'])} known issues)" if v.get("issues") else "") for v in vs))
     print(page if versions else f"{page} (no versions yet: keep one with music-video version)")
     if args.open:
         open_file(page)
@@ -589,7 +622,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="this run only: word starts on the first sound, whatever video.yaml says")
     g.add_argument("--no-onsets", dest="onsets", action="store_false",
                    help="this run only: keep the aligner's word starts, whatever video.yaml says")
-    p = sub.add_parser("analyze", help="tempo, beats, sections, energy and big moments")
+    p = sub.add_parser("analyze", help="tempo, beats, sections, energy, big moments and drum hits")
     p.add_argument("id")
     p = sub.add_parser("preview", help="full-song karaoke preview to check word and beat sync")
     p.add_argument("id")
@@ -605,12 +638,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", required=True)
     p.add_argument("--excerpt", help="start-end in seconds, for the sample and the vertical cut")
     p.add_argument("--tail", type=float, default=0.0, help="seconds of silence after the song, for a video that runs on past it (an end screen)")
-    p = sub.add_parser("qc", help="check a render: format, black/flash/frozen frames, audio, frame sheet")
+    p = sub.add_parser("qc", help="check a render: format, black/flash/frozen frames, flicker, pops, hard cuts, jitter, audio, frame sheet")
     p.add_argument("video")
     p.add_argument("--spec", required=True)
     p.add_argument("--excerpt", help="start-end in seconds when the video is an excerpt")
     p.add_argument("--hold", action="append", help="a designed still or black stretch, start-end in song time (as in video.yaml holds); repeatable")
     p.add_argument("--tail", type=float, default=0.0, help="seconds the video runs on past the song, silent (as given to mux)")
+    p.add_argument("--cut", type=float, action="append", help="a designed hard cut inside a scene, in song seconds (scene changes and video.yaml cuts are read on their own); repeatable")
     p.add_argument("--size", help="expected WIDTHxHEIGHT")
     p.add_argument("--fps", type=float, default=30)
     p = sub.add_parser("version", help="keep a checked render (or a still) as the next version of a scene, for review")
@@ -621,8 +655,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--at", type=float, help="the song time a still shows, in seconds")
     p.add_argument("--note", help="what changed in this version (the notes it answers)")
     p.add_argument("--variant", help="keep it as a named variant of the scene (b, from-above…), to compare on the sections page")
+    p.add_argument("--issue", action="append", help="something you already know is wrong in it, shown first on the review page (repeatable)")
     p = sub.add_parser("review", help="the review page: every version of every scene, two at a time in sync")
     p.add_argument("id")
+    p.add_argument("--version", metavar="SCENE:vN", help="the version to mark (with --reviewed, --waiting or --issue)")
+    p.add_argument("--reviewed", metavar="WORDS", help="mark it reviewed, with what the user said about it (reviewed is not approved)")
+    p.add_argument("--waiting", action="store_true", help="mark it waiting review again")
+    p.add_argument("--issue", help="add a known issue to it")
     p.add_argument("--open", action="store_true", help="open the page in the browser")
     p = sub.add_parser("sections", help="every scene of the newest draft on one page; open one to watch it large and leave notes on its frames")
     p.add_argument("id")

@@ -1,4 +1,4 @@
-"""music-video analyze: the song map scenes are timed to (tempo, beats, sections, energy, hits)."""
+"""music-video analyze: the song map scenes are timed to (tempo, beats, sections, energy, hits, drums)."""
 import json
 
 import numpy as np
@@ -7,6 +7,7 @@ from ..workspace import Workspace
 from ..errors import MVError
 from ..spec import is_instrumental, slugify
 from .align import Runner, run_worker
+from . import drums as drum_scan
 from .media import decode_mono, duration_s
 from .paths import video_song
 
@@ -100,6 +101,14 @@ def tempo(beats: list[float]) -> float:
     return round(60.0 / float(np.median(np.diff(beats))), 1)
 
 
+def measure_drums(p, beats: list[float]) -> dict:
+    """Kick, snare, hat and crash hits (drums.py), on the mix with align's vocal stem taken off when there is one."""
+    vocals = decode_mono(p.vocals, drum_scan.SR) if p.vocals.is_file() else None
+    hits = drum_scan.find_hits(decode_mono(p.song, drum_scan.SR), vocals)
+    return {"source": "mix minus vocals" if vocals is not None else "mix", "hits": hits,
+            "grid": drum_scan.grid_fit(beats, hits)}
+
+
 def analyze(ws: Workspace, spec_id: str, runner: Runner | None = None) -> dict:
     runner = runner or run_worker
     song = video_song(ws, spec_id)
@@ -115,5 +124,6 @@ def analyze(ws: Workspace, spec_id: str, runner: Runner | None = None) -> dict:
     data = {"version": 1, "duration": round(duration, 3), "fps": FPS, "tempo": tempo(grid["beats"]),
             "beats": grid["beats"], "downbeats": grid["downbeats"],
             "sections": build_sections(timing, duration), "energy": curves, "hits": pick_hits(curves)}
+    data["drums"] = measure_drums(p, grid["beats"])
     p.analysis.write_text(json.dumps(data), encoding="utf-8")
     return data

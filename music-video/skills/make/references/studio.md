@@ -13,8 +13,13 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 - Easing: nothing linear except mechanical motion. `spring({ frame, fps, config: { damping: 200 } })` for calm,
   lower damping for bounce; `interpolate(..., { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })`.
 - Stagger related elements 2–4 frames; hold the key idea still for a beat; overlap actions.
-- Beat motion is small and eased (a nod, a sway). A quick pulse on every beat reads as a hiccup, and a camera that
-  jogs on the beat makes the words hard to read.
+- Beat motion follows the video's jolts answer (`jolts` in `look.ts`, from step 5). With no jolts (the default),
+  it is small and eased (a nod, a sway): a quick pulse on every beat reads as a hiccup, and a camera that jogs on
+  the beat makes the words hard to read. With jolts, what `LOOK.md` names (a camera kick on the kick drum, a shake
+  on the big hits) is small, dies within about a fifth of a second, and stays softer on a framing that must be read:
+  `useJolt(jolts)` (kit, with `jolts` from `look.ts`; `['kick']` by default, or other kinds) gives that wiggle on
+  the measured drum hits (`analysis.drums`), and 0 when the video does not jolt. Nothing jolts by itself: the drum
+  hits are data, used only through the jolts answer.
 - Frame characters whole, in 16:9 and 9:16; stand the camera back rather than zoom in.
 - Hold a line on screen until it can be read whole, then move on.
 - Lyric text on a surface (a card, a tag, a sign) drops the trailing comma when the line stands alone there.
@@ -26,8 +31,9 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 ## 3D (`@mv/kit/three`; the video's `video.yaml` keeps `gl: angle`)
 - `<Stage>` is the full-frame canvas; inside it every kit hook works (it re-provides the song context).
 - `<CameraRig keys>` drives the camera from keys on the song clock (`{ t, pos, look, fov?, roll?, ease? }`). Land a
-  key on each sung word you show; `ease: 'cut'` is a hard cut. Keep moves continuous: a camera that stops and
-  jumps reads as a glitch.
+  key on each sung word you show; `ease: 'cut'` is a hard cut (only when `shot-design.md` allows one; list its
+  song time in `video.yaml` `cuts:` so `qc` accepts it). Keep moves continuous: a camera that stops and jumps
+  reads as a glitch.
 - Lyrics can be objects in the world: `<Text3D>` is one extruded word; `<Letters place>` animates letter by letter.
   `advance()` measures text for layout; `findLine`/`findWord` give the words' timings; `entrance()` and
   `smooth()` time the moves. The type is Outfit ExtraBold (OFL); `studio/tools/typeface.py` converts other OFL fonts.
@@ -35,6 +41,31 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 - `<Model>` loads a GLB (`import url from '@mv/assets/models/<file>.glb'`); the bundled CC0 models are listed in
   `${CLAUDE_PLUGIN_ROOT}/studio/assets/models/SOURCES.md`. New models must be CC0, listed in the video's `SOURCES.md`.
 - Put the kit's `SanitizeShader` before any bloom pass: one NaN pixel otherwise blanks part of the frame.
+- **Real textures on every set surface** (look-and-light, adapted from claude-video-skills, MIT): wood, plaster,
+  carpet, concrete, fabric, metal and asphalt get real PBR maps (albedo, roughness, normal), not a flat colour: smooth,
+  flatly shaded surfaces read as placeholders. Poly Haven (polyhaven.com) has CC0 textures, HDRIs and models; a 1k
+  or 2k set usually holds up, judged at the closest framing it appears in. Keep the files in `<video>/textures/`,
+  each listed in the video's `SOURCES.md` (name, author, page, CC0), import them (`import wood from
+  './textures/wood_diff_1k.jpg'`), load with three's `TextureLoader` and hold the frame until they are in, the way
+  `<Model>` holds it for a GLB (`kit/three/model.tsx`). The albedo map is `SRGBColorSpace`; roughness and normal stay
+  linear. The kit's procedural wood, brick and cork (with `setRelief`) are fine where a real map is not needed.
+- **Only real light sources glow.** Lamps, bulbs, LED strips, screens, lit windows, tubes and fire emit, at real
+  levels. Every other surface has zero emissive: coins, metal, rails, painted text, sand, accent bands. Capping a fake
+  glow low is still a fake glow; an emissive authored under ~0.4 usually means a surface faking its own light. Before
+  a lighting pass, list every emissive material and every light (intensity, distance, decay) and zero the fakes at
+  their source.
+- **Real falloff.** Point and spot lights get `decay = 2` and a `distance`; set each light's intensity at its
+  nearest subject (illuminance = intensity / distance²), not by eye. A `RectAreaLight` has no range and casts no
+  shadow, so a small practical (a phone, a screen, a bulb) is a short-range `SpotLight` or `PointLight`, gone within
+  about a metre. No camera-side fill, and no emissive "rim" terms lighting people evenly. To find what a light adds,
+  turn it off (or solo it) and compare stills of the subject; the brightest light in a list is not always the one
+  that matters.
+- **A dark space, not a void.** Keep sets and crowds dark and muted, lit only by their sources at their real reach,
+  so the thing that should read is the lit one. Never float a scene in pure black all round: give it a floor, haze or
+  a dim structure, lit by the scene's own sources and falling off fast. Watch for a bloom veil from a large white
+  surface (an LED wall) washing everything, and zoom into dark areas for banding.
+- **Judge colour in the film's light.** Tune a colour on a still of the real scene where it appears, not on a
+  swatch: a grey tuned in a lineup came out charcoal in the real scene.
 - Portrait width is about half the camera distance at fov 48: size words for that.
 - Lyrics on things (letters, signs, screens): `surfaceTexture(id, w, h, key, draw)` is a canvas texture redrawn only
   when `key` changes (pass the sung-word count; `sungWords`, `wrap`, `bareEnd`, `paperGrain` help draw it).
@@ -78,14 +109,21 @@ rendering motion.
 > Edit only `<video>/scenes/<section-id>.tsx` (do not touch `scenes.ts`; the orchestrator wires it). Delete
 > nothing, not even your own stills: leave every file where it is.
 >
-> **Read first:** `${CLAUDE_PLUGIN_ROOT}/skills/make/references/studio.md` (rules), `<video>/LOOK.md` (the
-> approved look — follow it exactly), `<video>/look.ts`, the kit API in `${CLAUDE_PLUGIN_ROOT}/studio/kit/index.ts`
+> **Read first:** `${CLAUDE_PLUGIN_ROOT}/skills/make/references/studio.md` (rules),
+> `${CLAUDE_PLUGIN_ROOT}/skills/make/references/animation.md` (how things move), with a moving camera
+> `${CLAUDE_PLUGIN_ROOT}/skills/make/references/shot-design.md`, `<video>/LOOK.md` (the approved look — follow it
+> exactly, its jolts answer included), `<video>/look.ts`, the kit API in `${CLAUDE_PLUGIN_ROOT}/studio/kit/index.ts`
 > (and `kit/three/index.ts` for 3D), and this storyboard entry:
 >
 > <paste the section's STORYBOARD.md entry>
 >
 > **Timing:** this scene runs <start>–<end> s of the song (section `<section-id>`); the lyrics in it:
-> <paste the lines with their times from timing.json>. Beats and big moments: `<public>/analysis.json`.
+> <paste the lines with their times from timing.json>. Beats, big moments and drum hits:
+> `<public>/analysis.json` (drum hits only for jolts, and only if `LOOK.md` says the video jolts).
+>
+> **The user's notes on this scene, word for word** (oldest first, each with when it was given; they outrank this
+> brief and your own reading of it):
+> <paste every note of theirs that concerns this section, verbatim: from NOTES.md, the chat and the pages>
 >
 > **Deliver:** a named export (no default export) `export const <Pascal>: React.FC` in that file, and stop there:
 > do not edit `scenes.ts`. Render three stills at the scene's start, middle and peak, and look at each:
@@ -93,5 +131,7 @@ rendering motion.
 > Then run `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" typecheck <id>`. Do not render video. Report the
 > three still paths, the export name and one sentence on what moves on the beat.
 
-After an agent reports, the orchestrator wires `scenes.ts` (the import and the entry in place of `Placeholder` for
+Pass the user's notes to scene agents word for word, never summarised or reworded into your own steps (from
+claude-video-skills' directing-sessions, MIT): an agent builds what its brief says, and a paraphrase is what gets
+built. After an agent reports, the orchestrator wires `scenes.ts` (the import and the entry in place of `Placeholder` for
 `<section-id>`), then reviews the stills.

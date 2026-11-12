@@ -35,7 +35,7 @@ const sub = join(work, 'subframes.mp4');
 // The Remotion CLI's own script, run with node (no shell, so it works the same on Windows), on this video's entry.
 const cli = join(studio, 'node_modules', '@remotion', 'cli', 'remotion-cli.js');
 const entry = process.env.MV_ENTRY ?? join(studio, 'index.ts');
-const renderArgs = [cli, 'render', entry, composition, sub, '--muted', '--crf=8',
+const renderArgs = [cli, 'render', entry, composition, sub, '--muted', '--crf=8', '--color-space=bt709',
   `--public-dir=${process.env.MV_PUBLIC ?? join(studio, 'fixture', 'public')}`, `--gl=${process.env.MV_GL ?? 'angle'}`,
   // The composition's own props (e.g. lyrics: 'none' for a clean cut) pass through; subframes is added.
   `--props=${JSON.stringify({ ...(flags.props ? JSON.parse(flags.props) : {}), subframes: steps })}`,
@@ -67,7 +67,9 @@ console.log(`rendered sub-frames in ${((performance.now() - t0) / 1000).toFixed(
 
 // tmix averages each sub-frame with the samples-1 before it; keep the one that closes each frame's shutter.
 const close = (((half - 1 - first) % steps) + steps) % steps;
-const filter = `tmix=frames=${samples},select='eq(mod(n\\,${steps})\\,${close})',setpts=N/(30*TB)`;
+// The sub-frames are BT.709 (--color-space): stamp the tags, which ffmpeg 8 takes from the frames, not the flags.
+const filter = `tmix=frames=${samples},select='eq(mod(n\\,${steps})\\,${close})',setpts=N/(30*TB),` +
+  'setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv';
 const ff = spawnSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', sub, '-vf', filter, '-r', '30', '-c:v', 'libx264',
   '-crf', String(flags.crf ?? 16), '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out], { stdio: 'inherit' });
 const bytes = readdirSync(work).reduce((n, f) => n + statSync(join(work, f)).size, 0);

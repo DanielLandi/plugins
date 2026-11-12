@@ -38,8 +38,8 @@ then wait for the completion notice): renders, the board and the first `align` c
 
 Read once per session before step 1: `references/lyric-craft.md`, and the song skill's
 `../song/references/originals.md` and the generator's references (`../song/references/generators/suno/`). Read
-`references/look.md` before step 5, `references/storyboard.md` before step 6, `references/studio.md` before any
-scene code, and `references/checks.md` and `references/taste.md` before showing any render.
+`references/look.md` before step 5, `references/storyboard.md` before step 6, `references/studio.md` and
+`references/animation.md` before any scene code, `references/shot-design.md` before keying any camera move, and `references/checks.md` and `references/taste.md` before showing any render.
 
 ## Hard rules
 
@@ -61,10 +61,10 @@ commands.
 In a git worktree of the project, `paths` prints that worktree's own folders (and a `lane` key). The song stays in
 the main results folder. Song downloads still count against the one budget.
 
-- Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds), `CONCEPT.md`,
-  `lyric-options.yaml`, `lyrics.md`, `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`, `JOURNAL.md`,
-  `SOURCES.md`, `README.md`, `look.ts`, `video.ts`, `scenes.ts`, `cuts.ts`, `scenes/*.tsx`; `notes/` and
-  `requests/` (written by the pages).
+- Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds, cuts, jolts),
+  `CONCEPT.md`, `lyric-options.yaml`, `lyrics.md`, `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`,
+  `JOURNAL.md`, `SOURCES.md`, `README.md`, `look.ts`, `video.ts`, `scenes.ts`, `cuts.ts`, `scenes/*.tsx`; `notes/`
+  and `requests/` (written by the pages).
 - Working files, in `<work>`: the song's copy, timings, vocals, previews, renders, checks. All regenerable; `clean`
   deletes them once the video is delivered. (Your hand-written corrections, `timing-fixes.yaml`,
   `lyrics-as-sung.txt` and `song-fixes.yaml`, are not working files: they live in `<video>`.)
@@ -218,7 +218,8 @@ request done with `--video <id>`.
    ```
 
 2. Show the user: the align summary (repairs, the onsets line, unsure words with times, possibly missing lines), the tempo and the
-   sections, and ask them to watch the preview. Its bottom panel shows the vocal waveform 10 s at a time with a
+   sections (analyze's drums line too: where the hits were measured, and a beat grid more than 0.1 beat off the
+   drums is checked on the preview's beat dots), and ask them to watch the preview. Its bottom panel shows the vocal waveform 10 s at a time with a
    moving playhead, 0.1 s ticks and a mark at each word's start: a word's true start is where the waveform rises
    after a dip, so a fix can be read off it to the tenth of a second.
    - Always offer the timing editor with the preview (users find dragging words easier than writing fixes): a
@@ -252,7 +253,14 @@ request done with `--video <id>`.
 
 Follow `references/look.md`: 2–3 directions, each a `LOOK.md` section and a look composition, 3–4 real 16:9
 style frames plus one 9:16 chorus frame each, shown side by side on one sheet. Iterate until the user approves one
-(or a merge). Then: final `LOOK.md`, `look.ts` values, remove the losing look code. `step: sample`.
+(or a merge).
+
+With the directions, ask the **jolts** question, default no: "Should things jolt on the beat: the camera kicking on
+the kick drum, a shake on the big hits?" It is this video's choice, not a rule either way. Record the answer (and
+what jolts, when yes) as the **Jolts:** line of `LOOK.md`, as `jolts` in `look.ts` and as `jolts:` in `video.yaml`;
+when the user does not answer, it is no. Every scene follows it (`references/studio.md`).
+
+Then: final `LOOK.md`, `look.ts` values, remove the losing look code. `step: sample`.
 
 ## 6. Sample, storyboard, subtitles ✋ (the go signal)
 
@@ -279,7 +287,10 @@ Follow `references/storyboard.md`:
    ```
 
    Add a `--hold a-b` to each qc for every designed hold in `video.yaml`: song time, the same values as there,
-   even though these are excerpts (qc shifts them into the clip).
+   even though these are excerpts (qc shifts them into the clip). qc reads the rest on its own: scene changes
+   (`analysis.json`), designed hard cuts inside a scene (list each `ease: 'cut'` key in `video.yaml` `cuts:`, song
+   seconds), word starts and the jolts answer. Its flicker, pop, hard-cut and jitter lines name frames: step through
+   each one; a designed effect gets a hold or a cut entry, anything else is a bug to fix.
 
    Keep the clean sample as the first version on the review page (it refuses a render that has not passed qc):
 
@@ -319,6 +330,16 @@ Follow `references/storyboard.md`:
    ```bash
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" version <id> "<renders>/draft-v<n>.mp4" --scene draft --note "Round <n-1>: <the notes it answers>"
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" sections <id> --open
+   ```
+
+   Keep every version the moment it passes qc, never batching or holding one back. Give it `--issue "<what is
+   wrong, with its song time>"` for each thing you already know is wrong (qc flags you judged real, frames you
+   still have to fix): the review page shows a version's known issues first. A kept version is marked waiting
+   review (it replaces the mark of the scene's earlier version). When the user gives notes on it, mark it reviewed
+   with their words, verbatim (reviewed is not approved):
+
+   ```bash
+   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" review <id> --version draft:v<n> --reviewed "<their words>"
    ```
 
    The sections page lays the newest draft out by the scenes in `scenes.ts`: every section on one screen, each
@@ -425,8 +446,8 @@ like the final, then join it to the final's silent render by decoding both in or
 video's frame rate. Never join with `-c copy`: a stream-copy join starts the picture about 21 ms late and leaves
 uneven frame timing that players show as repeated or dropped frames. Write `list.txt` with one `file '<path>'` line
 per part (the final's silent render first, then the tail), and run
-`ffmpeg -f concat -safe 0 -i list.txt -vf "setpts=N/(30*TB)" -fps_mode cfr -r 30 -c:v libx264 -crf 18 -pix_fmt yuv420p "<renders>/final-tail-silent.mp4"`
-(30 is the video's fps, 18 the final's CRF: match both), then `mux ... --tail 10` and `qc ... --tail 10` on it. Keep the song-length final too: the tail is for YouTube only.
+`ffmpeg -f concat -safe 0 -i list.txt -vf "setpts=N/(30*TB),setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv" -fps_mode cfr -r 30 -c:v libx264 -crf 18 -pix_fmt yuv420p "<renders>/final-tail-silent.mp4"`
+(30 is the video's fps, 18 the final's CRF: match both; `setparams` keeps the BT.709 tags `qc` checks), then `mux ... --tail 10` and `qc ... --tail 10` on it. Keep the song-length final too: the tail is for YouTube only.
 
 Point out the platform's AI-content disclosure (an AI-generated voice counts on most platforms).
 

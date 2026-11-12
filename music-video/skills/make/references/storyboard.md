@@ -3,7 +3,9 @@
 ## STORYBOARD.md — one entry per section of `analysis.json`
 - **Time:** start–end (m:ss), the section id (`chorus-2`).
 - **Scene:** what we see, drawn from that section's lyric images; how it relates to the last scene.
-- **On the beat:** what moves on beats, what on downbeats.
+- **Camera:** for each move, the first sentence of its shot card (`shot-card.md`, rules in `shot-design.md`);
+  "still" when the section holds.
+- **On the beat:** what moves on beats, what on downbeats. Jolts only if the video's jolts answer is yes.
 - **Big moments:** which `hits` get a visual event, and what it is.
 - **Lyrics:** overlay, or how the words appear in the scene.
 - Last entry: **Vertical cut** — the 30–60 s excerpt (start on a bar line, hook in the first frame) and how the
@@ -18,6 +20,8 @@ One `SceneEntry` per section, in order, `from` = the section start (snap to the 
 ## cuts.ts — the transition board
 For every pair of neighbouring scenes, one `CutSpec`:
 - **carrier:** an element already on screen that makes the change (a light, a line, a shape, the camera). No carrier, no cut.
+  When the camera carries it, `shot-design.md` (Scene changes) says how: a push into a shape, through real
+  geometry, a whip.
 - **why:** what the cut means: continuity, a turn, a section break, a reveal, a rise, a breath.
 - **landsOn:** the downbeat or word it is centred on (`layoutSeries` centres the cut on the scene boundary).
 - **transition:** an id from `${CLAUDE_PLUGIN_ROOT}/studio/transitions/catalog.json` (read `TAXONOMY.md` next to it

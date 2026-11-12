@@ -3,6 +3,11 @@
 A version is a copy of a render (or a still) in <work>/review/media/, numbered per scene (relay v1, v2, …), with the
 song time its first frame shows, so a scene clip lines up with a full draft. The page plays two versions in sync on
 the song clock: side by side, with a wipe, or flipping between them.
+
+Each version carries its known issues (shown first) and a review mark (after claude-video-skills' review-page, MIT):
+a new version is "waiting" (it passed qc, so it was checked), and replaces the waiting mark of the earlier version
+of the same scene and variant; it becomes "reviewed" with the user's words once they give notes on it. Reviewed
+never means approved.
 """
 import html
 import json
@@ -96,8 +101,12 @@ def version_label(v: dict) -> str:
     return f"{v['scene']} v{v['n']}" + (f" (variant {v['variant']})" if v.get("variant") else "")
 
 
+def _now() -> str:
+    return datetime.now().isoformat(timespec="seconds")
+
+
 def record_version(ws: Workspace, video_id: str, file: Path, scene: str, *, start: float | None = None,
-                   note: str = "", variant: str | None = None) -> dict:
+                   note: str = "", variant: str | None = None, issues: list[str] | None = None) -> dict:
     if variant is not None and (not VARIANT_RE.match(variant) or len(variant) > 20):
         raise MVError(f"'{variant}' is not a variant name: a short lowercase word, like b or from-above")
     if not SCENE_RE.match(scene):
@@ -116,8 +125,9 @@ def record_version(ws: Workspace, video_id: str, file: Path, scene: str, *, star
     versions = load_versions(ws, video_id)
     n = 1 + max((v["n"] for v in versions if v["scene"] == scene), default=0)
     name = f"{scene}-v{n}"
-    entry = {"scene": scene, "n": n, "at": datetime.now().isoformat(timespec="seconds"), "note": note,
-             "code": _code_stamp(ws.video_dir(video_id)), "source": file.name, "start": start}
+    entry = {"scene": scene, "n": n, "at": _now(), "note": note,
+             "code": _code_stamp(ws.video_dir(video_id)), "source": file.name, "start": start,
+             "issues": [i.strip() for i in issues or [] if i.strip()], "review": {"state": "waiting", "at": _now()}}
     if variant:
         entry["variant"] = variant
     if ext in VIDEO_EXT:
@@ -131,9 +141,43 @@ def record_version(ws: Workspace, video_id: str, file: Path, scene: str, *, star
     target = media / f"{name}{ext}"
     shutil.copy2(file, target)
     entry["file"] = f"media/{target.name}"
+    for v in versions:   # only the newest pass at the same thing waits
+        if v["scene"] == scene and v.get("variant") == entry.get("variant") and v.get("review", {}).get("state") == "waiting":
+            v["review"] = {"state": "replaced", "at": _now(), "by": n}
     versions.append(entry)
     write_index(ws, video_id, versions)
     return entry
+
+
+REF_RE = re.compile(r"^([a-z0-9]+(?:-[a-z0-9]+)*)[: ]v(\d+)$")
+
+
+def mark_review(ws: Workspace, video_id: str, ref: str, *, reviewed: str | None = None, waiting: bool = False,
+                issue: str | None = None) -> dict:
+    """Mark a version (`relay:v2`) reviewed (with the user's words) or waiting again, or add a known issue."""
+    m = REF_RE.match(ref.strip())
+    if not m:
+        raise MVError(f"'{ref}' is not a version: write it as scene:vN, e.g. relay:v2")
+    versions = load_versions(ws, video_id)
+    v = next((x for x in versions if x["scene"] == m.group(1) and x["n"] == int(m.group(2))), None)
+    if v is None:
+        raise MVError(f"no version {m.group(1)}:v{m.group(2)} of {video_id} (music-video review {video_id} lists them)")
+    if issue and issue.strip():
+        v.setdefault("issues", []).append(issue.strip())
+    if reviewed is not None:
+        v["review"] = {"state": "reviewed", "at": _now(), "said": reviewed.strip()}
+    elif waiting:
+        v["review"] = {"state": "waiting", "at": _now()}
+    write_index(ws, video_id, versions)
+    return v
+
+
+def review_mark(v: dict) -> str:
+    """How a version's mark reads in the terminal."""
+    r = v.get("review") or {}
+    if r.get("state") == "reviewed":
+        return f"reviewed: {r.get('said', '')}".rstrip(": ")
+    return {"waiting": "waiting review", "replaced": f"replaced by v{r.get('by')}"}.get(r.get("state"), "")
 
 
 def write_index(ws: Workspace, video_id: str, versions: list[dict]) -> Path:

@@ -159,3 +159,8 @@ def mv_lane(mv_ws, tmp_path):
                 (root / sub).mkdir()
         lanes.append(root)
     return Lanes(main, *lanes)
+
+
+# Renders are BT.709 and say so (the engine renders with --color-space=bt709): a test render carries the same tags.
+BT709 = ("-bsf:v", "h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1:"
+         "video_full_range_flag=0")
