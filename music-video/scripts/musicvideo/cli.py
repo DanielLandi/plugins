@@ -29,18 +29,21 @@ from .video.review import build_page, load_versions, record_version, version_lab
 from .video.songfix import lifted_song
 from .video.timing import clock
 from .video import timing_editor
-from .workspace import (cache_dir, init_workspace, install_dir, load_private_names, load_workspace,
-                        warn_if_no_private_names, workspace_home)
+from .workspace import (cache_dir, config_path, init_workspace, install_dir, load_private_names, load_workspace,
+                        saved_home, warn_if_no_private_names, workspace_home)
+from .worktrees import linked_worktree
 
 
 
 def cmd_init(args) -> int:
     home = Path(args.path).expanduser() if args.path else workspace_home()
-    if not (home / "config.yaml").is_file() and not args.artist:
+    if not config_path(home).is_file() and not args.artist:
         raise MVError("a new workspace needs --artist (the name your songs are credited to)")
     home, created = init_workspace(home, args.artist or "", args.billing_day, args.download_budget,
                                    Path(args.results_dir).expanduser() if args.results_dir else None)
     print(f"{'created' if created else 'using existing'} workspace {home}")
+    if (wt := linked_worktree(home)) is not None:
+        print(f"this is a worktree of {wt.main}; the saved workspace stays {saved_home() or 'unset'}")
     return 0
 
 
@@ -375,9 +378,12 @@ def cmd_paths(args) -> int:
     meta = (yaml.safe_load(meta_file.read_text(encoding="utf-8")) or {}) if meta_file.is_file() else {}
     song = str(meta.get("song") or args.id)  # a video can borrow another song's timings
     p = VideoPaths(ws.work_for(args.id), ws.results_for(args.id))
-    print(json.dumps({"video": str(ws.video_dir(args.id)), "work": str(p.root),
-                      "public": str(ws.work_for(song) / "public"), "renders": str(p.renders), "qc": str(p.qc),
-                      "results": str(p.deliver), "web": str(p.deliver / "web")}, indent=2))
+    out = {"video": str(ws.video_dir(args.id)), "work": str(p.root),
+           "public": str(ws.work_for(song) / "public"), "renders": str(p.renders), "qc": str(p.qc),
+           "results": str(p.deliver), "web": str(p.deliver / "web")}
+    if ws.lane:  # only in a git worktree: a main checkout's output is unchanged
+        out["lane"] = ws.lane
+    print(json.dumps(out, indent=2))
     return 0
 
 
@@ -390,10 +396,11 @@ def cmd_clean(args) -> int:
     if not studio.ID_RE.match(args.id or ""):
         raise MVError(f"'{args.id}' is not a video id (lowercase words joined by hyphens): nothing was deleted")
     ws = load_workspace()
+    work_root = ws.work_root.expanduser().resolve()  # work_dir, or work_dir/.lanes/<key> in a git worktree
+    work = (work_root / args.id).resolve()
+    if work.parent != work_root:
+        raise MVError(f"{work} is not inside the work folder {work_root}: nothing was deleted")
     work_dir = ws.work_dir.expanduser().resolve()
-    work = (work_dir / args.id).resolve()
-    if work.parent != work_dir:
-        raise MVError(f"{work} is not inside the work folder {work_dir}: nothing was deleted")
     for name, other in (("results", ws.results_dir), ("project", ws.home), ("install", install_dir())):
         if _overlaps(work, other.expanduser().resolve()):
             raise MVError(f"work_dir {work_dir} overlaps the {name} folder {other}: set its own work_dir in "

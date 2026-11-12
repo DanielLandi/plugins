@@ -277,7 +277,7 @@ def init_workspace(home: Path, artist: str, billing_day: int | None = None, down
         raise MVError(f"--billing-day must be 1-31, got {billing_day}")
     if download_budget is not None and download_budget < 0:
         raise MVError(f"--download-budget must be 0 or more, got {download_budget}")
-    created = not (home / CONFIG).is_file()
+    created = not config_path(home).is_file()  # in a git worktree, the main checkout's config counts
     if created:
         for sub in ("specs", "videos"):
             (home / sub).mkdir(parents=True, exist_ok=True)
@@ -292,7 +292,8 @@ def init_workspace(home: Path, artist: str, billing_day: int | None = None, down
             "results_dir": str(results_dir) if results_dir else "~/" + default_results().relative_to(Path.home()).as_posix(),
         }
         (home / CONFIG).write_text(yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
-    remember_home(home)
+    if linked_worktree(home) is None:  # a worktree never re-points every other session at itself
+        remember_home(home)
     return home, created
 
 

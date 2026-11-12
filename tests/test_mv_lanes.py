@@ -293,3 +293,75 @@ def test_a_real_worktree_of_the_saved_workspace_switches(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path / "real" / "specs")
     assert w.workspace_home().resolve() == (tmp_path / "real").resolve()
     assert w.load_workspace().lane == w.folder_key(tmp_path / "real")
+
+
+# --- init, paths, clean and doctor in a lane ---------------------------------------------------------------------
+
+def test_init_in_a_lane_keeps_settings(mv_lane, tmp_path, capsys, monkeypatch):
+    from musicvideo.cli import main
+    before = (tmp_path / "settings.json").read_bytes()
+    monkeypatch.delenv("MUSIC_VIDEO_HOME")
+    monkeypatch.chdir(mv_lane.a)
+    assert main(["init"]) == 0  # no --artist needed: the main checkout's config counts
+    assert (tmp_path / "settings.json").read_bytes() == before
+    assert not (mv_lane.a / "config.yaml").exists()
+    out = capsys.readouterr().out
+    assert "using existing workspace" in out
+    assert "this is a worktree of" in out and f"the saved workspace stays {mv_lane.main}" in out
+    assert main(["init", "--path", str(mv_lane.b)]) == 0  # an explicit lane path: still no re-pointing
+    assert (tmp_path / "settings.json").read_bytes() == before
+
+
+def test_paths_in_a_lane(mv_lane, capsys, monkeypatch):
+    import json
+    from musicvideo.cli import main
+    m = _home(monkeypatch, mv_lane.main)
+    assert main(["paths", "night-drive"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert list(out) == ["video", "work", "public", "renders", "qc", "results", "web"]
+    assert out["work"] == str(m.work_dir / "night-drive") and out["results"] == str(m.results_dir / "night-drive")
+    a = _home(monkeypatch, mv_lane.a)
+    assert main(["paths", "night-drive"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["lane"] == a.lane and list(out)[-1] == "lane"
+    work, finals = m.work_dir / ".lanes" / a.lane, m.results_dir / ".lanes" / a.lane
+    for key, value in (("work", work / "night-drive"), ("renders", work / "night-drive" / "renders"),
+                       ("qc", work / "night-drive" / "qc"), ("public", work / "night-drive" / "public"),
+                       ("results", finals / "night-drive"), ("web", finals / "night-drive" / "web"),
+                       ("video", mv_lane.a / "videos" / "night-drive")):
+        assert out[key] == str(value), key
+
+
+def test_clean_in_a_lane_removes_only_lane_work(mv_lane, capsys, monkeypatch):
+    from musicvideo.cli import main
+    m = _home(monkeypatch, mv_lane.main)
+    a = w.load_workspace(mv_lane.a)
+    for folder in (m.work_for("night-drive"), a.work_for("night-drive")):
+        (folder / "renders").mkdir(parents=True)
+        (folder / "renders" / "draft.mp4").write_bytes(b"x")
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.a))
+    assert main(["clean", "night-drive"]) == 0
+    assert not a.work_for("night-drive").exists() and m.work_for("night-drive").is_dir()
+    (a.work_for("night-drive")).mkdir(parents=True)
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.main))
+    assert main(["clean", "night-drive"]) == 0
+    assert not m.work_for("night-drive").exists() and a.work_for("night-drive").is_dir()
+    assert (m.work_dir / ".lanes").is_dir()
+
+
+def test_doctor_names_the_lane(mv_lane, tmp_path, capsys, monkeypatch):
+    from musicvideo import doctor, studio
+    copy = tmp_path / "plugins" / "cache" / "some-marketplace" / "music-video" / "0.9.0" / "studio"
+    copy.mkdir(parents=True)
+    (copy / "package-lock.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", copy)
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(doctor, "_node_major", lambda: 22)
+    ws = _home(monkeypatch, mv_lane.a)
+    doctor.run_doctor(install=False)
+    out = capsys.readouterr().out
+    assert (f"ok   worktree {ws.lane} of {ws.main_home}: work in {ws.work_root}, video finals in {ws.finals_root}"
+            in out)
+    _home(monkeypatch, mv_lane.main)
+    doctor.run_doctor(install=False)
+    assert "worktree" not in capsys.readouterr().out
