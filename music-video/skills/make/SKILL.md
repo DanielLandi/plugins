@@ -61,8 +61,8 @@ commands.
 In a git worktree of the project, `paths` prints that worktree's own folders (and a `lane` key). The song stays in
 the main results folder. Song downloads still count against the one budget.
 
-- Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds, cuts, jolts), `CONCEPT.md`,
-  `lyric-options.yaml`, `lyrics.md`, `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`, `JOURNAL.md`,
+- Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds, cuts, jolts),
+  `CONCEPT.md`, `lyric-options.yaml`, `lyrics.md`, `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`, `JOURNAL.md`,
   `SOURCES.md`, `README.md`, `look.ts`, `video.ts`, `scenes.ts`, `cuts.ts`, `scenes/*.tsx`; `notes/` and
   `requests/` (written by the pages).
 - Working files, in `<work>`: the song's copy, timings, vocals, previews, renders, checks. All regenerable; `clean`
