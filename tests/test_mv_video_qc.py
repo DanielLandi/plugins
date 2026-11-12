@@ -10,10 +10,12 @@ from musicvideo.workspace import load_workspace
 from musicvideo.video.mux import mux
 from musicvideo.video.paths import video_song
 from musicvideo.video.qc import run_qc
+from mv_fixtures import BT709
 
 
 def ff(*args):
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", *args], check=True)
+
 
 
 @pytest.fixture
@@ -24,7 +26,7 @@ def media(tmp_path, make_mp3):  # make_mp3 skips the test when ffmpeg is missing
 
     def video(name, src="testsrc2=size=320x240:rate=30:duration=4", extra=()):
         out = tmp_path / name
-        ff("-f", "lavfi", "-i", src, *extra, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an", str(out))
+        ff("-f", "lavfi", "-i", src, *extra, "-c:v", "libx264", "-pix_fmt", "yuv420p", *BT709, "-an", str(out))
         return out
 
     return song, video, tmp_path
@@ -410,3 +412,21 @@ def test_cli_qc_reads_scene_changes_cuts_words_and_jolts(mv_ws, filed_song, medi
     capsys.readouterr()
     assert main(["qc", str(final), "--spec", spec_id]) == 0   # a scene change, from analysis.json
     assert "not scanned: the video jolts" in capsys.readouterr().out
+
+
+def test_untagged_or_wrongly_tagged_colour_fails_and_says_what_is_wrong(media):
+    song, video, tmp = media
+    plain = tmp / "untagged-silent.mp4"
+    ff("-f", "lavfi", "-i", "testsrc=size=320x240:rate=30:duration=4", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(plain))
+    report = run_qc(mux(plain, song, tmp / "untagged.mp4"), song, tmp / "qc")
+    assert failed(report) == {"colour"}
+    text = detail(report, "colour")
+    assert "primaries unknown" in text and "transfer unknown" in text and "matrix unknown" in text and "bt709" in text
+    bt601 = tmp / "bt601-silent.mp4"
+    ff("-f", "lavfi", "-i", "testsrc=size=320x240:rate=30:duration=4", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+       "-bsf:v", "h264_metadata=colour_primaries=6:transfer_characteristics=6:matrix_coefficients=6", str(bt601))
+    report = run_qc(mux(bt601, song, tmp / "bt601.mp4"), song, tmp / "qc")
+    assert failed(report) == {"colour"} and "matrix smpte170m" in detail(report, "colour")
+    good = run_qc(mux(video("tagged.mp4", src="testsrc=size=320x240:rate=30:duration=4"), song, tmp / "tagged-out.mp4"),
+                  song, tmp / "qc")
+    assert good["result"] == "PASS" and "bt709" in detail(good, "colour")

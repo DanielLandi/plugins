@@ -8,6 +8,7 @@ from musicvideo.cli import main
 from musicvideo.errors import MVError
 from musicvideo.video.review import build_page, load_versions, record_version, review_dir
 from musicvideo.workspace import load_workspace
+from mv_fixtures import BT709
 
 
 def ff(*args):
@@ -22,7 +23,7 @@ def checked(mv_ws, filed_song, tmp_path):
     def make(name, seconds=4, excerpt=None):
         silent = tmp_path / f"{name}-silent.mp4"
         ff("-f", "lavfi", "-i", f"testsrc2=size=320x240:rate=30:duration={seconds}", "-c:v", "libx264",
-           "-pix_fmt", "yuv420p", "-an", str(silent))
+           "-pix_fmt", "yuv420p", *BT709, "-an", str(silent))
         out = tmp_path / f"{name}.mp4"
         flags = ["--excerpt", excerpt] if excerpt else []
         assert main(["mux", str(silent), "--spec", spec_id, "--out", str(out), *flags]) == 0

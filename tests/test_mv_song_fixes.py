@@ -7,6 +7,7 @@ from musicvideo.errors import MVError
 from musicvideo.video.paths import video_song
 from musicvideo.video.songfix import filter_graph, lifted_song, load_lifts
 from musicvideo.workspace import load_workspace
+from mv_fixtures import BT709
 
 
 def rms_db(path, start, length):
@@ -90,7 +91,7 @@ def test_mux_and_qc_use_the_lifted_song(song, tmp_path):
     silent = tmp_path / "silent.mp4"
     # testsrc, not testsrc2: testsrc2 grows its grey box for one frame at 3.5 s (qc flicker)
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
-                    "testsrc=size=320x240:rate=30:duration=6", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an",
+                    "testsrc=size=320x240:rate=30:duration=6", "-c:v", "libx264", "-pix_fmt", "yuv420p", *BT709, "-an",
                     str(silent)], check=True)
     out = tmp_path / "draft.mp4"
     assert main(["mux", str(silent), "--spec", spec_id, "--out", str(out)]) == 0

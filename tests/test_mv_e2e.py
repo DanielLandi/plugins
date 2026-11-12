@@ -139,3 +139,15 @@ def test_two_web_builds_at_once_keep_their_own_song_data(smoke_video, tmp_path):
     assert (tempo(outs["smoke-test"]), tempo(outs["smoke-other"])) == (120, 133)
     entries = studio.runtime_dir() / ".entries"
     assert not list(entries.glob("*/web-data-*"))  # each run's staging folder is gone
+
+
+def test_a_render_is_bt709_and_says_so(smoke_video, tmp_path):
+    out = tmp_path / "clip.mp4"
+    assert main(["render", "smoke-test", "smoke-test-full", str(out), "--muted", "--frames=0-14"]) == 0
+    tags = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                           "stream=color_primaries,color_transfer,color_space,color_range", "-of", "json", str(out)],
+                          capture_output=True, text=True, check=True).stdout
+    import json
+    stream = json.loads(tags)["streams"][0]
+    assert (stream["color_primaries"], stream["color_transfer"], stream["color_space"], stream["color_range"]) == (
+        "bt709", "bt709", "bt709", "tv")

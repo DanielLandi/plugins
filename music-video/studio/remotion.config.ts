@@ -3,6 +3,8 @@ import { webpackOverride } from './webpack-override';
 
 Config.setVideoImageFormat('jpeg');
 Config.setCodec('h264');
+// BT.709 everywhere: converted with the BT.709 matrix and tagged so, or players guess the colours (qc checks it).
+Config.setColorSpace('bt709');
 Config.setOverwriteOutput(true);
 // tools/remotion.mjs passes each video's --gl mode from its video.yaml; this is the default.
 Config.setChromiumOpenGlRenderer('angle');

@@ -6,6 +6,7 @@ error that no check covered, propose a new row here (with their OK).
 | id | What is wrong | How it is checked |
 |---|---|---|
 | format | wrong size, frame rate or codec | `qc --size …` |
+| colour | the video is not tagged BT.709 (primaries, transfer, matrix; tv range), so players guess its colours | `qc` (renders from this engine are BT.709; an ffmpeg step stamps `setparams=…bt709…`) |
 | duration | the video is not the song's (or the excerpt's) length | `qc` |
 | black | a black stretch that is not a declared hold (3 frames or more) | `qc` (`--hold` for designed ones) |
 | flash | a near-blank, dark or white run of 1–6 frames that is not true black (a scene captured before it finished loading) | `qc` |

@@ -430,8 +430,8 @@ like the final, then join it to the final's silent render by decoding both in or
 video's frame rate. Never join with `-c copy`: a stream-copy join starts the picture about 21 ms late and leaves
 uneven frame timing that players show as repeated or dropped frames. Write `list.txt` with one `file '<path>'` line
 per part (the final's silent render first, then the tail), and run
-`ffmpeg -f concat -safe 0 -i list.txt -vf "setpts=N/(30*TB)" -fps_mode cfr -r 30 -c:v libx264 -crf 18 -pix_fmt yuv420p "<renders>/final-tail-silent.mp4"`
-(30 is the video's fps, 18 the final's CRF: match both), then `mux ... --tail 10` and `qc ... --tail 10` on it. Keep the song-length final too: the tail is for YouTube only.
+`ffmpeg -f concat -safe 0 -i list.txt -vf "setpts=N/(30*TB),setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv" -fps_mode cfr -r 30 -c:v libx264 -crf 18 -pix_fmt yuv420p "<renders>/final-tail-silent.mp4"`
+(30 is the video's fps, 18 the final's CRF: match both; `setparams` keeps the BT.709 tags `qc` checks), then `mux ... --tail 10` and `qc ... --tail 10` on it. Keep the song-length final too: the tail is for YouTube only.
 
 Point out the platform's AI-content disclosure (an AI-generated voice counts on most platforms).
 

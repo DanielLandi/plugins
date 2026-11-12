@@ -86,6 +86,25 @@ def check_format(info: dict, size, fps: float, expected_s: float) -> list[Check]
                   f"video {duration:.3f} s, expected {expected_s:.3f} s")]
 
 
+COLOUR_TAGS = (("primaries", "color_primaries", "bt709"), ("transfer", "color_transfer", "bt709"),
+               ("matrix", "color_space", "bt709"), ("range", "color_range", "tv"))
+
+
+def check_colour(info: dict) -> Check:
+    """BT.709 everywhere (from claude-video-skills' rendering, MIT): an untagged or BT.601 video is shown with
+    whatever colours the player guesses (a green or washed shift against everything else)."""
+    video = next((s for s in info["streams"] if s["codec_type"] == "video"), None)
+    if video is None:
+        return Check("colour", False, "no video stream")
+    found = {name: video.get(key) or "unknown" for name, key, _ in COLOUR_TAGS}
+    wrong = [f"{name} {found[name]}" for name, _, want in COLOUR_TAGS if found[name] != want]
+    if not wrong:
+        return Check("colour", True, "bt709 primaries, transfer and matrix, tv range")
+    return Check("colour", False, ", ".join(wrong) + "; expected bt709 primaries, transfer and matrix with tv range: "
+                 "re-render with this engine (it renders BT.709); an ffmpeg step stamps the tags with "
+                 "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv")
+
+
 def detect_black(video: Path, total: float, holds, found: list | None = None) -> Check:
     log = run([need("ffmpeg"), "-nostdin", "-i", str(video), "-an", "-vf",
                f"blackdetect=d={BLACK_MIN_S}:pix_th={BLACK_PIX_TH}", "-f", "null", "-"], "black-frame scan").stderr.decode()
@@ -280,6 +299,7 @@ def run_qc(video: Path, song: Path, out_dir: Path, *, size=None, fps: float = 30
     expected = excerpt[1] - excerpt[0] if excerpt else float(probe(song)["format"]["duration"]) + tail
     holds = _clip_holds(holds, excerpt, total)
     checks = check_format(info, size, fps, expected)
+    checks.append(check_colour(info))
     reported: list[tuple[float, float]] = []
     checks += [detect_black(video, total, holds, reported), detect_flash(video, total, holds, fps, reported),
                detect_frozen(video, total, holds)]
