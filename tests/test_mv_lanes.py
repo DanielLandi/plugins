@@ -205,6 +205,15 @@ def test_private_names_fall_back_to_main(mv_lane, monkeypatch):
     assert w.load_private_names(ws) == ["Other", "Secret Name"]
 
 
+def test_private_names_keep_one_files_lines_as_they_are(mv_ws, mv_lane, monkeypatch):
+    (mv_lane.main / "private-names.txt").write_text("Alex\nSam\nAlex\n", encoding="utf-8")
+    assert w.load_private_names(w.load_workspace(mv_lane.main)) == ["Alex", "Sam", "Alex"]  # as before 0.9.0
+    ws = _home(monkeypatch, mv_lane.a)
+    assert w.load_private_names(ws) == ["Alex", "Sam", "Alex"]
+    (mv_lane.a / "private-names.txt").write_text("Kim\nKim\nSam\n", encoding="utf-8")
+    assert w.load_private_names(ws) == ["Kim", "Kim", "Sam", "Alex", "Alex"]  # main's adds only names not listed
+
+
 def test_a_lane_without_any_private_names_still_warns(mv_lane, monkeypatch):
     ws = _home(monkeypatch, mv_lane.a)
     assert "private names were not checked" in w.private_names_warning(ws)

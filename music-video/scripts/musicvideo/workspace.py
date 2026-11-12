@@ -352,12 +352,15 @@ def _private_names_files(ws: Workspace) -> list[Path]:
 
 
 def load_private_names(ws: Workspace) -> list[str]:
+    """Each file's names as written (duplicates too, as before worktrees); a later file adds only names the
+    earlier ones did not list."""
     names: list[str] = []
     for path in _private_names_files(ws):
         if not path.is_file():
             continue
+        listed = set(names)  # the earlier files' names only: one file's own repeats stay
         lines = (line.strip() for line in path.read_text(encoding="utf-8").splitlines())
-        names += [line for line in lines if line and not line.startswith("#") and line not in names]
+        names += [line for line in lines if line and not line.startswith("#") and line not in listed]
     return names
 
 
