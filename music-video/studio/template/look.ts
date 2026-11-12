@@ -15,8 +15,8 @@ export const verticalSubtitles: LyricMode = 'words';
 export const jolts: boolean = false;
 
 /**
- * Step 5's character engine, when the video has characters: 'raw' (drawn and moved from scratch in scene code) or
- * 'vrm' (three-vrm anime avatars). null means no characters. Keep `characters:` in video.yaml and the
+ * Step 5's character engine, when the video has characters: 'raw' (drawn and moved from scratch in scene code),
+ * 'vrm' (three-vrm anime avatars) or 'cartoon' (hand-inked 2D rubber-hose characters). null means no characters. Keep `characters:` in video.yaml and the
  * **Characters:** line of LOOK.md the same.
  */
 export const characterEngine: CharacterEngine | null = null;

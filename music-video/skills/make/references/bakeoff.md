@@ -12,10 +12,15 @@ two questions: which engine suits this video (at the look step), and whether the
   shading with outlines, hair and cloth that follow through on their own, expressions and eyes that follow a
   target (`references/studio.md`, "Characters"). The four CC0 sample characters come from
   `music-video avatars install`; a user's own CC0 or OFL `.vrm` goes in the video's folder.
+- **`cartoon`**: hand-inked 2D rubber-hose characters from `@mv/kit/cartoon`: brush lines that boil like redrawn
+  cels, faces that act (eye pops, jaw drops, mouths that morph), squash and stretch, stretchy reaches and smears
+  (`references/studio.md`, "Characters"). Two original characters come with it (`cast.bean`, `cast.plum`); a
+  video can draw its own as data. Nothing to install.
 
 ## The benchmark brief (fixed: the model watch compares runs only while it stays the same)
 
-One scene, 10 s of the song, two original characters (the samples, or ones drawn from scratch for `raw`; never a
+One scene, 10 s of the song, two original characters (the samples for `vrm`, the cast for `cartoon`, or ones drawn
+from scratch for `raw`; never a
 recreation of an existing show's characters or look). The window puts the song's strongest hit 6 s in; near the
 song's start or end, or with `--from`, it lands elsewhere: `bakeoff new` prints where, and each take gets it as
 `hit` (seconds into the window). The times below are for a hit at 6 s: move them with it.
@@ -39,13 +44,13 @@ really meet, on the hit), do faces carry the reactions, does it sit on the music
 1. Start it in the video (at the look step) or in a new video that borrows a song (the model watch):
 
    ```bash
-   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" bakeoff new <id> --engines raw,vrm
+   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" bakeoff new <id> --engines raw,vrm,cartoon
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" bakeoff new bakeoff-<yyyy-mm-dd> --song <song id>
    ```
 
-   It writes a starter per engine in `<video>/bakeoff/<engine>.tsx` (raw: an empty stage; vrm: a working
-   two-character scene to rework), and `bakeoff.ts` with the window (`--from <seconds>` moves it); takes you already
-   wrote are kept. It prints the commands below with the real paths, and asks for `avatars install` when the vrm
+   It writes a starter per engine in `<video>/bakeoff/<engine>.tsx` (raw: an empty stage; vrm and cartoon: a
+   working two-character scene to rework), and `bakeoff.ts` with the window (`--from <seconds>` moves it); takes
+   you already wrote are kept. It prints the commands below with the real paths, and asks for `avatars install` when the vrm
    take needs the samples.
 2. Write each take from the brief, one engine at a time, with the same care as a real scene (`studio.md`,
    `animation.md`, `shot-design.md`). Each take gets `from`, `to` and `hit`: its `t = 0` is the window's start

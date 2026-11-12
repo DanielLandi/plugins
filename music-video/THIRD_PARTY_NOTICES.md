@@ -85,6 +85,29 @@ lists each one. AvatarSample_A, B and C have other terms and are never used.
 - **@pixiv/three-vrm** 3.5.5 (MIT, Copyright (c) 2019-2026 pixiv Inc.) and its `@pixiv/three-vrm-*` packages: VRM
   loading, MToon shading, spring bones, expressions and look-at for the `vrm` character engine. The kit's
   `kit/three/vrm/` follows its documented use; none of its code is copied into this repo.
+- **perfect-freehand** 1.2.3 (MIT, Copyright (c) 2021 Stephen Ruiz Ltd, by Steve Ruiz): the brush strokes of the
+  `cartoon` character engine (`kit/cartoon/ink.tsx`).
+- **flubber** 0.4.2 (MIT, Copyright (c) 2017 Noah Veltman): the mouth and smear shape morphs of the `cartoon`
+  engine (`kit/cartoon/rig.ts`). Its dependencies come under their own licences: d3-array and d3-polygon
+  (BSD-3-Clause), earcut, svg-path-properties and topojson-client (ISC), svgpath (MIT).
+  The kit's `kit/cartoon/` uses both packages through their documented functions; none of their code is copied
+  into this repo. Both licences read:
+
+  ```text
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+  documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+  the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+  to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+  the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+  THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+  IN THE SOFTWARE.
+  ```
 - **Remotion** (`remotion`, `@remotion/*`, including `@remotion/player`, which a built web page ships): Remotion's
   own licence. Remotion is free for individuals and companies
   of up to 3 people; larger companies need a company licence from remotion.pro. The licence is between you and

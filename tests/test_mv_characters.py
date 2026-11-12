@@ -13,8 +13,8 @@ PLUGIN = REPO / "music-video"
 TEMPLATE = PLUGIN / "studio" / "template"
 
 
-def test_the_engines_are_raw_then_vrm():
-    assert ENGINES == ("raw", "vrm")
+def test_the_engines_are_raw_then_vrm_then_cartoon():
+    assert ENGINES == ("raw", "vrm", "cartoon")
 
 
 def test_the_template_starts_with_no_characters():
@@ -46,15 +46,16 @@ def _video(mv_ws, text):
 
 @pytest.mark.parametrize("text, want", [(None, None), ("id: duel\n", None), ("characters: null\n", None),
                                         ("characters: vrm\n", "vrm"), ("characters: raw\n", "raw"),
-                                        ("characters: VRM\n", "vrm")])
+                                        ("characters: VRM\n", "vrm"),
+                                        ("characters: cartoon\n", "cartoon")])
 def test_characters_setting(mv_ws, text, want):
     _video(mv_ws, text)
     assert characters_setting(mv_ws, "duel") == want
 
 
 def test_an_unknown_engine_names_the_choices(mv_ws):
-    _video(mv_ws, "characters: cartoon\n")
-    with pytest.raises(MVError, match=r"cartoon.*raw, vrm"):
+    _video(mv_ws, "characters: toon\n")
+    with pytest.raises(MVError, match=r"toon.*raw, vrm, cartoon"):
         characters_setting(mv_ws, "duel")
 
 
@@ -67,7 +68,7 @@ def _look_step():
 
 def test_the_look_step_offers_the_engines():
     step = _look_step()
-    for must in ("`raw`", "`vrm`", "**Characters:**", "characterEngine", "characters:", "bakeoff new",
+    for must in ("`raw`", "`vrm`", "`cartoon`", "**Characters:**", "characterEngine", "characters:", "bakeoff new",
                  "references/bakeoff.md", "--variant", "bakeoff clear"):
         assert must in step, must
     assert re.search(r"raw[^.]*(always|first)", step)
@@ -105,3 +106,19 @@ def test_docs_name_the_avatar_source_and_command():
     assert "avatars" in readme and "bakeoff" in readme
     changelog = (PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
     assert changelog.split("\n## ", 2)[1].startswith("Unreleased (draft, not bumped)")
+
+
+def test_studio_reference_explains_the_cartoon_kit():
+    studio = (SKILL / "references" / "studio.md").read_text(encoding="utf-8")
+    for must in ("@mv/kit/cartoon", "<Cartoon", "cast.bean", "poses.take", "poseTrack", "follow(", "zoomAt",
+                 "bakeoff/cartoon.tsx", "from"):
+        assert must in studio, must
+    assert "`cartoon`" in (SKILL / "references" / "bakeoff.md").read_text(encoding="utf-8")
+    assert re.search(r"\*\*Characters:\*\*[^\n]*\n?[^\n]*cartoon", (SKILL / "references" / "look.md").read_text(encoding="utf-8"))
+
+
+def test_the_cartoon_packages_are_pinned_and_credited():
+    pkg = (PLUGIN / "studio" / "package.json").read_text(encoding="utf-8")
+    assert '"perfect-freehand": "1.2.3"' in pkg and '"flubber": "0.4.2"' in pkg
+    notices = (PLUGIN / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+    assert "perfect-freehand" in notices and "flubber" in notices and "Steve Ruiz" in notices

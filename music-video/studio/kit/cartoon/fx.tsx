@@ -56,6 +56,7 @@ export const ImpactBurst: React.FC<{ t: number; t0: number; x: number; y: number
       {Array.from({ length: 10 }, (_, i) => {
         const a = (i / 10) * Math.PI * 2 + 0.2;
         const d0 = r * (1.05 + dt * 2.2), d1 = d0 + r * 0.45 * (1 - ramp(dt, 0.2, 0.6));
+        if (d1 - d0 < 6) return null; // a spent stroke would leave a dot
         return <path key={i} d={`M ${x + Math.cos(a) * d0} ${y + Math.sin(a) * d0} L ${x + Math.cos(a) * d1} ${y + Math.sin(a) * d1}`}
           stroke={INK} strokeWidth={8} strokeLinecap="round" />;
       })}

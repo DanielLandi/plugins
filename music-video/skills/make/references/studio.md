@@ -108,6 +108,31 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
   until the hands really meet; the samples differ in height. `bakeoff/vrm.tsx` in the plugin's `studio/` is a
   working two-character scene to start from.
 - Each `<Avatar>` loads its own copy (about 15 MB): keep a scene to a few characters.
+- **`cartoon`**: hand-inked 2D rubber-hose characters from `@mv/kit/cartoon`, plain SVG. A character is data
+  (`Character`: colours, proportions, a hat or a sprout); `cast.bean` and `cast.plum` are two originals, and a
+  video writes its own the same way (never a recreation of an existing show's characters). Inside the scene's
+  `<svg>`, `<Cartoon character={cast.bean} pose={pose} seed={1} />` draws one in brush ink whose lines boil on
+  twos; give each character its own `seed`. Coordinates are the composition's pixels; the feet stand on
+  `ground`.
+- A cartoon `Pose` is numbers: `x`, `ground`, `face` (1 right, -1 left), squash and stretch (`sx`, `sy`, with
+  `vol(sy)` for an sx that keeps the volume), `lean`, `lift`, `spin`, `scale`; the face acts with `look`, `pupil`,
+  `eyeScale` (an eye pop), `eyeOpen` (a blink or a squint), `eyesClosed` (happy arcs), `brow`, `swirl` (dizzy) and
+  `mouth` (`smile`, `grin`, `laugh`, `o`, `shout`, `flat`, `frown`, `wavy`, or `['flat', 'shout', k]` to morph);
+  `armF`/`armB` take a `hand` offset from the shoulder or a `world` point to reach (a stretchy reach, a fist bump),
+  with `sag`, `wiggle`, `open` and `front`; `walk(x, face)` cycles the feet with the distance walked so they never
+  slide; `smear` (0–1) stretches the body into a dash; `hatLift`, `hatSpin`, `sprout` move what is on top.
+- Presets are layers: `poses.take` (the double take: stretched, eyes popped, jaw dropped), `poses.rest`, `wave`,
+  `startle`, `guard`, `windup`, `punch`, `cheer`, `laugh`, `shrug`, `lookOut`; `poseTrack(t, [[t0, pose, ease]…])`
+  keys them, `mixPose` and `addPose` combine them, `breath` is a layer on top; `track`, `ramp`, `swell`, `eases` and `seeded` are the vrm engine's own.
+  Cartoon timing: `hop`, `hopSquash`, `springStep` (overshoot and settle), `wobble` (dies out), and
+  `follow(signal, t, { from })` for hats, sprouts and ears that lag and boing; pass the scene's start as `from`, so
+  any frame renders the same alone or in sequence.
+- Effects in the same `<svg>`: `Shadow`, `ImpactBurst`, `DustPuffs`, `TakeLines`, `SpeedLines`, `Emote` (`!`, `?`,
+  sweat, heart), `StarRing`; `Flash` (an impact frame) goes outside it. Close-ups are camera moves:
+  `zoomAt(z, x, y)` is a CSS transform for the scene's container that pushes in about a point, and the ink scales
+  with it. `shake(t, t0)` only when the video's jolts answer is yes. Ink set pieces with `inkPath(points, seed,
+  width, closed)` so the set boils with the characters. `bakeoff/cartoon.tsx` in the plugin's `studio/` is a
+  working two-character scene to start from.
 
 ## Stills and renders (one video render at a time)
 Many stills in one go (one bundle, plus a contact sheet), at song seconds:

@@ -42,7 +42,7 @@ def test_scaffold_new_video_borrows_a_song(mv_ws):
     meta = yaml.safe_load((vdir / "video.yaml").read_text(encoding="utf-8"))
     assert meta["song"] == "night-drive" and meta["id"] == "duel-check"
     assert "# Step 5's jolts question" in (vdir / "video.yaml").read_text(encoding="utf-8")  # comments kept
-    assert out["engines"] == ["raw", "vrm"] and out["window"] == (35.5, 45.5) and out["wired"]
+    assert out["engines"] == ["raw", "vrm", "cartoon"] and out["window"] == (35.5, 45.5) and out["wired"]
     with pytest.raises(MVError, match="--song"):
         bakeoff.scaffold(mv_ws, "nothing-here")
 
@@ -58,8 +58,8 @@ def test_scaffold_writes_starters_and_bakeoff_ts(mv_ws):
     assert "import { Bakeoff as Raw } from './bakeoff/raw';" in ts and "import { Bakeoff as Vrm } from './bakeoff/vrm';" in ts
     assert "from: 0, to: 4," in ts and ts.index("'raw'") < ts.index("'vrm'")
     assert "vroid-sample" in (vdir / "SOURCES.md").read_text(encoding="utf-8")
-    with pytest.raises(MVError, match="cartoon"):
-        bakeoff.scaffold(mv_ws, "duel", engines=["cartoon"])
+    with pytest.raises(MVError, match="toon"):
+        bakeoff.scaffold(mv_ws, "duel", engines=["toon"])
 
 
 def test_scaffold_raw_only_needs_no_avatars(mv_ws):
@@ -79,7 +79,7 @@ def test_scaffold_keeps_written_scenes(mv_ws):
     raw.write_text("// my take\n", encoding="utf-8")
     out = bakeoff.scaffold(mv_ws, "duel")
     assert raw.read_text(encoding="utf-8") == "// my take\n"
-    assert out["added"] == ["vrm"] and out["window"] == (12.0, 22.0)  # the earlier window stays
+    assert out["added"] == ["vrm", "cartoon"] and out["window"] == (12.0, 22.0)  # the earlier window stays
     out = bakeoff.scaffold(mv_ws, "duel", start=30)
     assert out["added"] == [] and out["window"] == (30.0, 40.0)
 
@@ -112,9 +112,9 @@ def test_record_and_last(mv_ws, capsys):
     bakeoff.record(mv_ws, "duel", "model-a", "vrm reads better | raw is stiffer", today="2026-11-11")
     text = (mv_ws.home / "bakeoffs.md").read_text(encoding="utf-8")
     assert "| Date | Model | Engines | Video | Verdict |" in text
-    assert "| 2026-11-11 | model-a | raw, vrm | duel | vrm reads better \\| raw is stiffer |" in text
+    assert "| 2026-11-11 | model-a | raw, vrm, cartoon | duel | vrm reads better \\| raw is stiffer |" in text
     rows = bakeoff.records(mv_ws)
-    assert rows[-1]["verdict"] == "vrm reads better | raw is stiffer" and rows[-1]["engines"] == ["raw", "vrm"]
+    assert rows[-1]["verdict"] == "vrm reads better | raw is stiffer" and rows[-1]["engines"] == ["raw", "vrm", "cartoon"]
     assert bakeoff.watch(mv_ws, "model-a")["offer"] is False
     w = bakeoff.watch(mv_ws, "model-b")
     assert w["offer"] is True and w["last"]["model"] == "model-a"
@@ -158,7 +158,7 @@ def test_a_mistyped_song_leaves_nothing_behind(mv_ws):
         bakeoff.scaffold(mv_ws, "duel-x", song="typo", start=3)
     assert not mv_ws.video_dir("duel-x").exists()
     _song(mv_ws, "real-song")
-    assert bakeoff.scaffold(mv_ws, "duel-x", song="real-song")["engines"] == ["raw", "vrm"]
+    assert bakeoff.scaffold(mv_ws, "duel-x", song="real-song")["engines"] == ["raw", "vrm", "cartoon"]
 
 
 def test_the_hit_is_written_where_it_lands(mv_ws):
@@ -175,3 +175,19 @@ def test_the_hit_is_written_where_it_lands(mv_ws):
     _song(mv_ws, "flat", duration=30.0, hits=[])
     main(["new-video", "flat"])
     assert bakeoff.scaffold(mv_ws, "flat")["hit"] == 6.0  # no hit in the window: the brief's 6 s
+
+
+def test_scaffold_cartoon_needs_no_avatars(mv_ws, capsys):
+    _song(mv_ws, "duel")
+    main(["new-video", "duel"])
+    out = bakeoff.scaffold(mv_ws, "duel", engines=["cartoon"])
+    vdir = mv_ws.video_dir("duel")
+    assert out["engines"] == ["raw", "cartoon"]
+    assert not (vdir / "bakeoff" / "vrm.tsx").exists()
+    assert "vroid" not in (vdir / "SOURCES.md").read_text(encoding="utf-8")
+    ts = (vdir / "bakeoff.ts").read_text(encoding="utf-8")
+    assert "import { Bakeoff as Cartoon } from './bakeoff/cartoon';" in ts and "{ engine: 'cartoon', Component: Cartoon }" in ts
+    starter = (vdir / "bakeoff" / "cartoon.tsx").read_text(encoding="utf-8")
+    assert "@mv/kit/cartoon" in starter and "export const Bakeoff" in starter
+    assert main(["bakeoff", "new", "duel", "--engines", "cartoon"]) == 0
+    assert "render duel duel-bakeoff-cartoon" in capsys.readouterr().out

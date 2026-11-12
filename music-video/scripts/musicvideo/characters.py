@@ -5,15 +5,17 @@ and recorded as `characters:` in video.yaml, `characterEngine` in look.ts and th
   Always available; needs nothing installed.
 - vrm: 3D anime characters through three-vrm (`@mv/kit/three`: Avatar, poses), with the CC0 sample avatars
   (`music-video avatars install`) or the user's own CC0/OFL .vrm files.
+- cartoon: hand-inked 2D rubber-hose characters (`@mv/kit/cartoon`: brush lines that boil, faces that act, squash
+  and stretch, smears). Original characters drawn in code; needs nothing installed beyond the engine.
 
-Later engines (inochi2d, a cartoon pick) are added here, in kit/types.ts and with a starter in studio/bakeoff/.
+Later engines (inochi2d) are added here, in kit/types.ts and with a starter in studio/bakeoff/.
 """
 import yaml
 
 from .errors import MVError
 from .workspace import Workspace
 
-ENGINES: tuple[str, ...] = ("raw", "vrm")  # raw first: it is always offered and always in a bake-off
+ENGINES: tuple[str, ...] = ("raw", "vrm", "cartoon")  # raw first: it is always offered and always in a bake-off
 
 
 def check_engines(names: list[str]) -> list[str]:

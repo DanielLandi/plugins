@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { cast } from './cast';
+import { ImpactBurst } from './fx';
 import { InkShapes, inkPath } from './ink';
 import { boilSeed, ramp, springStep } from './motion';
 import { buildCharacter, type Pose } from './rig';
@@ -39,5 +40,10 @@ describe('brush ink', () => {
     const d = inkPath([[0, 0], [100, 10], [200, 0], [150, 80]], 7, 6, true);
     expect(d.startsWith('M ')).toBe(true);
     expect(d).toBe(inkPath([[0, 0], [100, 10], [200, 0], [150, 80]], 7, 6, true));
+  });
+
+  it('an impact burst leaves no stray dots as it fades', () => {
+    const svg = renderToStaticMarkup(createElement('svg', null, createElement(ImpactBurst, { t: 6.58, t0: 6, x: 900, y: 600 })));
+    expect(svg).not.toContain('stroke-linecap');
   });
 });

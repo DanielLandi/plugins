@@ -61,10 +61,10 @@ export const mixPose = <T extends PoseLayer>(a: T, b: T, w: number): T => {
   return { ...a, ...b, ...out, ...place } as T;
 };
 
-/** A layer added on top of a pose, scaled by w: its numbers, hand and pupil offsets add; its mouth and switches win. */
+/** A layer added on top of a pose, scaled by w: its numbers, hand and pupil offsets add; its stride, mouth and switches win. */
 export const addPose = <T extends PoseLayer>(a: T, b: PoseLayer, w = 1): T => {
   const out: PoseLayer = { ...a };
-  for (const [k, d] of NUMS) if (b[k] !== undefined) out[k] = (a[k] ?? d) + (b[k] as number) * w;
+  for (const [k, d] of NUMS) if (b[k] !== undefined) out[k] = k === 'stride' ? b[k] : (a[k] ?? d) + (b[k] as number) * w;
   if (b.pupil) out.pupil = [(a.pupil?.[0] ?? 0) + b.pupil[0] * w, (a.pupil?.[1] ?? 0) + b.pupil[1] * w];
   for (const side of ['armF', 'armB'] as const) {
     const lb = b[side];

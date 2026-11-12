@@ -267,7 +267,9 @@ when the user does not answer, it is no. Every scene follows it (`references/stu
 
 When the concept has characters, each direction also names its **character engine**, so the sheet compares
 engines as well as styles: `raw` (you draw and move the characters from scratch in scene code; always offered,
-first) or `vrm` (three-vrm anime characters from `@mv/kit/three`, with the CC0 sample avatars). When the user wants
+first), `vrm` (three-vrm anime characters from `@mv/kit/three`, with the CC0 sample avatars) or `cartoon`
+(hand-inked 2D rubber-hose characters from `@mv/kit/cartoon`: brush lines that boil, eye pops and jaw drops,
+squash and stretch). When the user wants
 to see the engines move before choosing, or cannot tell from stills, run a bake-off (`references/bakeoff.md`):
 `bakeoff new <id>` puts one take per engine on the review page as variants of the scene `bakeoff`
 (`version … --scene bakeoff --variant <engine>`), and `bakeoff record` keeps the verdict. Record the choice as the

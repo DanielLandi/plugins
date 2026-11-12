@@ -17,6 +17,16 @@ Draft for the coordinator: merge, then retitle with the version.
   two-character scene, timed to where the song's hit lands. `bakeoff clear` removes the takes once the engine is
   chosen. `bakeoff record` keeps each run's model and verdict in `bakeoffs.md` next to `config.yaml`, and
   `bakeoff last --model <id>` tells the make skill to offer the benchmark once to a model that has not run it.
+- A third character engine, `cartoon`: hand-inked 2D rubber-hose characters from `@mv/kit/cartoon`, in plain SVG.
+  Brush lines from perfect-freehand 1.2.3 (MIT) that boil on twos like redrawn cels; mouths and dash smears that
+  morph with flubber 0.4.2 (MIT); faces that act (eye pops, jaw drops, squints, happy arcs, dizzy swirls), squash
+  and stretch, stretchy reaches, hops, springs and lagging hats and sprouts; poses keyed with `poseTrack` and the
+  same `track`/`ramp`/`swell` as the vrm engine; impact bursts, dust, take and speed lines, emotes and a push-in
+  camera. Two original characters come with it; a video draws its own as data. Frames are deterministic: a frame
+  rendered alone is pixel-identical to the same frame in a sequence. It needs nothing installed.
+- The look step offers `cartoon` next to `raw` and `vrm`, and `bakeoff new` writes a cartoon take too: a working
+  two-character rooftop scene on the benchmark brief (a double take, a wave, a square-up, the fists meeting on the
+  hit, a laugh).
 
 ## 0.11.1
 

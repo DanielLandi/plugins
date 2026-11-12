@@ -37,6 +37,7 @@ describe('cartoon poses', () => {
     expect(p.armB?.hand).toEqual([7, 3]);
     expect(breath(1.3).sy).not.toBe(1);
     expect(walk(1, 1).walk).toBe(1);
+    expect(addPose({ stride: 90 }, walk(0, 1, 1, 62)).stride).toBe(62); // a stride is set, not added
   });
 
   it('every preset is a plain layer (no position)', () => {

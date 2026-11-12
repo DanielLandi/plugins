@@ -34,9 +34,10 @@ export type SongProps = {
 
 /**
  * How a video's characters are animated, chosen at the look step (look.ts `characterEngine`, video.yaml
- * `characters:`): 'raw' (written from scratch in scene code) or 'vrm' (three-vrm avatars, `@mv/kit/three`).
+ * `characters:`): 'raw' (written from scratch in scene code), 'vrm' (three-vrm avatars, `@mv/kit/three`) or 'cartoon'
+ * (hand-inked 2D rubber-hose characters, `@mv/kit/cartoon`).
  */
-export type CharacterEngine = 'raw' | 'vrm';
+export type CharacterEngine = 'raw' | 'vrm' | 'cartoon';
 /** The bake-off window in song seconds (a take's t = 0 is `from`), and where the hit lands, in seconds into it. */
 export type BakeoffProps = { from: number; to: number; hit: number };
 /** One engine's take in a bake-off (bakeoff.ts, written by `music-video bakeoff new`). */

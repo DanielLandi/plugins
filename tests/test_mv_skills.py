@@ -117,3 +117,16 @@ def test_finals_list_agrees_with_the_worktree_paragraph():
     bullet = re.search(r"(?ms)^- Finals, in `<results>`:.*?(?=^- |\Z)", text).group(0)
     bullet = " ".join(bullet.split())
     assert "the song" not in bullet or "main results folder" in bullet, bullet
+
+
+def test_every_character_engine_is_named_where_the_choice_is_made():
+    """The engine registry and the skill text agree: the look step, the bake-off reference and the studio reference
+    name every engine, so a new engine cannot ship without the words that offer it."""
+    from musicvideo.characters import ENGINES
+    make = SKILLS / "make"
+    look_step = (make / "SKILL.md").read_text(encoding="utf-8").split("## 5. Look", 1)[1].split("\n## 6.", 1)[0]
+    texts = {"look step": look_step, "bakeoff.md": (make / "references" / "bakeoff.md").read_text(encoding="utf-8"),
+             "studio.md": (make / "references" / "studio.md").read_text(encoding="utf-8")}
+    for where, text in texts.items():
+        for engine in ENGINES:
+            assert f"`{engine}`" in text, (where, engine)
