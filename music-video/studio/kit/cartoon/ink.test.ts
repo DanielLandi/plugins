@@ -46,4 +46,27 @@ describe('brush ink', () => {
     const svg = renderToStaticMarkup(createElement('svg', null, createElement(ImpactBurst, { t: 6.58, t0: 6, x: 900, y: 600 })));
     expect(svg).not.toContain('stroke-linecap');
   });
+
+  it('impact strokes thin out as they shorten, so none pops off in one frame', () => {
+    for (let f = 0; f < 18; f++) {
+      const svg = renderToStaticMarkup(createElement('svg', null, createElement(ImpactBurst, { t: 6 + f / 30, t0: 6, x: 900, y: 600 })));
+      for (const m of svg.matchAll(/d="M ([\d.-]+) ([\d.-]+) L ([\d.-]+) ([\d.-]+)" stroke="[^"]+" stroke-width="([\d.]+)"/g)) {
+        const len = Math.hypot(+m[3] - +m[1], +m[4] - +m[2]);
+        expect(+m[5]).toBeLessThanOrEqual(len / 3 + 0.01);
+      }
+    }
+  });
+
+  it('the burst shrinks to nothing smoothly before it goes', () => {
+    const radius = (dt: number) => {
+      const svg = renderToStaticMarkup(createElement('svg', null, createElement(ImpactBurst, { t: 6 + dt, t0: 6, x: 900, y: 600, r: 150 })));
+      const d = svg.match(/<path d="(M [^"]+ Z)" fill="#ffffff"/)?.[1];
+      if (!d) return 0;
+      const nums = d.match(/-?[\d.]+/g)!.map(Number);
+      let r = 0;
+      for (let k = 0; k < nums.length; k += 2) r = Math.max(r, Math.hypot(nums[k] - 900, nums[k + 1] - 600));
+      return r;
+    };
+    for (let f = 6; f < 20; f++) expect(Math.abs(radius((f + 1) / 30) - radius(f / 30))).toBeLessThan(30);
+  });
 });

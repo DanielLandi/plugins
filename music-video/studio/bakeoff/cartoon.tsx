@@ -35,7 +35,8 @@ const strikeArm = (c: number, from: P, home: P | null) => {
   const bump = 10 * wobble(c, HIT, 3, 4);
   const hit: P = [MEET[0], MEET[1] + bump];
   const at: P = c < 7.05 ? [lerp(from[0], hit[0], out), lerp(from[1], hit[1], out)] : [lerp(hit[0], home[0], back), lerp(hit[1], home[1], back)];
-  return { world: at, sag: 0.08, front: true, wiggle: 18 * (1 - out) * (c < HIT ? 1 : 0) + 22 * wobble(c, HIT, 3.2, 5), wigglePhase: c * 30 };
+  // behind the body: the hose leaves from the body's edge, never across the face
+  return { world: at, sag: 0.08, front: false, wiggle: 18 * (1 - out) * (c < HIT ? 1 : 0) + 22 * wobble(c, HIT, 3.2, 5), wigglePhase: c * 30 };
 };
 
 const poseA = (c: number): Pose => {
@@ -184,7 +185,7 @@ export const Bakeoff: React.FC<BakeoffProps> = ({ from, hit: at }) => {
   const a = poseA(c), b = poseB(c);
   // the camera: wide, a push-in on the bean's double take, a whip to the plum's wave, back out for the square-up
   const z = track(c, [[0, 0.04], [2.5, 0.04], [2.95, 0.55, eases.out], [3.55, 0.55], [3.85, 0.55], [4.35, 0.5],
-    [4.85, 0.07], [5.8, 0.12], [HIT, 0.18, eases.in], [6.5, 0.08, eases.out], [10, 0.04]]);
+    [4.85, 0.07], [10, 0.16, eases.linear]]); // then one slow push through the clash (a kick on the hit is a jolt)
   const fx = track(c, [[0, 960], [2.5, 960], [2.95, A_X, eases.out], [3.55, A_X], [3.85, B_STOP], [4.35, B_STOP], [4.85, 990], [10, 960]]);
   const fy = track(c, [[0, 600], [2.5, 600], [2.95, 520, eases.out], [3.55, 520], [3.85, 660], [4.35, 660], [4.85, 640], [10, 620]]);
   const [shx, shy] = jolts ? shake(c, HIT, 22) : [0, 0];

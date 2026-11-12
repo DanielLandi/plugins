@@ -40,7 +40,8 @@ export const StarRing: React.FC<{ t: number; frame: number; t0: number; t1: numb
 export const ImpactBurst: React.FC<{ t: number; t0: number; x: number; y: number; r?: number; color?: string }> = ({ t, t0, x, y, r = 150, color = '#ffd23f' }) => {
   const dt = t - t0;
   if (dt < 0 || dt > 0.6) return null;
-  const s = dt < 0.07 ? 1.25 : dt < 0.35 ? 1 + 0.05 * Math.sin(dt * 60) : 1 - ramp(dt, 0.35, 0.5);
+  // a two-frame pop, a shimmer, then a steady shrink to nothing (no frame where it simply vanishes)
+  const s = dt < 0.07 ? 1.25 : dt < 0.3 ? 1 + 0.05 * Math.sin(dt * 60) : (1 + 0.05 * Math.sin(0.3 * 60)) * (1 - ramp(dt, 0.3, 0.6, eases.linear));
   const rr = seeded(Math.floor(t0 * 100));
   const spikes: P[] = Array.from({ length: 22 }, (_, i) => {
     const a = (i / 22) * Math.PI * 2;
@@ -51,14 +52,15 @@ export const ImpactBurst: React.FC<{ t: number; t0: number; x: number; y: number
   const poly = (pts: P[]) => `M ${pts.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' L ')} Z`;
   return (
     <g>
-      {s > 0 && <path d={poly(spikes)} fill="#ffffff" stroke={INK} strokeWidth={7} strokeLinejoin="round" />}
-      {s > 0 && <path d={poly(inner)} fill={color} />}
+      {s > 0.01 && <path d={poly(spikes)} fill="#ffffff" stroke={INK} strokeWidth={7 * Math.min(1, s * 3)} strokeLinejoin="round" />}
+      {s > 0.01 && <path d={poly(inner)} fill={color} />}
       {Array.from({ length: 10 }, (_, i) => {
         const a = (i / 10) * Math.PI * 2 + 0.2;
         const d0 = r * (1.05 + dt * 2.2), d1 = d0 + r * 0.45 * (1 - ramp(dt, 0.2, 0.6));
-        if (d1 - d0 < 6) return null; // a spent stroke would leave a dot
+        const width = Math.min(8, (d1 - d0) / 3); // a shortening stroke thins out instead of leaving a dot
+        if (width < 0.3) return null;
         return <path key={i} d={`M ${x + Math.cos(a) * d0} ${y + Math.sin(a) * d0} L ${x + Math.cos(a) * d1} ${y + Math.sin(a) * d1}`}
-          stroke={INK} strokeWidth={8} strokeLinecap="round" />;
+          stroke={INK} strokeWidth={width} strokeLinecap="round" />;
       })}
     </g>
   );
