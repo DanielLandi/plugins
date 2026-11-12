@@ -690,3 +690,20 @@ def test_ingest_never_replaces_another_worktrees_take_of_the_same_song(mv_lane, 
     data["kept"]["take_url"] = "https://suno.com/song/take-b"  # the same take: the same song, filed again
     save_spec(mine, data)
     assert ingest(ws, "night-drive", mp3).is_file()
+
+
+def test_downloaded_warns_when_another_worktree_holds_another_take(mv_lane, monkeypatch, capsys):
+    from musicvideo.cli import main
+    from musicvideo.spec import save_spec
+    from mv_fixtures import valid_spec
+    other = _downloaded(mv_lane.b, "night-drive")  # branch b recorded its own take (https://suno.com/song/x)
+    save_spec(mv_lane.a / "specs" / "night-drive.yaml", valid_spec(status="generated"))
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.a))
+    assert main(["downloaded", "night-drive", "--take-url", "https://suno.com/song/y"]) == 0
+    out, err = capsys.readouterr()
+    assert "recorded download 2 of 20" in out
+    assert f"warning: {other} records another take of 'night-drive' (https://suno.com/song/x)" in err
+    assert main(["downloaded", "night-drive", "--undo"]) == 0
+    capsys.readouterr()
+    assert main(["downloaded", "night-drive", "--take-url", "https://suno.com/song/x"]) == 0  # the same take
+    assert "warning" not in capsys.readouterr().err

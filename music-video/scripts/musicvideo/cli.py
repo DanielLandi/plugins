@@ -137,7 +137,8 @@ def cmd_downloaded(args) -> int:
     billing_day, budget = _budget(ws)
     today = date.today()
     start = cycle_start(today, billing_day)
-    used = downloads_in_cycle(iter_worktree_specs(ws), today, billing_day)  # every worktree
+    specs = list(iter_worktree_specs(ws))  # every worktree
+    used = downloads_in_cycle(specs, today, billing_day)
     if used >= budget and not args.paid_extra:
         raise MVError(f"download budget used up: {used} of {budget} since {start}; "
                       "pass --paid-extra only if the user confirmed buying an extra download")
@@ -146,6 +147,11 @@ def cmd_downloaded(args) -> int:
     save_spec(path, data)
     extra = " (paid extra)" if used >= budget else ""
     print(f"recorded download {used + 1} of {budget} for the cycle starting {start}{extra}")
+    for other_path, other in specs:  # ingest refuses to file a second take of one song: say so now
+        other_take = (other.get("kept") or {}).get("take_url")
+        if other_path.stem == path.stem and other_path != path and other_take and other_take != args.take_url:
+            print(f"warning: {other_path} records another take of '{args.id}' ({other_take}): ingest will refuse "
+                  "to file this one until one take is kept (merge that branch's spec, or undo one)", file=sys.stderr)
     return 0
 
 
