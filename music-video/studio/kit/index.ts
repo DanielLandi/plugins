@@ -1,6 +1,7 @@
 export * from './types';
 export * from './data';
 export * from './time';
+export * from './drums';
 export * from './SongContext';
 export * from './transitions';
 export * from './lyrics';

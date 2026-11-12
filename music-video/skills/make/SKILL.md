@@ -213,7 +213,8 @@ request done with `--video <id>`.
    ```
 
 2. Show the user: the align summary (repairs, the onsets line, unsure words with times, possibly missing lines), the tempo and the
-   sections, and ask them to watch the preview. Its bottom panel shows the vocal waveform 10 s at a time with a
+   sections (analyze's drums line too: where the hits were measured, and a beat grid more than 0.1 beat off the
+   drums is checked on the preview's beat dots), and ask them to watch the preview. Its bottom panel shows the vocal waveform 10 s at a time with a
    moving playhead, 0.1 s ticks and a mark at each word's start: a word's true start is where the waveform rises
    after a dip, so a fix can be read off it to the tenth of a second.
    - Always offer the timing editor with the preview (users find dragging words easier than writing fixes): a

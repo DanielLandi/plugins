@@ -16,7 +16,10 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 - Beat motion follows the video's jolts answer (`jolts` in `look.ts`, from step 5). With no jolts (the default),
   it is small and eased (a nod, a sway): a quick pulse on every beat reads as a hiccup, and a camera that jogs on
   the beat makes the words hard to read. With jolts, what `LOOK.md` names (a camera kick on the kick drum, a shake
-  on the big hits) is small, dies within about a fifth of a second, and stays softer on a framing that must be read.
+  on the big hits) is small, dies within about a fifth of a second, and stays softer on a framing that must be read:
+  `useJolt(jolts)` (kit, with `jolts` from `look.ts`; `['kick']` by default, or other kinds) gives that wiggle on
+  the measured drum hits (`analysis.drums`), and 0 when the video does not jolt. Nothing jolts by itself: the drum
+  hits are data, used only through the jolts answer.
 - Frame characters whole, in 16:9 and 9:16; stand the camera back rather than zoom in.
 - Hold a line on screen until it can be read whole, then move on.
 - Lyric text on a surface (a card, a tag, a sign) drops the trailing comma when the line stands alone there.
@@ -115,7 +118,8 @@ rendering motion.
 > <paste the section's STORYBOARD.md entry>
 >
 > **Timing:** this scene runs <start>–<end> s of the song (section `<section-id>`); the lyrics in it:
-> <paste the lines with their times from timing.json>. Beats and big moments: `<public>/analysis.json`.
+> <paste the lines with their times from timing.json>. Beats, big moments and drum hits: `<public>/analysis.json` (drum hits only for jolts, and only if
+> `LOOK.md` says the video jolts).
 >
 > **Deliver:** a named export (no default export) `export const <Pascal>: React.FC` in that file, and stop there:
 > do not edit `scenes.ts`. Render three stills at the scene's start, middle and peak, and look at each:

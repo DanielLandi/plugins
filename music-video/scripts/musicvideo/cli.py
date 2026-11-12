@@ -185,6 +185,14 @@ def cmd_analyze(args) -> int:
     for s in data["sections"]:
         print(f"  {clock(s['start'])}–{clock(s['end'])}  {s['name']} ({s['id']}){'' if s['sung'] else ' · no vocals'}")
     print("big moments: " + (", ".join(clock(h["t"]) for h in data["hits"]) or "none"))
+    d = data["drums"]
+    counts = Counter(h["kind"] for h in d["hits"])
+    source = ("the mix minus the vocal stem (there is no drum stem: align separates only the vocals)"
+              if d["source"] == "mix minus vocals" else "the whole mix (no vocal stem to take off)")
+    print(f"drums: {counts['kick']} kicks, {counts['snare']} snares, {counts['hat']} hats, {counts['crash']} crashes, "
+          f"from {source}" + (f"; the beat grid sits {d['grid']:.2f} beat from them"
+                              + (" (more than 0.1: check the grid)" if d["grid"] > 0.1 else "")
+                              if d["grid"] is not None else ""))
     return 0
 
 
@@ -597,7 +605,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="this run only: word starts on the first sound, whatever video.yaml says")
     g.add_argument("--no-onsets", dest="onsets", action="store_false",
                    help="this run only: keep the aligner's word starts, whatever video.yaml says")
-    p = sub.add_parser("analyze", help="tempo, beats, sections, energy and big moments")
+    p = sub.add_parser("analyze", help="tempo, beats, sections, energy, big moments and drum hits")
     p.add_argument("id")
     p = sub.add_parser("preview", help="full-song karaoke preview to check word and beat sync")
     p.add_argument("id")

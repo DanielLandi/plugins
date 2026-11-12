@@ -14,9 +14,13 @@ export type Timing = { version: 1; duration: number; words: TimingWord[]; lines:
 
 export type Section = { id: string; name: string; start: number; end: number; sung: boolean };
 export type Energy = { rms: number[]; low: number[]; mid: number[]; high: number[] };
+export type DrumKind = 'kick' | 'snare' | 'hat' | 'crash';
+export type DrumHit = { t: number; kind: DrumKind; strength: number };
 export type Analysis = {
   version: 1; duration: number; fps: number; tempo: number; beats: number[]; downbeats: number[];
   sections: Section[]; energy: Energy; hits: { t: number; strength: number }[];
+  /** Drum hits (analyze, from 0.9): measured on the mix minus the vocal stem, or the mix; grid = beats' distance. */
+  drums?: { source: 'mix minus vocals' | 'mix'; hits: DrumHit[]; grid: number | null };
 };
 
 export type SongData = { timing: Timing; analysis: Analysis };
