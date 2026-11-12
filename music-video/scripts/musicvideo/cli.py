@@ -17,7 +17,8 @@ from .albums import load_album, write_manifest
 from .errors import MVError
 from .ingest import ingest
 from .budget import cycle_start, downloads_in_cycle
-from .spec import STATUSES, find_spec, iter_specs, load_spec, now_iso, save_spec, slugify, validate
+from .spec import (STATUSES, find_spec, iter_specs, iter_worktree_specs, load_spec, now_iso, save_spec, slugify,
+                   validate)
 from .video.align import align
 from .video.analyze import analyze
 from .video.loop import make_loop
@@ -127,7 +128,7 @@ def cmd_downloaded(args) -> int:
     billing_day, budget = _budget(ws)
     today = date.today()
     start = cycle_start(today, billing_day)
-    used = downloads_in_cycle((d for _, d in iter_specs(ws)), today, billing_day)
+    used = downloads_in_cycle((d for _, d in iter_worktree_specs(ws)), today, billing_day)  # every worktree
     if used >= budget and not args.paid_extra:
         raise MVError(f"download budget used up: {used} of {budget} since {start}; "
                       "pass --paid-extra only if the user confirmed buying an extra download")
@@ -146,7 +147,7 @@ def cmd_status(args) -> int:
         print("Downloads: not tracked (set billing_day and download_budget in config.yaml)")
     else:
         today = date.today()
-        used = downloads_in_cycle(specs, today, ws.billing_day)
+        used = downloads_in_cycle((d for _, d in iter_worktree_specs(ws)), today, ws.billing_day)
         left = max(ws.download_budget - used, 0)
         start = cycle_start(today, ws.billing_day)
         print(f"Downloads: {used} of {ws.download_budget} used since {start} ({left} left)")

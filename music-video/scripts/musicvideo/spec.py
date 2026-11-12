@@ -7,7 +7,7 @@ from typing import Iterator
 import yaml
 
 from .errors import MVError
-from .workspace import Workspace
+from .workspace import Workspace, worktree_homes
 
 KINDS = {"original"}
 MODELS = {"v6", "v6-wild"}
@@ -71,6 +71,14 @@ def save_spec(path: Path, data: dict) -> None:
 def iter_specs(ws: Workspace) -> Iterator[tuple[Path, dict]]:
     for path in sorted(ws.specs_dir.glob("*.yaml")):
         yield path, load_spec(path)
+
+
+def iter_worktree_specs(ws: Workspace) -> Iterator[tuple[Path, dict]]:
+    """The specs of this workspace and of the same workspace in every other worktree of its git repo (the one
+    download budget and the shared song files span them all). Outside git: iter_specs."""
+    for home in worktree_homes(ws):
+        for path in sorted((home / "specs").glob("*.yaml")):
+            yield path, load_spec(path)
 
 
 def find_spec(ws: Workspace, spec_id: str) -> Path:

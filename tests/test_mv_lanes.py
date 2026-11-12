@@ -365,3 +365,126 @@ def test_doctor_names_the_lane(mv_lane, tmp_path, capsys, monkeypatch):
     _home(monkeypatch, mv_lane.main)
     doctor.run_doctor(install=False)
     assert "worktree" not in capsys.readouterr().out
+
+
+# --- songs stay shared, one download budget ----------------------------------------------------------------------
+
+def _downloaded(home, spec_id, at=None, **extra):
+    from mv_fixtures import valid_spec
+    from musicvideo.spec import now_iso, save_spec
+    kept = {"take_url": "https://suno.com/song/x", "downloaded_at": at or now_iso()}
+    path = home / "specs" / f"{spec_id}.yaml"
+    fields = {"title": spec_id.replace("-", " ").title(), **extra}
+    save_spec(path, valid_spec(id=spec_id, status="downloaded", kept=kept, **fields))
+    return path
+
+
+def test_downloads_count_across_worktrees(mv_lane, monkeypatch, capsys):
+    from musicvideo.cli import main
+    from musicvideo.spec import now_iso, save_spec
+    from musicvideo.video import home
+    from mv_fixtures import valid_spec
+    _downloaded(mv_lane.main, "in-main")
+    _downloaded(mv_lane.a, "in-a")
+    _downloaded(mv_lane.b, "in-b")
+    at = now_iso()
+    _downloaded(mv_lane.a, "merged", at)  # the same download, merged into two branches: counted once
+    _downloaded(mv_lane.b, "merged", at)
+    for folder in mv_lane:
+        monkeypatch.setenv("MUSIC_VIDEO_HOME", str(folder))
+        assert main(["status"]) == 0
+        assert "Downloads: 4 of 20" in capsys.readouterr().out
+    save_spec(mv_lane.a / "specs" / "fifth.yaml", valid_spec(id="fifth", title="Fifth", status="generated"))
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.a))
+    assert main(["downloaded", "fifth", "--take-url", "u"]) == 0
+    assert "recorded download 5 of 20" in capsys.readouterr().out
+    for folder in mv_lane:
+        assert home.downloads(w.load_workspace(folder))["used"] == 5
+
+
+def test_status_songs_line_is_this_worktrees_own(mv_lane, monkeypatch, capsys):
+    from musicvideo.cli import main
+    _downloaded(mv_lane.a, "in-a")
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.main))
+    assert main(["status"]) == 0
+    out = capsys.readouterr().out
+    assert "Downloads: 1 of 20" in out and "downloaded 0" in out
+
+
+def test_downloads_in_cycle_counts_one_download_once():
+    from datetime import date
+    from musicvideo.budget import downloads_in_cycle
+    today = date(2026, 11, 20)
+    one = {"id": "x", "kept": {"downloaded_at": "2026-11-16T10:00:00+00:00"}}
+    no_id = {"kept": {"downloaded_at": "2026-11-16T10:00:00+00:00"}}
+    again = {"id": "x", "kept": {"downloaded_at": "2026-11-17T10:00:00+00:00"}}  # downloaded again: two downloads
+    assert downloads_in_cycle([one, dict(one)], today, 15) == 1
+    assert downloads_in_cycle([no_id, dict(no_id)], today, 15) == 2
+    assert downloads_in_cycle([one, again], today, 15) == 2
+
+
+def test_a_plain_workspace_counts_as_today(mv_ws, capsys):
+    from musicvideo.cli import main
+    _downloaded(mv_ws.home, "one")
+    _downloaded(mv_ws.home, "two")
+    assert main(["status"]) == 0
+    assert "Downloads: 2 of 20" in capsys.readouterr().out
+
+
+def test_a_deleted_worktree_is_skipped(mv_lane, monkeypatch, capsys):
+    from musicvideo.cli import main
+    _downloaded(mv_lane.b, "in-b")
+    _downloaded(mv_lane.a, "in-a")
+    shutil.rmtree(mv_lane.b)  # main/.git/worktrees/lane-b stays, as when a folder is deleted without git
+    for folder in (mv_lane.a, mv_lane.main):
+        monkeypatch.setenv("MUSIC_VIDEO_HOME", str(folder))
+        assert main(["status"]) == 0
+        assert "Downloads: 1 of 20" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("results", ["absolute", "relative"])
+def test_ingest_in_a_lane_files_into_shared_results(mv_lane, make_mp3, monkeypatch, tmp_path, results):
+    from musicvideo.ingest import ingest
+    from musicvideo.spec import load_spec
+    if results == "relative":
+        _set_main_config(mv_lane.main, results_dir="results")
+    path = _downloaded(mv_lane.a, "night-drive")
+    ws = _home(monkeypatch, mv_lane.a)
+    mp3 = make_mp3(tmp_path / "elsewhere" / "Night Drive.mp3")
+    dest = ingest(ws, "night-drive", mp3)
+    main_ws = w.load_workspace(mv_lane.main)
+    assert dest == main_ws.results_dir / "night-drive" / "Test Artist - Night Drive.mp3" and dest.is_file()
+    assert ".lanes" not in dest.parts
+    kept = load_spec(path)["kept"]["file"]
+    assert kept == w.stored_path(main_ws, dest)
+    if results == "relative":
+        assert dest.parent == mv_lane.main / "results" / "night-drive"
+        assert kept == str(Path("results") / "night-drive" / "Test Artist - Night Drive.mp3")
+    assert w.filed_path(main_ws, kept) == dest  # valid in the main checkout after the branch merges
+
+
+ALBUM = "title: Mix\nyear: 2025\n"
+
+
+def test_ingest_refuses_a_file_another_worktree_owns(mv_lane, make_mp3, monkeypatch, tmp_path):
+    from musicvideo.ingest import ingest
+    for folder in mv_lane:
+        (folder / "albums").mkdir()
+        (folder / "albums" / "mix.yaml").write_text(ALBUM, encoding="utf-8")
+    ws = _home(monkeypatch, mv_lane.a)
+    taken = w.stored_path(ws, ws.album_dir("mix") / "Test Artist - Night Drive.mp3")
+    _downloaded(mv_lane.a, "night-drive", album="mix", title="Night Drive")
+    other = _downloaded(mv_lane.b, "other", album="mix", title="Night Drive")
+    from musicvideo.spec import load_spec, save_spec
+    data = load_spec(other)
+    data["status"], data["kept"]["file"] = "filed", taken
+    save_spec(other, data)
+    mp3 = make_mp3(tmp_path / "elsewhere" / "Night Drive.mp3")
+    with pytest.raises(MVError, match="already belongs to spec 'other'"):
+        ingest(ws, "night-drive", mp3)
+    other.unlink()
+    same = _downloaded(mv_lane.main, "night-drive", album="mix", title="Night Drive")  # the same song, in main
+    data = load_spec(same)
+    data["status"], data["kept"]["file"] = "filed", taken
+    save_spec(same, data)
+    assert ingest(ws, "night-drive", mp3).name == "Test Artist - Night Drive.mp3"

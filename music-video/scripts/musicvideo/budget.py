@@ -18,10 +18,19 @@ def cycle_start(today: date, billing_day: int) -> date:
 
 
 def downloads_in_cycle(specs: Iterable[dict], today: date, billing_day: int) -> int:
+    """Downloads recorded since the cycle started. A spec seen in several git worktrees (one download merged into
+    two branches) counts once, by its id and download time."""
     start = cycle_start(today, billing_day)
     count = 0
+    seen = set()
     for data in specs:
         at = (data.get("kept") or {}).get("downloaded_at")
-        if at and start <= parse_dt(at).astimezone().date() <= today:
-            count += 1
+        if not at or not start <= parse_dt(at).astimezone().date() <= today:
+            continue
+        if data.get("id"):
+            key = (data["id"], str(at))
+            if key in seen:
+                continue
+            seen.add(key)
+        count += 1
     return count

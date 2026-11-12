@@ -21,7 +21,7 @@ import yaml
 from .. import requests as rq
 from ..budget import cycle_start, downloads_in_cycle
 from ..errors import MVError
-from ..spec import ID_RE, iter_specs, load_spec
+from ..spec import ID_RE, iter_specs, iter_worktree_specs, load_spec
 from ..spec import lyrics as spec_lyrics
 from ..workspace import Workspace
 from .review import load_versions, review_dir
@@ -178,14 +178,14 @@ def downloads(ws: Workspace) -> dict | None:
     if ws.billing_day is None or ws.download_budget is None:
         return None
     today = date.today()
-    used = downloads_in_cycle((d for _, d in _specs(ws)), today, ws.billing_day)
+    used = downloads_in_cycle((d for _, d in _specs(ws, every_worktree=True)), today, ws.billing_day)
     return {"used": used, "budget": ws.download_budget, "left": max(ws.download_budget - used, 0),
             "since": cycle_start(today, ws.billing_day).isoformat()}
 
 
-def _specs(ws: Workspace):
+def _specs(ws: Workspace, every_worktree: bool = False):
     try:
-        yield from iter_specs(ws)
+        yield from (iter_worktree_specs(ws) if every_worktree else iter_specs(ws))
     except MVError:
         return
 

@@ -13,7 +13,7 @@ from pathlib import Path
 import yaml
 
 from .errors import MVError
-from .worktrees import linked_worktree
+from .worktrees import linked_worktree, repo_worktrees
 
 DEFAULT_HOME = Path.home() / "Documents" / "Music Videos"  # the project: specs, albums, video code (small)
 def default_results() -> Path:
@@ -218,6 +218,32 @@ class Workspace:
 
     def album_dir(self, album: str) -> Path:
         return self.results_dir / "albums" / album
+
+
+def worktree_homes(ws: Workspace) -> list[Path]:
+    """This workspace, then the same workspace folder in the main checkout and in every other linked worktree of the
+    repo that has a specs/ folder, once each: what one download budget counts. Outside git: just this workspace."""
+    homes = [ws.home]
+    found = repo_worktrees(ws.home)
+    if found is None:
+        return homes
+    main, linked = found
+    try:
+        rel = Path(ws.main_home).resolve().relative_to(main.resolve())
+    except (OSError, ValueError):
+        return homes
+    seen = {ws.home.resolve()}
+    for root in (main, *linked):
+        folder = root / rel
+        try:
+            key = folder.resolve()
+            if key in seen or not (folder / "specs").is_dir():
+                continue
+        except OSError:
+            continue
+        seen.add(key)
+        homes.append(folder)
+    return homes
 
 
 def _absolute(home: Path, value) -> Path:
