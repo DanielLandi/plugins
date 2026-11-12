@@ -259,10 +259,24 @@ def find_seed(rt: Path) -> Path | None:
 def link_tree(src: Path, dest: Path, skip: frozenset[str] | set[str] = frozenset(),
               copy: frozenset[str] | set[str] = frozenset()) -> None:
     """dest as a tree of hard links to src's files (symlinks re-created), leaving out the top-level names in skip and
-    copying the top-level files in copy.
-    npm ci replaces files rather than rewriting them, so a later install in src never changes dest. Where hard
-    links fail (another volume, an odd file system), dest becomes a full copy instead."""
-    def link(s: Path, d: Path, top: bool) -> None:
+    copying the top-level files in copy. npm ci replaces files rather than rewriting them, so a later install in src
+    never changes dest. Where hard links fail (another volume, an odd file system) the files are copied instead, and
+    it says so; where a symlink cannot be made (Windows without Developer Mode) what it points to stands in for it."""
+    linking = True
+
+    def place(s: str, d: Path) -> None:
+        nonlocal linking
+        if linking:
+            try:
+                os.link(s, d)
+                return
+            except OSError as e:
+                linking = False
+                print(f"hard links from {src} to {dest} are not possible ({e}): copying the packages instead "
+                      "(about 1.7 GB, once)…", file=sys.stderr, flush=True)
+        shutil.copy2(s, d)
+
+    def walk(s: Path, d: Path, top: bool) -> None:
         d.mkdir(parents=True, exist_ok=True)
         with os.scandir(s) as entries:
             for e in entries:
@@ -270,19 +284,22 @@ def link_tree(src: Path, dest: Path, skip: frozenset[str] | set[str] = frozenset
                     continue
                 target = d / e.name
                 if e.is_symlink():
-                    os.symlink(os.readlink(e.path), target)
+                    try:
+                        os.symlink(os.readlink(e.path), target, target_is_directory=e.is_dir())
+                        continue
+                    except OSError:
+                        real = Path(e.path).resolve()
+                    if real.is_dir() and not Path(s).resolve().is_relative_to(real):  # never a loop upwards
+                        walk(real, target, False)
+                    elif real.is_file():
+                        place(str(real), target)
                 elif e.is_dir():
-                    link(Path(e.path), target, False)
+                    walk(Path(e.path), target, False)
                 elif top and e.name in copy:
                     shutil.copy2(e.path, target)
                 else:
-                    os.link(e.path, target)
-    try:
-        link(src, dest, True)
-    except OSError:
-        shutil.rmtree(dest, ignore_errors=True)
-        shutil.copytree(src, dest, symlinks=True, ignore=lambda folder, names: [
-            n for n in names if Path(folder) == src and n in skip])
+                    place(e.path, target)
+    walk(src, dest, True)
 
 
 def seed_modules(rt: Path) -> Path | None:

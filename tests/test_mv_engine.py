@@ -399,3 +399,36 @@ def test_seed_gives_the_engine_its_own_hidden_npm_lockfile(tmp_path, monkeypatch
     a, b = src / "node_modules/.package-lock.json", rt / "node_modules/.package-lock.json"
     assert b.read_text(encoding="utf-8") == '{"packages": {}}' and os.stat(a).st_ino != os.stat(b).st_ino
     assert os.stat(src / "node_modules/remotion/index.js").st_ino == os.stat(rt / "node_modules/remotion/index.js").st_ino
+
+
+def test_seed_says_so_when_it_must_copy_the_packages(tmp_path, monkeypatch, capsys):
+    # Copying is about 1.7 GB: never silently.
+    installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 1}'))
+
+    def no_links(*_a, **_k):
+        raise OSError("hard links not supported")
+    monkeypatch.setattr(os, "link", no_links)
+    rt = studio.ensure_ready()
+    err = capsys.readouterr().err
+    assert "hard links not supported" in err and "copying" in err and str(rt / "node_modules") in err
+
+
+def test_seed_copies_what_a_symlink_points_to_when_symlinks_fail(tmp_path, monkeypatch):
+    # Windows without Developer Mode cannot make symlinks: no traceback, the engine still works.
+    src = installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    if not (src / "node_modules/.bin/remotion").is_symlink():
+        pytest.skip("no symlinks on this machine")
+    os.symlink("remotion", src / "node_modules/linked", target_is_directory=True)  # a linked package (a folder)
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 1}'))
+
+    def no_symlinks(*_a, **_k):
+        raise OSError("symbolic links not permitted")
+    monkeypatch.setattr(os, "symlink", no_symlinks)
+    rt = studio.ensure_ready()
+    shim = rt / "node_modules/.bin/remotion"
+    assert not shim.is_symlink() and shim.read_text(encoding="utf-8") == "remotion"
+    assert (rt / "node_modules/linked/index.js").read_text(encoding="utf-8") == "remotion"
+    a, b = src / "node_modules/remotion/index.js", rt / "node_modules/remotion/index.js"
+    assert os.stat(a).st_ino == os.stat(b).st_ino  # the rest is still linked, not copied
+    assert studio.is_installed(rt)
