@@ -133,25 +133,21 @@ def is_workspace(folder: Path) -> bool:
 
 
 def _mapped_home(cwd: Path, saved: Path | None) -> Path | None:
-    """Inside a linked git worktree only: the saved workspace's folder in this worktree, else the nearest workspace
-    from the cwd up to the worktree's root. A plain folder or a main checkout never overrides the saved workspace."""
+    """The saved workspace's folder in the git worktree the cwd is in, when that worktree belongs to the saved
+    workspace's own repository (its main checkout holds the saved workspace) and the folder is a workspace there.
+    Nothing else in the cwd ever overrides the saved workspace: not a plain folder, not a main checkout, not a
+    worktree of another repository, whatever config.yaml it holds."""
+    if saved is None:
+        return None
     wt = linked_worktree(cwd)
     if wt is None:
         return None
-    if saved is not None:
-        try:
-            rel = saved.expanduser().resolve().relative_to(wt.main.resolve())
-        except (OSError, ValueError):
-            rel = None
-        if rel is not None and is_workspace(wt.root / rel):
-            return wt.root / rel
-    cwd = Path(cwd).absolute()
-    for folder in (cwd, *cwd.parents):
-        if is_workspace(folder):
-            return folder
-        if folder == wt.root:
-            break
-    return None
+    try:
+        rel = saved.expanduser().resolve().relative_to(wt.main.resolve())
+    except (OSError, ValueError):
+        return None
+    candidate = wt.root / rel
+    return candidate if is_workspace(candidate) else None
 
 
 def workspace_home() -> Path:

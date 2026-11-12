@@ -208,3 +208,51 @@ def test_a_lane_without_any_private_names_still_warns(mv_lane, monkeypatch):
     ws = _home(monkeypatch, mv_lane.a)
     assert "private names were not checked" in w.private_names_warning(ws)
 
+
+# --- only a real worktree of the saved workspace's own repo moves the session (security review) --------------------
+
+def test_an_unrelated_worktree_holding_a_workspace_does_not_switch(mv_lane, tmp_path, monkeypatch):
+    monkeypatch.delenv("MUSIC_VIDEO_HOME")
+    w.remember_home(mv_lane.main)
+    other = fake_repo(tmp_path / "other-repo")
+    tree = fake_worktree(other, tmp_path / "other-trees" / "x")
+    _workspace_at(tree, artist="Someone Else")  # looks like a workspace, in another repo's worktree
+    monkeypatch.chdir(tree)
+    assert w.workspace_home() == mv_lane.main
+
+
+def test_a_worktree_with_no_saved_workspace_does_not_switch(mv_lane, tmp_path, monkeypatch):
+    monkeypatch.delenv("MUSIC_VIDEO_HOME")
+    (tmp_path / "settings.json").unlink()
+    _workspace_at(mv_lane.a / "nested")
+    monkeypatch.chdir(mv_lane.a / "nested")
+    assert w.workspace_home() == w.DEFAULT_HOME
+
+
+def test_a_git_file_whose_admin_dir_does_not_point_back_is_not_a_lane(mv_lane, tmp_path, monkeypatch):
+    monkeypatch.delenv("MUSIC_VIDEO_HOME")
+    w.remember_home(mv_lane.main)
+    forged = tmp_path / "forged"
+    (forged / "specs").mkdir(parents=True)
+    admin = mv_lane.main / ".git" / "worktrees" / "lane-a"  # lane a's admin dir, which names lane a, not this folder
+    (forged / ".git").write_text(f"gitdir: {admin}\n", encoding="utf-8")
+    assert linked_worktree(forged) is None
+    monkeypatch.chdir(forged)
+    assert w.workspace_home() == mv_lane.main
+
+
+@pytest.mark.skipif(not shutil.which("git"), reason="git not installed")
+def test_a_real_worktree_of_the_saved_workspace_switches(tmp_path, monkeypatch):
+    proj = tmp_path / "proj"
+    _workspace_at(proj)
+    (proj / "specs" / ".keep").write_text("", encoding="utf-8")
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.com"]
+    subprocess.run(git + ["init", "-q"], cwd=proj, check=True)
+    subprocess.run(git + ["add", "-A"], cwd=proj, check=True)
+    subprocess.run(git + ["commit", "-q", "-m", "start"], cwd=proj, check=True)
+    subprocess.run(git + ["worktree", "add", "-q", str(tmp_path / "real")], cwd=proj, check=True)
+    monkeypatch.delenv("MUSIC_VIDEO_HOME", raising=False)
+    w.remember_home(proj)
+    monkeypatch.chdir(tmp_path / "real" / "specs")
+    assert w.workspace_home().resolve() == (tmp_path / "real").resolve()
+    assert w.load_workspace().lane == w.folder_key(tmp_path / "real")

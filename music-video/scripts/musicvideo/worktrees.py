@@ -2,7 +2,8 @@
 
 A linked worktree has a `.git` *file* (`gitdir: <admin dir>`); the admin dir names the common git dir in its
 `commondir` file, and the common dir's parent is the main working tree. A main checkout has a `.git` directory.
-Submodules and `--separate-git-dir` clones also have a `.git` file, but no `commondir`: they are not worktrees.
+Submodules and `--separate-git-dir` clones also have a `.git` file, but no `commondir`: they are not worktrees. Nor is
+a `.git` file whose admin dir's `gitdir` does not point back at it.
 """
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,6 +52,11 @@ def linked_worktree(folder: Path) -> Worktree | None:
         admin = _against(root, line[len("gitdir:"):].strip())
         commondir = admin / "commondir"
         if not commondir.is_file():
+            return None
+        # git's own record of where this worktree lives must name this folder: a `.git` file copied or written
+        # elsewhere, pointing at another worktree's admin dir, does not make a lane.
+        back = admin / "gitdir"
+        if not back.is_file() or _against(admin, _read_line(back)).resolve() != dot_git.resolve():
             return None
         common = _against(admin, _read_line(commondir)).resolve()
         if common.name != ".git" or not common.is_dir():
