@@ -67,6 +67,11 @@ def _english(w: str) -> Sound:
 
 
 def _portuguese(w: str) -> Sound:
+    # A word-initial r is classed as a hiss: in Brazilian Portuguese it is usually [h] or [x], though some singers
+    # trill or tap it (voiced). Checked 2026-11-11 (#28) against real timing corrections: 0 corrected Portuguese
+    # words start with r (no Portuguese song has corrections yet; the 164 corrected English starts were scored), so
+    # fricative vs voiced could not be compared. Kept fricative until there are at least 5 such words; then score
+    # both on those words with the onsets scorer and keep the lower median |start - correction|.
     a, b = w[0], w[1:2]
     if w.startswith("ch") or a in "sçfvzjxr":
         return "fricative"
