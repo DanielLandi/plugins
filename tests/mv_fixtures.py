@@ -126,11 +126,11 @@ def fake_repo(root):
     return root
 
 
-def fake_worktree(main, root, relative: bool = False):
+def fake_worktree(main, root, relative: bool = False, name: str | None = None):
     """A linked worktree of `main`, written the way `git worktree add` writes it: an admin folder in the common git
     dir (`gitdir`, `commondir`) and a `.git` file in the worktree (relative paths with worktree.useRelativePaths)."""
     import os
-    admin = main / ".git" / "worktrees" / root.name
+    admin = main / ".git" / "worktrees" / (name or root.name)  # git adds a number when a name is taken
     admin.mkdir(parents=True, exist_ok=True)
     root.mkdir(parents=True, exist_ok=True)
     (admin / "gitdir").write_text(f"{root / '.git'}\n", encoding="utf-8")

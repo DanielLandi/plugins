@@ -2,10 +2,14 @@
 specs and video code, with its own work folders, finals and engine entries (concurrency design, phase 2)."""
 import shutil
 import subprocess
+from pathlib import Path
 
 import pytest
+import yaml
 
 from mv_fixtures import fake_repo, fake_worktree
+from musicvideo import workspace as w
+from musicvideo.errors import MVError
 from musicvideo.worktrees import linked_worktree, repo_worktrees
 
 
@@ -55,3 +59,152 @@ def test_real_git_worktree_is_detected(tmp_path):
     assert linked_worktree(tmp_path / "real").main.resolve() == proj.resolve()
     m, linked = repo_worktrees(proj)
     assert [p.resolve() for p in linked] == [(tmp_path / "real").resolve()]
+
+
+# --- the workspace in a lane -------------------------------------------------------------------------------------
+
+def _home(monkeypatch, folder):
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(folder))
+    return w.load_workspace()
+
+
+def _workspace_at(folder, artist="Test Artist"):
+    (folder / "specs").mkdir(parents=True, exist_ok=True)
+    (folder / "config.yaml").write_text(f"artist: {artist}\n", encoding="utf-8")
+    return folder
+
+
+def test_plain_folder_resolves_to_todays_paths(mv_ws, tmp_path):
+    assert mv_ws.lane is None and mv_ws.main_home == mv_ws.home
+    assert mv_ws.work_root == tmp_path / "My Work é"
+    assert mv_ws.finals_root == tmp_path / "My Results é"
+    assert mv_ws.work_for("x") == tmp_path / "My Work é" / "x"
+    assert mv_ws.results_for("x") == mv_ws.song_dir("x") == tmp_path / "My Results é" / "x"
+    assert mv_ws.album_dir("a") == tmp_path / "My Results é" / "albums" / "a"
+
+
+def test_main_checkout_of_a_repo_resolves_to_todays_paths(mv_ws, mv_lane, tmp_path):
+    ws = w.load_workspace()
+    assert ws.home == mv_lane.main and ws.lane is None and ws.main_home == ws.home
+    assert ws.work_root == tmp_path / "My Work é"
+    assert ws.finals_root == tmp_path / "My Results é"
+    assert ws.work_for("x") == tmp_path / "My Work é" / "x"
+    assert ws.results_for("x") == ws.song_dir("x") == tmp_path / "My Results é" / "x"
+    assert ws.album_dir("a") == tmp_path / "My Results é" / "albums" / "a"
+
+
+def test_two_worktrees_get_distinct_folders(mv_lane, monkeypatch):
+    a, b, m = (_home(monkeypatch, f) for f in (mv_lane.a, mv_lane.b, mv_lane.main))
+    for one, other in ((a, b), (a, m), (b, m)):
+        assert one.work_for("x") != other.work_for("x")
+        assert one.results_for("x") != other.results_for("x")
+        assert one.song_dir("x") == other.song_dir("x")
+        assert one.album_dir("y") == other.album_dir("y")
+    assert a.lane == w.load_workspace(mv_lane.a).lane == w.folder_key(mv_lane.a)
+    assert a.results_for("x") == m.results_dir / ".lanes" / a.lane / "x"
+    assert a.work_for("x") == m.work_dir / ".lanes" / a.lane / "x"
+    assert a.main_home.resolve() == mv_lane.main.resolve()
+
+
+def test_lane_key_is_readable_and_distinct_for_same_folder_name(mv_ws, tmp_path):
+    main = fake_repo(mv_ws.home)
+    one = fake_worktree(main, tmp_path / "p1" / "feature")
+    two = fake_worktree(main, tmp_path / "p2" / "feature", name="feature1")
+    keys = []
+    for root in (one, two):
+        (root / "specs").mkdir()
+        keys.append(w.load_workspace(root).lane)
+    assert all(k.startswith("feature-") for k in keys) and keys[0] != keys[1]
+
+
+def test_cwd_in_worktree_maps_the_saved_workspace(mv_lane, tmp_path, monkeypatch):
+    monkeypatch.delenv("MUSIC_VIDEO_HOME")
+    w.remember_home(mv_lane.main)
+    monkeypatch.chdir(mv_lane.a / "videos")
+    assert w.workspace_home().resolve() == mv_lane.a.resolve()
+    # the workspace in a sub-folder of the repo
+    repo = fake_repo(tmp_path / "repo")
+    _workspace_at(repo / "music")
+    tree = fake_worktree(repo, tmp_path / "trees" / "music-wt")
+    (tree / "music" / "specs").mkdir(parents=True)
+    w.remember_home(repo / "music")
+    monkeypatch.chdir(tree / "music" / "specs")
+    assert w.workspace_home().resolve() == (tree / "music").resolve()
+    monkeypatch.chdir(tree)
+    assert w.workspace_home().resolve() == (tree / "music").resolve()
+
+
+def test_cwd_outside_a_worktree_keeps_the_saved_workspace(mv_lane, tmp_path, monkeypatch):
+    monkeypatch.delenv("MUSIC_VIDEO_HOME")
+    w.remember_home(mv_lane.main)
+    plain = _workspace_at(tmp_path / "plain", artist="Someone Else")
+    monkeypatch.chdir(plain)
+    assert w.workspace_home() == mv_lane.main
+    inner = _workspace_at(mv_lane.main / "other", artist="Someone Else")  # inside the main checkout
+    monkeypatch.chdir(inner)
+    assert w.workspace_home() == mv_lane.main
+
+
+def test_worktree_missing_the_workspace_folder_keeps_the_saved_workspace(mv_ws, tmp_path, monkeypatch):
+    monkeypatch.delenv("MUSIC_VIDEO_HOME")
+    repo = fake_repo(tmp_path / "repo")
+    saved = _workspace_at(repo / "music")
+    tree = fake_worktree(repo, tmp_path / "trees" / "old-branch")  # made before music/ existed
+    w.remember_home(saved)
+    monkeypatch.chdir(tree)
+    assert w.workspace_home() == saved
+
+
+def test_music_video_home_still_wins(mv_lane, monkeypatch):
+    monkeypatch.chdir(mv_lane.a)
+    ws = _home(monkeypatch, mv_lane.b)
+    assert w.workspace_home() == mv_lane.b
+    assert ws.home == mv_lane.b and ws.lane == w.folder_key(mv_lane.b)
+
+
+def test_worktree_without_config_reads_the_main_config(mv_lane, monkeypatch):
+    ws = _home(monkeypatch, mv_lane.a)
+    assert ws.artist == "Test Artist" and ws.billing_day == 15
+    assert ws.videos_dir == mv_lane.a / "videos"
+    (mv_lane.a / "config.yaml").write_text("artist: Lane Artist\n", encoding="utf-8")
+    ws = w.load_workspace()
+    assert ws.artist == "Lane Artist" and ws.billing_day is None
+    assert ws.videos_dir == mv_lane.a / "videos"
+
+
+def test_a_missing_config_names_both_places(mv_lane, monkeypatch):
+    (mv_lane.main / "config.yaml").unlink()
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.a))
+    with pytest.raises(MVError, match="no config.yaml here or in"):
+        w.load_workspace()
+
+
+def _set_main_config(main, **values):
+    cfg = main / "config.yaml"
+    raw = yaml.safe_load(cfg.read_text(encoding="utf-8"))
+    raw.update(values)
+    cfg.write_text(yaml.safe_dump(raw, allow_unicode=True), encoding="utf-8")
+
+
+def test_relative_results_dir_in_a_lane_is_mains(mv_lane, monkeypatch):
+    _set_main_config(mv_lane.main, results_dir="results")
+    ws = _home(monkeypatch, mv_lane.a)
+    assert ws.results_dir.resolve() == (mv_lane.main / "results").resolve()
+    song = ws.results_dir / "x" / "s.mp3"
+    assert w.stored_path(ws, song) == str(Path("results") / "x" / "s.mp3")
+    assert w.filed_path(ws, "results/x/s.mp3").resolve() == (mv_lane.main / "results" / "x" / "s.mp3").resolve()
+
+
+def test_private_names_fall_back_to_main(mv_lane, monkeypatch):
+    (mv_lane.main / "private-names.txt").write_text("Secret Name\n", encoding="utf-8")
+    ws = _home(monkeypatch, mv_lane.a)
+    assert w.load_private_names(ws) == ["Secret Name"]
+    assert w.private_names_warning(ws) is None  # the main checkout's file is checked
+    (mv_lane.a / "private-names.txt").write_text("Other\nSecret Name\n", encoding="utf-8")
+    assert w.load_private_names(ws) == ["Other", "Secret Name"]
+
+
+def test_a_lane_without_any_private_names_still_warns(mv_lane, monkeypatch):
+    ws = _home(monkeypatch, mv_lane.a)
+    assert "private names were not checked" in w.private_names_warning(ws)
+
