@@ -166,6 +166,35 @@ def pid_alive(pid: int) -> bool:
     return True
 
 
+def process_started(pid: int) -> float | None:
+    """When the process with this pid started (epoch seconds), or None when that cannot be told."""
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return None
+        try:
+            times = [wintypes.FILETIME() for _ in range(4)]  # creation, exit, kernel, user
+            if not kernel32.GetProcessTimes(handle, *(ctypes.byref(t) for t in times)):
+                return None
+            created = (times[0].dwHighDateTime << 32) | times[0].dwLowDateTime  # 100 ns steps since 1601
+            return created / 1e7 - 11644473600
+        finally:
+            kernel32.CloseHandle(handle)
+    try:  # elapsed time as [[dd-]hh:]mm:ss, the same on macOS and Linux and in every locale
+        out = subprocess.run(["ps", "-o", "etime=", "-p", str(pid)], capture_output=True, text=True,
+                             encoding="utf-8", timeout=5).stdout.strip()
+        days, _, clock = out.rpartition("-")
+        seconds = 0
+        for part in clock.split(":"):
+            seconds = seconds * 60 + int(part)
+        return time.time() - seconds - int(days or 0) * 86400
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
 _held: list[Path] = []
 
 
@@ -186,17 +215,26 @@ def release_leases() -> None:
         _held.pop().unlink(missing_ok=True)
 
 
+def _lease_holds(lease: dict) -> bool:
+    started, pid = float(lease["started"]), int(lease["pid"])
+    if time.time() - started >= LEASE_MAX_AGE or not pid_alive(pid):
+        return False
+    # A process that started after the lease was written did not write it: its pid was reused.
+    born = process_started(pid)
+    return born is None or born <= started + 5
+
+
 def live_leases(rt: Path) -> list[dict]:
-    """Leases of commands still running; dead, stale or unreadable ones are deleted on sight."""
+    """Leases of commands still running, each with its "file"; dead, stale or unreadable ones are deleted on sight."""
     live = []
     for path in sorted((rt / LEASES).glob("*.json")) if (rt / LEASES).is_dir() else []:
         try:
             lease = json.loads(path.read_text(encoding="utf-8"))
-            ok = time.time() - float(lease["started"]) < LEASE_MAX_AGE and pid_alive(int(lease["pid"]))
+            ok = _lease_holds(lease)
         except (OSError, ValueError, KeyError, TypeError):
             ok = False
         if ok:
-            live.append(lease)
+            live.append({**lease, "file": str(path)})
         else:
             path.unlink(missing_ok=True)
     return live
@@ -204,7 +242,8 @@ def live_leases(rt: Path) -> list[dict]:
 
 def _in_use(lease: dict) -> str:
     return (f"the engine is in use by music-video {lease.get('version')} (pid {lease.get('pid')}, "
-            f"video {lease.get('video')}): wait for it to finish, then run again")
+            f"video {lease.get('video')}): wait for it to finish, then run again. If no music-video command is "
+            f"running, delete {lease.get('file')}")
 
 
 def lock_hash(rt: Path) -> str:
@@ -325,9 +364,11 @@ def seed_modules(rt: Path) -> Path | None:
 
 def refuse_other_source(rt: Path) -> None:
     """Before a sync that would change files: another plugin copy (another version, across an update) may be
-    rendering from them. The same copy's own edits proceed, as always. Call under engine_lock."""
-    if any(sync_plan(PLUGIN_STUDIO, rt)):
-        for lease in live_leases(rt):
+    rendering from them. The same copy's own edits proceed, as always. Dead leases are swept every time, so a
+    stale one never waits for the next update to be found. Call under engine_lock."""
+    leases = live_leases(rt)
+    if leases and any(sync_plan(PLUGIN_STUDIO, rt)):
+        for lease in leases:
             if lease.get("source") != str(PLUGIN_STUDIO):
                 raise MVError(_in_use(lease))
 

@@ -308,7 +308,9 @@ def test_install_refuses_while_leased(shared_engine, sleeper, monkeypatch):
     write_lease(shared_engine, sleeper.pid, "/other/studio")
     ran = []
     monkeypatch.setattr(studio.shutil, "which", lambda name: f"/usr/bin/{name}")
-    monkeypatch.setattr(studio.subprocess, "run", lambda *a, **k: ran.append(a))
+    real = subprocess.run
+    monkeypatch.setattr(studio.subprocess, "run",  # npm is faked; ps (who holds the lease) runs for real
+                        lambda cmd, *a, **k: real(cmd, *a, **k) if cmd[0] == "ps" else ran.append(cmd))
     with pytest.raises(MVError, match="in use by music-video"):
         studio.install(shared_engine)
     assert ran == []
@@ -472,3 +474,25 @@ def test_the_lease_is_taken_before_the_engine_lock_is_let_go(shared_engine, monk
         assert [x["video"] for x in studio.live_leases(shared_engine)] == ["night-drive"]
     finally:
         studio.release_leases()
+
+
+def test_dead_leases_are_swept_even_when_nothing_is_to_sync(shared_engine):
+    gone = subprocess.Popen([sys.executable, "-c", "pass"])
+    gone.wait()
+    dead = write_lease(shared_engine, gone.pid, "/other/studio")
+    assert studio.ensure_ready() == shared_engine
+    assert not dead.exists()
+
+
+def test_a_lease_whose_pid_now_names_a_newer_process_is_stale(shared_engine, sleeper):
+    # The command that wrote it died and its pid went to another process (here the sleeper, started after it).
+    reused = write_lease(shared_engine, sleeper.pid, "/other/studio", started=time.time() - 3600)
+    assert studio.live_leases(shared_engine) == [] and not reused.exists()
+
+
+def test_a_refusal_names_the_lease_to_delete(shared_engine, sleeper):
+    lease = write_lease(shared_engine, sleeper.pid, "/other/studio")
+    (studio.PLUGIN_STUDIO / "kit.ts").write_text("changed", encoding="utf-8")
+    with pytest.raises(MVError) as e:
+        studio.ensure_ready()
+    assert str(lease) in str(e.value)
