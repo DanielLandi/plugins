@@ -80,7 +80,8 @@ rendering motion.
 > Edit only `<video>/scenes/<section-id>.tsx` (do not touch `scenes.ts`; the orchestrator wires it). Delete
 > nothing, not even your own stills: leave every file where it is.
 >
-> **Read first:** `${CLAUDE_PLUGIN_ROOT}/skills/make/references/studio.md` (rules), `<video>/LOOK.md` (the
+> **Read first:** `${CLAUDE_PLUGIN_ROOT}/skills/make/references/studio.md` (rules),
+> `${CLAUDE_PLUGIN_ROOT}/skills/make/references/animation.md` (how things move), `<video>/LOOK.md` (the
 > approved look — follow it exactly), `<video>/look.ts`, the kit API in `${CLAUDE_PLUGIN_ROOT}/studio/kit/index.ts`
 > (and `kit/three/index.ts` for 3D), and this storyboard entry:
 >

@@ -38,8 +38,8 @@ then wait for the completion notice): renders, the board and the first `align` c
 
 Read once per session before step 1: `references/lyric-craft.md`, and the song skill's
 `../song/references/originals.md` and the generator's references (`../song/references/generators/suno/`). Read
-`references/look.md` before step 5, `references/storyboard.md` before step 6, `references/studio.md` before any
-scene code, and `references/checks.md` and `references/taste.md` before showing any render.
+`references/look.md` before step 5, `references/storyboard.md` before step 6, `references/studio.md` and
+`references/animation.md` before any scene code, and `references/checks.md` and `references/taste.md` before showing any render.
 
 ## Hard rules
 
