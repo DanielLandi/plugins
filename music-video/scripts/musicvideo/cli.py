@@ -420,9 +420,9 @@ def cmd_doctor(args) -> int:
 def _prepare(video_id):
     ws = load_workspace()
     rt = studio.ensure_ready()
-    studio.take_lease(rt, video_id)  # released when the command ends (main)
+    studio.take_lease(rt, video_id, ws.lane)  # released when the command ends (main)
     ctx = studio.video_context(ws, video_id)
-    entry = studio.write_entry(rt, ctx.dir, video_id)
+    entry = studio.write_entry(rt, ctx.dir, video_id, lane=ctx.lane)
     return rt, ctx, entry, studio.tool_env(rt, ctx, entry)
 
 

@@ -8,6 +8,7 @@ import pytest
 import yaml
 
 from mv_fixtures import fake_repo, fake_worktree
+from test_mv_web import web_video  # noqa: F401 (a fixture)
 from musicvideo import workspace as w
 from musicvideo.errors import MVError
 from musicvideo.worktrees import linked_worktree, repo_worktrees
@@ -207,6 +208,42 @@ def test_private_names_fall_back_to_main(mv_lane, monkeypatch):
 def test_a_lane_without_any_private_names_still_warns(mv_lane, monkeypatch):
     ws = _home(monkeypatch, mv_lane.a)
     assert "private names were not checked" in w.private_names_warning(ws)
+
+
+# --- engine entries and finals per lane --------------------------------------------------------------------------
+
+def test_plain_folder_entry_is_todays(mv_ws, tmp_path):
+    from musicvideo import studio
+    d = mv_ws.video_dir("x")
+    d.mkdir(parents=True)
+    (d / "index.tsx").write_text("", encoding="utf-8")
+    assert mv_ws.lane is None
+    assert studio.write_entry(tmp_path / "rt", d, "x", lane=mv_ws.lane) == tmp_path / "rt" / ".entries" / "x" / "index.ts"
+
+
+def test_web_default_out_in_a_lane_is_the_lane_folder(web_video, mv_lane, monkeypatch):
+    from musicvideo.cli import main
+    calls, rt = web_video
+    ws = _home(monkeypatch, mv_lane.a)
+    pub = ws.work_for("night-drive") / "public"
+    pub.mkdir(parents=True)
+    for name in ("timing.json", "analysis.json"):
+        (pub / name).write_text("{}", encoding="utf-8")
+    assert main(["web", "night-drive"]) == 0
+    cmd, cwd, env = calls[0]
+    out = cmd[cmd.index("--out") + 1]
+    assert out == str(ws.results_dir / ".lanes" / ws.lane / "night-drive" / "web")
+    assert out != str(ws.song_dir("night-drive") / "web")
+    assert env["MV_WEB_ENTRY"] == str(rt / ".entries" / f".lane-{ws.lane}" / "night-drive" / "web.ts")
+    assert env["MV_PUBLIC"] == str(pub)
+
+
+def test_library_does_not_list_lane_results(mv_ws, tmp_path):
+    from musicvideo import library
+    for folder in (mv_ws.results_dir / ".lanes" / "k" / "x", mv_ws.results_dir / "x"):
+        folder.mkdir(parents=True)
+        (folder / "final.mp4").write_bytes(b"x")
+    assert [s.rel for s in library.scan(mv_ws.results_dir)] == ["x"]
 
 
 # --- only a real worktree of the saved workspace's own repo moves the session (security review) --------------------
