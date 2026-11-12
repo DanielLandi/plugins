@@ -108,3 +108,12 @@ def test_skills_run_only_the_plugin():
     for f in _docs():
         for line in _shell(f.read_text(encoding="utf-8")).splitlines():
             assert not line.strip() or line.strip().startswith("uv run "), f"{f.relative_to(REPO)}: {line}"
+
+
+def test_finals_list_agrees_with_the_worktree_paragraph():
+    """In a git worktree the song is filed in the main results folder, not in the worktree's `<results>`: the make
+    skill's finals bullet must not promise it there."""
+    text = (SKILLS / "make" / "SKILL.md").read_text(encoding="utf-8")
+    bullet = re.search(r"(?ms)^- Finals, in `<results>`:.*?(?=^- |\Z)", text).group(0)
+    bullet = " ".join(bullet.split())
+    assert "the song" not in bullet or "main results folder" in bullet, bullet

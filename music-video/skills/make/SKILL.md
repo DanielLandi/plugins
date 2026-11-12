@@ -68,7 +68,9 @@ the main results folder. Song downloads still count against the one budget.
 - Working files, in `<work>`: the song's copy, timings, vocals, previews, renders, checks. All regenerable; `clean`
   deletes them once the video is delivered. (Your hand-written corrections, `timing-fixes.yaml`,
   `lyrics-as-sung.txt` and `song-fixes.yaml`, are not working files: they live in `<video>`.)
-- Finals, in `<results>`: the videos, thumbnail, subtitles, the song, and `<web>` (the live page).
+- Finals, in `<results>`: the videos, thumbnail, subtitles, the song, and `<web>` (the live page). In a git
+  worktree, the song stays in the main results folder, so `<results>` and the home's finals list hold only the
+  video's own files.
 - `<id>` is the song spec's id (the workspace's `specs/<id>.yaml`).
 
 **Resuming:** read `video.yaml` (`step:`), `JOURNAL.md` and `NOTES.md`, and the video's open requests
