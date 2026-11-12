@@ -450,3 +450,25 @@ def test_an_interrupted_owner_write_leaves_the_old_record_whole(tmp_path, monkey
     monkeypatch.undo()
     assert json.loads((rt / studio.OWNER).read_text(encoding="utf-8")) == old
     assert [p.name for p in rt.iterdir()] == [studio.OWNER]
+
+
+def test_the_lease_is_taken_before_the_engine_lock_is_let_go(shared_engine, monkeypatch):
+    # Taken after the lock, another plugin copy could take the lock in between, see no lease and sync over the
+    # engine this command is about to use.
+    from musicvideo import filelock
+    real, seen = studio.take_lease, []
+
+    def take(rt, video_id):
+        with open(rt / ".lock", "a+b") as fd:  # held by someone else, it cannot be taken from a second handle
+            free = filelock._try_lock(fd, rt / ".lock")
+            if free:
+                filelock._unlock(fd)
+        seen.append(free)
+        return real(rt, video_id)
+    monkeypatch.setattr(studio, "take_lease", take)
+    try:
+        assert studio.ensure_ready("night-drive") == shared_engine
+        assert seen == [False]
+        assert [x["video"] for x in studio.live_leases(shared_engine)] == ["night-drive"]
+    finally:
+        studio.release_leases()

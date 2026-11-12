@@ -345,14 +345,18 @@ def engine_lock(rt: Path, timeout: float = 600.0, notice_after: float = 2.0):
         yield rt
 
 
-def ensure_ready() -> Path:
+def ensure_ready(video_id: str | None = None) -> Path:
+    """The engine, synced and installed. With a video id, this command's lease on it is taken before the engine
+    lock is let go, so no other plugin copy can sync over it in between."""
     with engine_lock(runtime_dir()) as rt:
         refuse_other_source(rt)
         sync_runtime(dest=rt)
         if not is_installed(rt) and (seed := seed_modules(rt)):
             print(f"seeded the engine for this checkout from {seed}", file=sys.stderr)
-    if not is_installed(rt):
-        raise MVError("the video engine's packages are not installed or are out of date: run music-video doctor")
+        if not is_installed(rt):
+            raise MVError("the video engine's packages are not installed or are out of date: run music-video doctor")
+        if video_id is not None:
+            take_lease(rt, video_id)  # released when the command ends (cli.main)
     touch_owner(rt)
     return rt
 

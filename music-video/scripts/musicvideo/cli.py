@@ -419,8 +419,7 @@ def cmd_doctor(args) -> int:
 
 def _prepare(video_id):
     ws = load_workspace()
-    rt = studio.ensure_ready()
-    studio.take_lease(rt, video_id)  # released when the command ends (main)
+    rt = studio.ensure_ready(video_id)  # with this command's lease on the engine, released when it ends (main)
     ctx = studio.video_context(ws, video_id)
     entry = studio.write_entry(rt, ctx.dir, video_id)
     return rt, ctx, entry, studio.tool_env(rt, ctx, entry)

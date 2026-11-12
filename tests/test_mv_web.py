@@ -14,7 +14,12 @@ def web_video(mv_ws, monkeypatch, tmp_path):
     for script in studio.SCRIPTS.values():  # a fake engine with its tools' entry scripts
         (rt / script).parent.mkdir(parents=True, exist_ok=True)
         (rt / script).write_text("", encoding="utf-8")
-    monkeypatch.setattr(studio, "ensure_ready", lambda: rt)
+
+    def ready(video_id=None):  # as the real one, it takes the command's lease on the engine
+        if video_id is not None:
+            studio.take_lease(rt, video_id)
+        return rt
+    monkeypatch.setattr(studio, "ensure_ready", ready)
     monkeypatch.setattr(studio, "node", lambda: "node")
     monkeypatch.setattr(studio, "run_node", lambda cmd, cwd, env: calls.append((cmd, cwd, env)) or 0)
     studio.new_video(mv_ws, "night-drive")
