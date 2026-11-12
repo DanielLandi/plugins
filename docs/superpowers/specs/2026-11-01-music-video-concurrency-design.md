@@ -173,6 +173,18 @@ links: these files are rewritten in place) `public/`, `vocals.wav`, `transcript.
 and `loop/`, and write `.seeded-from` naming the source. `renders/`, `qc/` and `review/` are never copied. Phase 3;
 until then a lane runs `align`/`analyze` itself (the error message already says so).
 
+*As built (phase 3, `musicvideo/seed.py`):* `Workspace.work_for(id)` seeds, in a lane only, when the lane's folder is
+missing and the main checkout's (its own `work_dir`, from its own `config.yaml`) holds any of those items, so every
+command that needs the folder (`paths`, `align`, `analyze`, `preview`, `still`, `render`, the home) gets it; a main
+checkout never seeds. `align-cache.json` is copied too, so a later `align` in the lane (after a timing fix) reuses
+the copied vocals and transcript instead of separating again. The copy is made in `<lane work>/.seeding/<id>/<pid>`
+under a lock (`.seeding/<id>.lock`, the `file_lock` of §4.7) and renamed into place: a second command waits and
+finds the folder done; a staging folder left by a command that died is deleted by the next one. One line on stderr
+says it copied (stdout stays clean for `paths`' JSON). After `clean <id>` in a lane, the next use seeds again.
+§10 item 7: the seed does not compare `timing-fixes.yaml`; the copy is taken when the lane first needs the folder,
+right after branching, when the fixes still agree, and a later fix in the lane runs `align`, which the copied cache
+makes fast.
+
 ### 4.4 The download budget across worktrees
 
 `downloaded` refuses a download past the budget, counting `kept.downloaded_at` over the specs it can see. With lanes,

@@ -178,7 +178,7 @@ def downloads(ws: Workspace) -> dict | None:
     if ws.billing_day is None or ws.download_budget is None:
         return None
     today = date.today()
-    used = downloads_in_cycle((d for _, d in _specs(ws, every_worktree=True)), today, ws.billing_day)
+    used = downloads_in_cycle(_specs(ws, every_worktree=True), today, ws.billing_day)
     return {"used": used, "budget": ws.download_budget, "left": max(ws.download_budget - used, 0),
             "since": cycle_start(today, ws.billing_day).isoformat()}
 

@@ -32,7 +32,7 @@ from .video.songfix import lifted_song
 from .video.timing import clock
 from .video import timing_editor
 from .workspace import (cache_dir, config_path, init_workspace, install_dir, load_private_names, load_workspace,
-                        saved_home, warn_if_no_private_names, workspace_home)
+                        main_counterpart, remember_home, saved_home, warn_if_no_private_names, workspace_home)
 from .worktrees import linked_worktree
 
 
@@ -45,7 +45,15 @@ def cmd_init(args) -> int:
                                    Path(args.results_dir).expanduser() if args.results_dir else None)
     print(f"{'created' if created else 'using existing'} workspace {home}")
     if (wt := linked_worktree(home)) is not None:
-        print(f"this is a worktree of {wt.main}; the saved workspace stays {saved_home() or 'unset'}")
+        if (saved := saved_home()) is None:
+            # Nothing saved yet: save the main checkout's folder (never the worktree), so that commands run here map
+            # to this worktree and commands run in the main checkout find the workspace there.
+            saved = main_counterpart(home)
+            remember_home(saved)
+            print(f"this is a worktree of {wt.main}; saved the workspace as {saved} (the main checkout's folder): "
+                  "this worktree maps to it")
+        else:
+            print(f"this is a worktree of {wt.main}; the saved workspace stays {saved}")
     return 0
 
 
@@ -129,7 +137,8 @@ def cmd_downloaded(args) -> int:
     billing_day, budget = _budget(ws)
     today = date.today()
     start = cycle_start(today, billing_day)
-    used = downloads_in_cycle((d for _, d in iter_worktree_specs(ws)), today, billing_day)  # every worktree
+    specs = list(iter_worktree_specs(ws))  # every worktree
+    used = downloads_in_cycle(specs, today, billing_day)
     if used >= budget and not args.paid_extra:
         raise MVError(f"download budget used up: {used} of {budget} since {start}; "
                       "pass --paid-extra only if the user confirmed buying an extra download")
@@ -138,6 +147,11 @@ def cmd_downloaded(args) -> int:
     save_spec(path, data)
     extra = " (paid extra)" if used >= budget else ""
     print(f"recorded download {used + 1} of {budget} for the cycle starting {start}{extra}")
+    for other_path, other in specs:  # ingest refuses to file a second take of one song: say so now
+        other_take = (other.get("kept") or {}).get("take_url")
+        if other_path.stem == path.stem and other_path != path and other_take and other_take != args.take_url:
+            print(f"warning: {other_path} records another take of '{args.id}' ({other_take}): ingest will refuse "
+                  "to file this one until one take is kept (merge that branch's spec, or undo one)", file=sys.stderr)
     return 0
 
 
@@ -148,7 +162,7 @@ def cmd_status(args) -> int:
         print("Downloads: not tracked (set billing_day and download_budget in config.yaml)")
     else:
         today = date.today()
-        used = downloads_in_cycle((d for _, d in iter_worktree_specs(ws)), today, ws.billing_day)
+        used = downloads_in_cycle(iter_worktree_specs(ws), today, ws.billing_day)
         left = max(ws.download_budget - used, 0)
         start = cycle_start(today, ws.billing_day)
         print(f"Downloads: {used} of {ws.download_budget} used since {start} ({left} left)")
