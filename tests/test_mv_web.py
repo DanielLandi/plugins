@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -121,10 +122,30 @@ def test_a_command_holds_a_lease_while_it_runs(mv_ws, web_video, monkeypatch):
     assert studio.live_leases(rt) == [] and not list((rt / studio.LEASES).iterdir())
 
 
+def test_a_stopped_web_build_leaves_no_staging_folder(mv_ws, web_video, monkeypatch):
+    # Ctrl-C stops node at once: web.ts's own `finally` never runs, so the folder is made and removed from here.
+    import tempfile
+    calls, rt = web_video
+    seen = []
+
+    def node_stopped(cmd, cwd, env):  # what tools/web.ts does, then the Ctrl-C
+        stage = env.get("MV_WEB_STAGE") or tempfile.mkdtemp(prefix="web-data-", dir=Path(env["MV_WEB_ENTRY"]).parent)
+        (Path(stage) / "score.json").write_text("{}", encoding="utf-8")
+        seen.append(Path(stage))
+        raise KeyboardInterrupt
+    monkeypatch.setattr(studio, "run_node", node_stopped)
+    with pytest.raises(KeyboardInterrupt):
+        main(["web", "night-drive"])
+    entry_dir = rt / ".entries" / "night-drive"
+    assert seen[0].parent == entry_dir and seen[0].name.startswith("web-data-")
+    assert not list(entry_dir.glob("web-data-*"))
+
+
 def test_web_stages_song_data_per_run():
     # Two web builds at once (different videos) once shared <engine>/web/.data/score.json and swapped pages (#18).
     ts = (studio.PLUGIN_STUDIO / "tools" / "web.ts").read_text(encoding="utf-8")
     page = (studio.PLUGIN_STUDIO / "web" / "main.tsx").read_text(encoding="utf-8")
     assert "join(web, '.data')" not in ts and "mkdtempSync(join(dirname(entryFile), 'web-data-'))" in ts
+    assert "process.env.MV_WEB_STAGE ??" in ts  # the folder music-video made, and removes even after a Ctrl-C
     assert "finally" in ts and "rmSync(stage" in ts
     assert "from '@mv/web-data/score.json?url'" in page and "./.data/" not in page
