@@ -126,3 +126,13 @@ def test_record_and_last(mv_ws, capsys):
     assert main(["bakeoff", "last", "--model", "model-c"]) == 0
     out = capsys.readouterr().out
     assert "model-a" in out and "offer" in out
+
+
+def test_a_given_start_stays_inside_the_song(mv_ws):
+    _song(mv_ws, "duel", duration=4.0, hits=[])
+    main(["new-video", "duel"])
+    assert bakeoff.scaffold(mv_ws, "duel", start=0)["window"] == (0.0, 4.0)
+    with pytest.raises(MVError, match="after the song ends"):
+        bakeoff.scaffold(mv_ws, "duel", start=4.5)
+    with pytest.raises(MVError, match="negative"):
+        bakeoff.scaffold(mv_ws, "duel", start=-1)

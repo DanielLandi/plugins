@@ -51,6 +51,19 @@ def default_window(analysis: dict, length: float = WINDOW) -> tuple[float, float
     return round(start, 2), round(start + length, 2)
 
 
+def _given_window(start: float, analysis: dict | None) -> tuple[float, float]:
+    """--from: WINDOW s from there, ending with the song when it ends sooner."""
+    if start < 0:
+        raise MVError("--from is a song time in seconds: it cannot be negative")
+    end = start + WINDOW
+    if analysis and analysis.get("duration"):
+        duration = float(analysis["duration"])
+        if start >= duration:
+            raise MVError(f"--from {start:g} is after the song ends ({duration:g} s)")
+        end = min(end, duration)
+    return round(start, 2), round(end, 2)
+
+
 def _meta(vdir: Path) -> dict:
     path = vdir / "video.yaml"
     data = yaml.safe_load(path.read_text(encoding="utf-8")) if path.is_file() else None
@@ -113,17 +126,18 @@ def scaffold(ws: Workspace, video_id: str, engines: list[str] | None = None, sta
     elif song and str(_meta(vdir).get("song") or video_id) != song:
         raise MVError(f"{video_id} already uses the song {_meta(vdir).get('song') or video_id}: leave out --song")
     old_ts = vdir / "bakeoff.ts"
+    song_id = str(_meta(vdir).get("song") or video_id)
+    analysis_file = ws.work_for(song_id) / "public" / "analysis.json"
+    analysis = json.loads(analysis_file.read_text(encoding="utf-8")) if analysis_file.is_file() else None
     window = None
     if start is not None:
-        window = (round(float(start), 2), round(float(start) + WINDOW, 2))
+        window = _given_window(float(start), analysis)
     elif old_ts.is_file() and (m := WINDOW_RE.search(old_ts.read_text(encoding="utf-8"))) and _written(vdir):
         window = (float(m.group(1)), float(m.group(2)))
     if window is None:
-        song_id = str(_meta(vdir).get("song") or video_id)
-        analysis = ws.work_for(song_id) / "public" / "analysis.json"
-        if not analysis.is_file():
+        if analysis is None:
             raise MVError(f"no analysis.json for {song_id}: run music-video analyze {song_id}, or give --from <seconds>")
-        window = default_window(json.loads(analysis.read_text(encoding="utf-8")))
+        window = default_window(analysis)
     added = []
     (vdir / "bakeoff").mkdir(exist_ok=True)
     for engine in wanted:
