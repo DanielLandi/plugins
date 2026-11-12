@@ -11,9 +11,11 @@ It is updated only by re-vendoring (`studio/tools/vendor-transitions.sh`), never
 
 Parts of the make skill's references are adapted from Imaginative-Prompting/claude-video-skills: `animation.md`
 (from animation-principles), `shot-design.md`, `shot-balance.md` and `shot-card.md` (from shot-design), and smaller
-parts of `look.md`, `studio.md` and the render checks in `qc` (from look-and-light, render-checks, rendering,
-review-page, song-timing and directing-sessions). Each adapted file says so at its top. They were edited to fit this
-plugin; the originals are not installed with it.
+parts of `look.md` and `studio.md` (from look-and-light and directing-sessions). Ideas and thresholds in the code
+come from it too: `qc`'s motion scans (`scripts/musicvideo/video/scans.py`, from render-checks) and colour-tag check
+(from rendering), the review page's known issues and review marks (from review-page), and `analyze`'s drum hits
+(`scripts/musicvideo/video/drums.py`, from song-timing). Each adapted file says so at its top. They were edited to fit
+this plugin; the originals are not installed with it.
 
 ```text
 MIT License
