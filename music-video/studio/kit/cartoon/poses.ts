@@ -25,11 +25,13 @@ const mixArm = (side: 'armF' | 'armB', a: Arm | undefined, b: Arm | undefined, w
   const A: Arm = a ?? { hand: HANG[side] }, Bm: Arm = b ?? { hand: HANG[side] };
   const out: Arm = {};
   for (const [k, d] of ARM_NUMS) if (A[k] !== undefined || Bm[k] !== undefined) out[k] = lerp(A[k] ?? d, Bm[k] ?? d, w);
-  // Hands are mixed in the same space; a key that moves a hand between shoulder space and the world switches half way.
+  // Shoulder-space hands mix as points; a world point is reached by `reach`, so a key from a hanging hand to a
+  // world point (a reach, a handshake) blends smoothly in the rig, where the shoulder is known.
+  const rA = A.world ? A.reach ?? 1 : 0, rB = Bm.world ? Bm.reach ?? 1 : 0;
+  if (A.hand || Bm.hand || !A.world || !Bm.world) out.hand = lerpP(A.hand ?? HANG[side], Bm.hand ?? HANG[side], w);
   if (A.world && Bm.world) out.world = lerpP(A.world, Bm.world, w);
-  else if (!A.world && !Bm.world) out.hand = lerpP(A.hand ?? HANG[side], Bm.hand ?? HANG[side], w);
-  else if (w < 0.5) A.world ? (out.world = A.world) : (out.hand = A.hand ?? HANG[side]);
-  else Bm.world ? (out.world = Bm.world) : (out.hand = Bm.hand ?? HANG[side]);
+  else if (A.world || Bm.world) out.world = (A.world ?? Bm.world) as P;
+  if (out.world && (rA !== 1 || rB !== 1 || !A.world || !Bm.world)) out.reach = lerp(rA, rB, w);
   const front = w < 0.5 ? A.front : Bm.front;
   if (front !== undefined) out.front = front;
   return out;
@@ -71,10 +73,15 @@ export const addPose = <T extends PoseLayer>(a: T, b: PoseLayer, w = 1): T => {
     if (!lb) continue;
     const base: Arm = { ...(a[side] ?? { hand: HANG[side] }) };
     for (const [k, d] of ARM_NUMS) if (lb[k] !== undefined) base[k] = (base[k] ?? d) + (lb[k] as number) * w;
-    const off = lb.hand ?? lb.world;
-    if (off) {
-      if (base.world) base.world = [base.world[0] + off[0] * w, base.world[1] + off[1] * w];
+    if (lb.hand) {
+      const off = lb.hand;
+      if (base.world && !base.hand) base.world = [base.world[0] + off[0] * w, base.world[1] + off[1] * w];
       else base.hand = [(base.hand ?? HANG[side])[0] + off[0] * w, (base.hand ?? HANG[side])[1] + off[1] * w];
+    }
+    if (lb.world) { // a world point in a layer is reached toward, by w (never added to a hand)
+      const from = base.world ? base.reach ?? 1 : 0;
+      base.world = lb.world;
+      base.reach = lerp(from, lb.reach ?? 1, w);
     }
     if (lb.front !== undefined) base.front = lb.front;
     out[side] = base;
@@ -105,10 +112,10 @@ export const breath = (t: number, phase = 0): PoseLayer => ({ sy: 0.025 * Math.s
 
 /**
  * Walking at screen position x: the feet cycle with the distance travelled, so they never slide (one stride per
- * half cycle). `face` is the way the character walks; `amount` fades the walk in and out.
+ * half cycle). `face` is the way the character walks; `amount` fades the walk in and out; pass the pose's `scale`.
  */
-export const walk = (x: number, face: 1 | -1, amount = 1, stride = 70): PoseLayer =>
-  ({ walk: amount, walkPhase: (x * face) / (2 * stride), stride });
+export const walk = (x: number, face: 1 | -1, amount = 1, stride = 70, scale = 1): PoseLayer =>
+  ({ walk: amount, walkPhase: (x * face) / (2 * stride * scale), stride });
 
 /**
  * Presets (character space: the front arm `armF` is on the side the character faces; hands are offsets from each

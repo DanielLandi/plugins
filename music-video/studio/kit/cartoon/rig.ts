@@ -24,10 +24,11 @@ export type Character = {
 
 /**
  * An arm: `hand` is the mitten's offset from the shoulder (character space, before `face`), `world` a point in the
- * composition the hand reaches (a stretchy reach, a handshake, a fist bump); `sag` bends the hose, `wiggle` sends a
- * travelling wave along it, `open` spreads the mitten, `front` draws the arm over the body.
+ * composition the hand reaches (a stretchy reach, a handshake, a fist bump); with both, `reach` (0..1, default 1)
+ * blends the hand from `hand` toward `world`. `sag` bends the hose, `wiggle` sends a travelling wave along it,
+ * `open` spreads the mitten, `front` draws the arm over the body.
  */
-export type Arm = { hand?: P; world?: P; sag?: number; front?: boolean; wiggle?: number; wigglePhase?: number; open?: number };
+export type Arm = { hand?: P; world?: P; reach?: number; sag?: number; front?: boolean; wiggle?: number; wigglePhase?: number; open?: number };
 
 export const MOUTH_KEYS = ['smile', 'grin', 'laugh', 'o', 'shout', 'flat', 'frown', 'wavy'] as const;
 export type MouthKey = (typeof MOUTH_KEYS)[number];
@@ -177,8 +178,11 @@ export const buildCharacter = (c: Character, p: Pose): Shape[] => {
   // arms: hoses from the shoulder to a mitten
   const arm = (side: -1 | 1, a: Arm | undefined): Shape[] => {
     const sh = bodyLocal([side * c.rx * 0.82, -c.ry * 0.05]);
-    const hand: P = a?.world ? [((a.world[0] - p.x) * face) / S, (a.world[1] - p.ground) / S]
-      : a?.hand ? [sh[0] + a.hand[0], sh[1] + a.hand[1]] : [sh[0] + side * 30, sh[1] + 90];
+    const body: P = a?.hand ? [sh[0] + a.hand[0], sh[1] + a.hand[1]] : [sh[0] + side * 30, sh[1] + 90];
+    const k = a?.reach ?? 1;
+    const hand: P = a?.world
+      ? [lerp(body[0], ((a.world[0] - p.x) * face) / S, k), lerp(body[1], (a.world[1] - p.ground) / S, k)]
+      : body;
     const dx = hand[0] - sh[0], dy = hand[1] - sh[1];
     const len = Math.hypot(dx, dy) || 1;
     const nx = -dy / len, ny = dx / len;

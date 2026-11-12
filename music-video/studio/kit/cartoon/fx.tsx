@@ -159,8 +159,15 @@ export const shake = (t: number, t0: number, amp = 18): P => {
 };
 
 /**
- * A CSS transform for the scene's container: a push-in that scales the frame by (1 + z) about the point (fx, fy), plus
- * a shake offset. The ink scales with it, as in a redrawn close-up. w and h are the composition's size.
+ * The style for the scene's container: a push-in that scales the frame by (1 + z) about the point (fx, fy) in the
+ * container's pixels, plus a shake offset, at any composition size (`style={zoomAt(…)}`). The ink scales with it,
+ * as in a redrawn close-up.
  */
-export const zoomAt = (z: number, fx: number, fy: number, shx = 0, shy = 0, w = 1920, h = 1080) =>
-  `translate(${shx}px, ${shy}px) translate(${fx - w / 2}px, ${fy - h / 2}px) scale(${1 + z}) translate(${w / 2 - fx}px, ${h / 2 - fy}px)`;
+export const zoomAt = (z: number, fx: number, fy: number, shx = 0, shy = 0): React.CSSProperties => ({
+  transform: `translate(${shx}px, ${shy}px) translate(${fx}px, ${fy}px) scale(${1 + z}) translate(${-fx}px, ${-fy}px)`,
+  transformOrigin: '0 0',
+});
+
+/** Where zoomAt(z, fx, fy, shx, shy) puts a point of the container (to place something on screen through the camera). */
+export const zoomMap = (z: number, fx: number, fy: number, shx = 0, shy = 0) => ([x, y]: P): P =>
+  [shx + fx + (1 + z) * (x - fx), shy + fy + (1 + z) * (y - fy)];

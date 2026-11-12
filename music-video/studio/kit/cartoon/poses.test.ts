@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { addPose, breath, mixPose, poseTrack, poses, walk, type PoseLayer } from './poses';
 import { eases } from './motion';
+import { cast } from './cast';
+import { buildCharacter } from './rig';
 
 describe('cartoon poses', () => {
   it('mixes numbers and hands, and switches discrete fields half way', () => {
@@ -43,6 +45,38 @@ describe('cartoon poses', () => {
   it('every preset is a plain layer (no position)', () => {
     for (const p of Object.values(poses)) {
       expect('x' in p || 'ground' in p || 'face' in p).toBe(false);
+    }
+  });
+});
+
+describe('review fixes', () => {
+  it('a keyed reach from a hanging hand to a world point moves the hand a little per step, never a jump', () => {
+    const at = (w: number) => {
+      const p = mixPose({ armF: { hand: [30, 90] } }, { armF: { world: [1400, 500] } }, w);
+      const shapes = buildCharacter(cast.bean, { ...p, x: 600, ground: 900, face: 1 });
+      return shapes[5].k === 'blob' ? shapes[5].pts[0] : [0, 0]; // the front mitten's palm
+    };
+    for (let w = 0; w < 1; w += 0.05) {
+      const [a, b] = [at(w), at(w + 0.05)];
+      expect(Math.hypot(b[0] - a[0], b[1] - a[1])).toBeLessThan(60);
+    }
+  });
+
+  it('a layer with a world point blends the reach toward it instead of adding it to the hand', () => {
+    const p = addPose<PoseLayer>({ armF: { hand: [30, 90] } }, { armF: { world: [900, 600] } }, 0.5);
+    expect(p.armF?.world).toEqual([900, 600]);
+    expect(p.armF?.reach).toBe(0.5);
+    expect(p.armF?.hand).toEqual([30, 90]);
+  });
+
+  it('the planted foot stays put while walking at any scale', () => {
+    for (const scale of [1, 0.5]) {
+      const foot = (x: number) => {
+        const shapes = buildCharacter(cast.plum, { ...walk(x, 1, 1, 70, scale), x, ground: 900, face: 1, scale });
+        const leg = shapes[6];
+        return leg.k === 'limb' ? leg.pts[leg.pts.length - 1][0] : NaN;
+      };
+      expect(foot(10)).toBeCloseTo(foot(0), 3);
     }
   });
 });

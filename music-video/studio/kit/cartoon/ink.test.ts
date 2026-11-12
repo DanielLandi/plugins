@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { cast } from './cast';
-import { ImpactBurst } from './fx';
+import { ImpactBurst, zoomAt, zoomMap } from './fx';
 import { InkShapes, inkPath } from './ink';
 import { boilSeed, ramp, springStep } from './motion';
 import { buildCharacter, type Pose } from './rig';
@@ -68,5 +68,18 @@ describe('brush ink', () => {
       return r;
     };
     for (let f = 6; f < 20; f++) expect(Math.abs(radius((f + 1) / 30) - radius(f / 30))).toBeLessThan(30);
+  });
+});
+
+describe('the camera', () => {
+  it('a push-in keeps its focus point fixed in any composition size', () => {
+    for (const [fx, fy] of [[760, 520], [300, 1500]] as const) {
+      const map = zoomMap(0.5, fx, fy);
+      expect(map([fx, fy])).toEqual([fx, fy]);
+      expect(map([fx + 100, fy])).toEqual([fx + 150, fy]);
+      const style = zoomAt(0.5, fx, fy);
+      expect(style.transformOrigin).toBe('0 0');
+      expect(style.transform).toContain(`translate(${fx}px, ${fy}px) scale(1.5) translate(${-fx}px, ${-fy}px)`);
+    }
   });
 });

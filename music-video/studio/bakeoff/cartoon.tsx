@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
 import { useSongTime, type BakeoffProps } from '@mv/kit';
 import {
   addPose, breath, Cartoon, cast, clamp, DustPuffs, eases, Emote, Flash, follow, ImpactBurst, INK, inkPath, jitter,
@@ -126,10 +126,23 @@ const FAR = Array.from({ length: 16 }, (_, i) => ({ x: -40 + i * 128 + r0() * 30
 const NEAR = Array.from({ length: 9 }, (_, i) => ({ x: -60 + i * 235 + r0() * 50, w: 150 + r0() * 80, top: 540 + r0() * 120 }));
 const LIT = Array.from({ length: 400 }, () => r0());
 
+/**
+ * The scene is drawn in a 1920×1080 viewBox that covers the composition (sliced, centred): a 9:16 cut of the same
+ * code shows the middle 608 units, where the two characters stand.
+ */
+const View: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { width, height } = useVideoConfig();
+  return (
+    <svg width={width} height={height} viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" style={{ position: 'absolute' }}>
+      {children}
+    </svg>
+  );
+};
+
 const Rooftop: React.FC<{ c: number; frame: number }> = ({ c, frame }) => {
   const b = (k: number) => Math.floor(frame / 3) * 17 + k * 131;
   return (
-    <svg width={1920} height={1080} viewBox="0 0 1920 1080" style={{ position: 'absolute' }}>
+    <View>
       <defs>
         <linearGradient id="cartoon-dusk" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#2b2a5c" />
@@ -174,12 +187,15 @@ const Rooftop: React.FC<{ c: number; frame: number }> = ({ c, frame }) => {
         <path key={i} d={inkPath([[-40, 860 + i * 34 + i * i * 3], [2000, 860 + i * 34 + i * i * 3]], b(90 + i), 3, false)} fill="#5f5468" />
       ))}
       <Inked pts={rectPts(80, 760, 190, 120)} fill="#9a8fa3" seed={b(99)} ink={6} />
-    </svg>
+    </View>
   );
 };
 
 export const Bakeoff: React.FC<BakeoffProps> = ({ from, hit: at }) => {
   const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig();
+  const k = Math.max(width / 1920, height / 1080); // viewBox units → the container's pixels (see View)
+  const px = (x: number) => (x - 960) * k + width / 2, py = (y: number) => (y - 540) * k + height / 2;
   const hit = Math.max(1, at); // a hit right at the window's start still leaves the walk-in a second
   const c = beat(useSongTime() - from, hit);
   const a = poseA(c), b = poseB(c);
@@ -193,9 +209,9 @@ export const Bakeoff: React.FC<BakeoffProps> = ({ from, hit: at }) => {
   const rushing = c > 5.86 && c < HIT ? 1 : 0;
   return (
     <AbsoluteFill style={{ overflow: 'hidden', background: '#2b2a5c' }}>
-      <AbsoluteFill style={{ transform: zoomAt(z, fx, fy, shx, shy) }}>
+      <AbsoluteFill style={zoomAt(z, px(fx), py(fy), shx * k, shy * k)}>
         <Rooftop c={c} frame={frame} />
-        <svg width={1920} height={1080} viewBox="0 0 1920 1080" style={{ position: 'absolute' }}>
+        <View>
           <Shadow x={a.x} y={G} w={120} lift={a.lift} />
           <Shadow x={b.x} y={G} w={100} lift={b.lift} />
           <DustPuffs t={c} frame={frame} t0={2.3} x={B_STOP - 50} y={G - 8} n={5} dir={-1} spread={150} />
@@ -209,7 +225,7 @@ export const Bakeoff: React.FC<BakeoffProps> = ({ from, hit: at }) => {
           <Emote t={c} t0={2.98} t1={3.6} x={A_X + 170} y={330} kind="!" />
           <Emote t={c} t0={3.05} t1={3.55} x={B_STOP + 120} y={560} kind="sweat" size={0.8} />
           <Emote t={c} t0={7.7} t1={9.7} x={MEET[0] - 20} y={430} kind="heart" />
-        </svg>
+        </View>
       </AbsoluteFill>
       <Flash amount={c >= HIT && c < HIT + 0.034 ? 0.75 : c >= HIT && c < HIT + 0.067 ? 0.3 : 0} />
     </AbsoluteFill>
