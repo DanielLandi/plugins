@@ -5,3 +5,6 @@ export * from './motion';
 export * from './rig';
 export * from './poses';
 export * from './cast';
+export * from './ink';
+export * from './fx';
+export * from './Cartoon';
