@@ -48,7 +48,7 @@ const Bakeoff: React.FC<Props & { engine?: string }> = ({ data, engine }) => {
   return data && Take ? (
     <Excerpt from={bakeoff.from}>
       <SongProvider data={data}>
-        <Take />
+        <Take from={bakeoff.from} to={bakeoff.to} />
         <SongAudio />
       </SongProvider>
     </Excerpt>

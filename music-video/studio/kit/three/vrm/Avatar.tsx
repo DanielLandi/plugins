@@ -20,7 +20,8 @@ export type AvatarState = {
   pose: Pose;
   /** Hips offset in metres (crouch with a negative y, hop with a positive one). */
   hips?: Vec3;
-  /** Expression weights 0–1: happy, angry, sad, relaxed, surprised, blink, aa, ih, ou, ee, oh, or the model's own. */
+  /** Expression weights 0–1: happy, angry, sad, relaxed, blink, aa, ih, ou, ee, oh, or the model's own (the VRoid
+   * samples add 'Surprised'). */
   expr?: Record<string, number>;
   /** A world point the eyes and head follow, or null to look straight ahead. */
   lookAt?: Vec3 | null;
@@ -141,7 +142,13 @@ const replayable = (vrm: VRM, look: THREE.Object3D): Replayable<AvatarState> => 
 export type AvatarProps = {
   /** The .vrm file: `import a from '@mv/avatars/vroid-sample-1.vrm'`, or a CC0/OFL file in the video's folder. */
   url: string;
+  /** The character at song time t (seconds, the kit's clock: useSongTime). */
   drive: Drive;
+  /**
+   * Song seconds where its physics starts: the scene's start (or the bake-off window's). Any frame replays the
+   * springs from here, so a late scene does not replay the whole song. Before it, the character holds drive(from).
+   */
+  from?: number;
   /** Multiplies the MToon outline width (1 = as modelled; 1.5–2 reads more hand-inked). */
   outline?: number;
   /** Draw the whole character in one flat colour (an impact frame), or null for its own materials. */
@@ -149,10 +156,10 @@ export type AvatarProps = {
 };
 
 /**
- * A VRM character on the stage. Its pose, place, face and the wind on its hair come from `drive(t)` (t in seconds of
- * the composition); spring bones replay deterministically, so any frame renders the same alone or in sequence.
+ * A VRM character on the stage. Its pose, place, face and the wind on its hair come from `drive(t)` (t in song
+ * seconds); spring bones replay deterministically from `from`, so any frame renders the same alone or in sequence.
  */
-export const Avatar: React.FC<AvatarProps> = ({ url, drive, outline = 1, silhouette = null }) => {
+export const Avatar: React.FC<AvatarProps> = ({ url, drive, from = 0, outline = 1, silhouette = null }) => {
   const { vrm, handle } = useVrm(url);
   const advance = useThree((s) => s.advance);
   const gl = useThree((s) => s.gl);
@@ -188,9 +195,10 @@ export const Avatar: React.FC<AvatarProps> = ({ url, drive, outline = 1, silhoue
 
   useLayoutEffect(() => {
     if (!sim) return;
-    replayTo(sim.r, sim.mem, drive, frame, fps);
+    const start = Math.round(from * fps);
+    replayTo(sim.r, sim.mem, (t: number) => drive(from + t), Math.max(0, frame - start), fps);
     invalidate();
-  }, [sim, drive, frame, fps, invalidate]);
+  }, [sim, drive, from, frame, fps, invalidate]);
 
   useEffect(() => {
     if (!vrm || released) return;

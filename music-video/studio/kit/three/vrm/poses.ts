@@ -41,7 +41,7 @@ const punchR: Pose = {
 /** Right fist out at chest height, elbow a little bent: meets a partner's fistBumpL. */
 const fistBumpR: Pose = {
   ...relax,
-  rightUpperArm: [0, 1.2, 0.3], rightLowerArm: [0, 0.35, 0], rightHand: [0, 0, 0],
+  rightUpperArm: [0, 1.35, -0.05], rightLowerArm: [0, 0.25, 0], rightHand: [0, 0, 0],
   rightShoulder: [0, 0.1, 0], spine: [0.05, 0.1, 0], chest: [0.03, 0.08, 0], head: [-0.05, 0, 0],
 };
 

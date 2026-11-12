@@ -37,5 +37,7 @@ export type SongProps = {
  * `characters:`): 'raw' (written from scratch in scene code) or 'vrm' (three-vrm avatars, `@mv/kit/three`).
  */
 export type CharacterEngine = 'raw' | 'vrm';
+/** The bake-off window in song seconds: a take's t = 0 is `from`. */
+export type BakeoffProps = { from: number; to: number };
 /** One engine's take in a bake-off (bakeoff.ts, written by `music-video bakeoff new`). */
-export type BakeoffEntry = { engine: CharacterEngine; Component: React.FC };
+export type BakeoffEntry = { engine: CharacterEngine; Component: React.FC<BakeoffProps> };
