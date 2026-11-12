@@ -198,14 +198,14 @@ def process_started(pid: int) -> float | None:
 _held: list[Path] = []  # the leases this process holds: release_leases() removes them when the command ends
 
 
-def take_lease(rt: Path, video_id: str) -> Path:
+def take_lease(rt: Path, video_id: str, lane: str | None = None) -> Path:
     """Mark the engine as in use by this command until it ends (release_leases), so that another plugin copy does
     not sync over it or reinstall its packages mid-render."""
     folder = rt / LEASES
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{os.getpid()}-{secrets.token_hex(4)}.json"
     path.write_text(json.dumps({"pid": os.getpid(), "started": time.time(), "version": __version__,
-                                "source": str(PLUGIN_STUDIO), "video": video_id}), encoding="utf-8")
+                                "source": str(PLUGIN_STUDIO), "video": video_id, "lane": lane}), encoding="utf-8")
     _held.append(path)
     return path
 
@@ -241,8 +241,9 @@ def live_leases(rt: Path) -> list[dict]:
 
 
 def _in_use(lease: dict) -> str:
+    lane = f", worktree {lease['lane']}" if lease.get("lane") else ""
     return (f"the engine is in use by music-video {lease.get('version')} (pid {lease.get('pid')}, "
-            f"video {lease.get('video')}): wait for it to finish, then run again. If no music-video command is "
+            f"video {lease.get('video')}{lane}): wait for it to finish, then run again. If no music-video command is "
             f"running, delete {lease.get('file')}")
 
 
@@ -386,7 +387,7 @@ def engine_lock(rt: Path, timeout: float = 600.0, notice_after: float = 2.0):
         yield rt
 
 
-def ensure_ready(video_id: str | None = None) -> Path:
+def ensure_ready(video_id: str | None = None, lane: str | None = None) -> Path:
     """The engine, synced and installed. With a video id, this command's lease on it is taken before the engine
     lock is let go, so no other plugin copy can sync over it in between."""
     with engine_lock(runtime_dir()) as rt:
@@ -397,16 +398,22 @@ def ensure_ready(video_id: str | None = None) -> Path:
         if not is_installed(rt):
             raise MVError("the video engine's packages are not installed or are out of date: run music-video doctor")
         if video_id is not None:
-            take_lease(rt, video_id)  # released when the command ends (cli.main)
+            take_lease(rt, video_id, lane)  # released when the command ends (cli.main)
     touch_owner(rt)
     return rt
 
 
-def write_entry(rt: Path, video_dir: Path, video_id: str) -> Path:
+def entry_dir(rt: Path, video_id: str, lane: str | None = None) -> Path:
+    """A video's folder inside the engine: .entries/<id>, or .entries/.lane-<key>/<id> for a git worktree of the
+    project (a video id never starts with a dot, so the two never collide)."""
+    return rt / ".entries" / video_id if lane is None else rt / ".entries" / f".lane-{lane}" / video_id
+
+
+def write_entry(rt: Path, video_dir: Path, video_id: str, lane: str | None = None) -> Path:
     index = video_dir / "index.tsx"
     if not index.is_file():
         raise MVError(f"no video '{video_id}' ({index} is missing): run music-video new-video {video_id}")
-    entry = rt / ".entries" / video_id / "index.ts"
+    entry = entry_dir(rt, video_id, lane) / "index.ts"
     entry.parent.mkdir(parents=True, exist_ok=True)
     text = ("import { registerRoot } from 'remotion';\n"
             f"import {{ Compositions }} from {json.dumps(index.as_posix())};\n\n"
@@ -424,6 +431,7 @@ class VideoContext:
     gl: str
     public: Path
     work: Path
+    lane: str | None = None  # the project's git worktree key (Workspace.lane): its own engine entries
 
 
 def _instrumental(ws: Workspace, song: str) -> bool:
@@ -445,7 +453,8 @@ def video_context(ws: Workspace, video_id: str) -> VideoContext:
         raise MVError(f"no timing.json in {public}: run music-video align {song}, then music-video analyze {song}")
     if not (public / "analysis.json").is_file():
         raise MVError(f"no analysis.json in {public}: run music-video analyze {song}")
-    return VideoContext(video_id, vdir, song, str(meta.get("gl") or "angle"), public, ws.work_for(video_id))
+    return VideoContext(video_id, vdir, song, str(meta.get("gl") or "angle"), public, ws.work_for(video_id),
+                        lane=ws.lane)
 
 
 def tool_env(rt: Path, ctx: VideoContext, entry: Path) -> dict[str, str]:
@@ -491,7 +500,7 @@ def _link_dir(link: Path, target: Path) -> None:
 
 def linked_video(rt: Path, ctx: VideoContext) -> Path:
     """The video folder as seen from inside the engine: <rt>/.entries/<id>/src, a link to the workspace folder."""
-    link = rt / ".entries" / ctx.id / "src"
+    link = entry_dir(rt, ctx.id, ctx.lane) / "src"
     link.parent.mkdir(parents=True, exist_ok=True)
     _link_dir(link, ctx.dir)
     return link
@@ -525,7 +534,7 @@ def web_entry(rt: Path, ctx: VideoContext) -> Path:
            "point) to publish this video as a web page")
     if source is None:
         raise MVError(f"{ctx.dir} has no web.tsx: {how}")
-    entry = rt / ".entries" / ctx.id / "web.ts"
+    entry = entry_dir(rt, ctx.id, ctx.lane) / "web.ts"
     entry.parent.mkdir(parents=True, exist_ok=True)
     target = (linked_video(rt, ctx) / source.name).as_posix()  # with its extension: a web/ folder may sit beside it
     # `export *`, not `export { web }`: a module without `web` then imports cleanly and the build's own check

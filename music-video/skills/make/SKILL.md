@@ -58,6 +58,9 @@ Read once per session before step 1: `references/lyric-craft.md`, and the song s
 `<work>`, `<public>`, `<renders>`, `<results>` and `<web>` mean those paths; always write them out in full in
 commands.
 
+In a git worktree of the project, `paths` prints that worktree's own folders (and a `lane` key). The song stays in
+the main results folder. Song downloads still count against the one budget.
+
 - Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds, cuts, jolts), `CONCEPT.md`,
   `lyric-options.yaml`, `lyrics.md`, `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`, `JOURNAL.md`,
   `SOURCES.md`, `README.md`, `look.ts`, `video.ts`, `scenes.ts`, `cuts.ts`, `scenes/*.tsx`; `notes/` and
@@ -75,10 +78,12 @@ now, in a few words ("pick a lyric", "notes on draft v2"); empty it once they ha
 
 ## The home: the user's page for every video
 
-`home` serves one local page (`http://127.0.0.1:8646/`) with every song and video and its stage; each video opens on
-its ten stages, with what is waiting for the user and links to its pages. Its buttons never run anything: each one
-queues a **request** that you carry out here. Start it in the background at the start of a session (it serves until
-stopped; give the user its address), with a wait for requests beside it, also in the background:
+`home` serves one local page with every song and video and its stage; each video opens on its ten stages, with what
+is waiting for the user and links to its pages. In the project folder it serves on `http://127.0.0.1:8646/`; in a git
+worktree of the project, on a free port. Its buttons never run anything: each one queues a **request** that you carry
+out here. Start it in the background at the start of a session (it serves until stopped), with a wait for requests
+beside it, also in the background, and give the user the address `home` prints: never 8646 from memory (in a
+worktree, 8646 is the main checkout's home, whose requests belong to another session).
 
 ```bash
 uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" home --open

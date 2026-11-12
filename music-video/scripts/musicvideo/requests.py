@@ -35,6 +35,7 @@ KINDS = {
     "clean": ({"note"}, "video"),
     "message": ({"note"}, "video"),
 }
+QUEUE_IGNORE = ".gitignore"  # each queue folder ignores itself (requests.json, requests.lock and this file)
 LOCK_WAIT = 30.0   # seconds a writer waits for another before giving up
 
 
@@ -139,6 +140,9 @@ class Requests:
 
     def _write(self, reqs: list[dict], top: int) -> None:
         self.folder.mkdir(parents=True, exist_ok=True)
+        ignore = self.folder / QUEUE_IGNORE
+        if not ignore.exists():  # a queue is runtime state: never committed (a branch would replay its requests)
+            ignore.write_text("*\n", encoding="utf-8")
         tmp = self.file.with_name(f"requests.{os.getpid()}.{threading.get_ident()}.tmp")   # a writer's own
         tmp.write_text(json.dumps({"last": top, "requests": reqs}, indent=1, ensure_ascii=False), encoding="utf-8")
         tmp.replace(self.file)

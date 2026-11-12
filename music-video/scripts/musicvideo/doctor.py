@@ -5,7 +5,7 @@ import subprocess
 
 from . import studio
 from .errors import MVError
-from .workspace import install_dir, load_workspace, workspace_home
+from .workspace import config_path, install_dir, load_workspace, workspace_home
 
 NEEDS = {
     "uv": "https://docs.astral.sh/uv/getting-started/installation/",
@@ -30,8 +30,10 @@ def run_doctor(install: bool = True) -> int:
     try:
         ws = load_workspace()
         print(f"ok   workspace {ws.home} (results in {ws.results_dir}, work in {ws.work_dir})")
+        if ws.lane:
+            print(f"ok   worktree {ws.lane} of {ws.main_home}: work in {ws.work_root}, video finals in {ws.finals_root}")
     except MVError as e:
-        if (workspace_home() / "config.yaml").is_file():
+        if config_path(workspace_home()).is_file():
             print(f"fix  workspace: {e}")
         else:
             print(f"todo workspace: none at {workspace_home()}; run music-video init --artist \"<name>\"")

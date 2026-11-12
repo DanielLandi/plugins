@@ -21,7 +21,7 @@ import yaml
 from .. import requests as rq
 from ..budget import cycle_start, downloads_in_cycle
 from ..errors import MVError
-from ..spec import ID_RE, iter_specs, load_spec
+from ..spec import ID_RE, iter_specs, iter_worktree_specs, load_spec
 from ..spec import lyrics as spec_lyrics
 from ..workspace import Workspace
 from .review import load_versions, review_dir
@@ -178,14 +178,14 @@ def downloads(ws: Workspace) -> dict | None:
     if ws.billing_day is None or ws.download_budget is None:
         return None
     today = date.today()
-    used = downloads_in_cycle((d for _, d in _specs(ws)), today, ws.billing_day)
+    used = downloads_in_cycle((d for _, d in _specs(ws, every_worktree=True)), today, ws.billing_day)
     return {"used": used, "budget": ws.download_budget, "left": max(ws.download_budget - used, 0),
             "since": cycle_start(today, ws.billing_day).isoformat()}
 
 
-def _specs(ws: Workspace):
+def _specs(ws: Workspace, every_worktree: bool = False):
     try:
-        yield from iter_specs(ws)
+        yield from (iter_worktree_specs(ws) if every_worktree else iter_specs(ws))
     except MVError:
         return
 
@@ -561,6 +561,12 @@ def make_handler(app: Home):
     return Handler
 
 
+def default_port(ws: Workspace) -> int:
+    """8646 for the project folder; in a git worktree of it, a free port (0: the OS picks one), so 8646 always means
+    the main checkout's home and a request queued there never reaches another checkout's session."""
+    return PORT if ws.lane is None else 0
+
+
 def make_server(app: Home, port: int = PORT) -> ThreadingHTTPServer:
     try:
         server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(app))
@@ -574,7 +580,8 @@ def serve(ws: Workspace, port: int = PORT, open_page: bool = False) -> None:
     app = Home(ws)
     server = make_server(app, port)
     url = f"http://127.0.0.1:{server.server_address[1]}/"
-    print(f"home of {ws.home}: {url} (Ctrl-C stops it)", flush=True)
+    where = f"{ws.home} (worktree {ws.lane})" if ws.lane else f"{ws.home}"
+    print(f"home of {where}: {url} (Ctrl-C stops it)", flush=True)
     print("its buttons queue requests: music-video requests lists them", flush=True)
     if open_page:
         webbrowser.open(url)

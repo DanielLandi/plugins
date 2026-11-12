@@ -13,12 +13,14 @@ from pathlib import Path
 import yaml
 
 from .errors import MVError
+from .worktrees import linked_worktree, repo_worktrees
 
 DEFAULT_HOME = Path.home() / "Documents" / "Music Videos"  # the project: specs, albums, video code (small)
 def default_results() -> Path:
     """Finals, web pages, albums (what gets shared): the platform's videos folder."""
     return Path.home() / ("Movies" if sys.platform == "darwin" else "Videos") / "Music Videos"
 CONFIG = "config.yaml"
+LANES = ".lanes"  # a linked git worktree's own work and finals: work_dir/.lanes/<key>, results_dir/.lanes/<key>
 
 
 def cache_dir() -> Path:
@@ -90,15 +92,75 @@ def _settings_to_read() -> Path:
         return old
 
 
-def workspace_home() -> Path:
-    if value := os.environ.get("MUSIC_VIDEO_HOME"):
-        return Path(value).expanduser()
+def saved_home() -> Path | None:
+    """The project folder `init` saved in settings.json, if any."""
     f = _settings_to_read()
     if f.is_file():
         saved = _read_json(f).get("workspace")
         if saved:
             return Path(saved).expanduser()
-    return DEFAULT_HOME
+    return None
+
+
+def main_counterpart(folder: Path) -> Path | None:
+    """The same folder in the main checkout, for a folder inside a linked git worktree; else None."""
+    wt = linked_worktree(folder)
+    if wt is None:
+        return None
+    return wt.main / Path(folder).absolute().relative_to(wt.root)
+
+
+def config_path(home: Path) -> Path:
+    """A workspace's config.yaml. In a git worktree without one (it may be gitignored), the main checkout's."""
+    own = Path(home) / CONFIG
+    if own.is_file():
+        return own
+    counterpart = main_counterpart(home)
+    if counterpart is not None and (counterpart / CONFIG).is_file():
+        return counterpart / CONFIG
+    return own
+
+
+def is_workspace(folder: Path) -> bool:
+    """A folder `init` made: its config.yaml names an artist and it has specs/. Never raises."""
+    try:
+        if not (Path(folder) / "specs").is_dir():
+            return False
+        raw = yaml.safe_load(config_path(folder).read_text(encoding="utf-8"))
+        return isinstance(raw, dict) and bool(str(raw.get("artist") or "").strip())
+    except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError):
+        return False
+
+
+def _mapped_home(cwd: Path, saved: Path | None) -> Path | None:
+    """The saved workspace's folder in the git worktree the cwd is in, when that worktree belongs to the saved
+    workspace's own repository (its main checkout holds the saved workspace) and the folder is a workspace there.
+    Nothing else in the cwd ever overrides the saved workspace: not a plain folder, not a main checkout, not a
+    worktree of another repository, whatever config.yaml it holds."""
+    if saved is None:
+        return None
+    wt = linked_worktree(cwd)
+    if wt is None:
+        return None
+    try:
+        rel = saved.expanduser().resolve().relative_to(wt.main.resolve())
+    except (OSError, ValueError):
+        return None
+    candidate = wt.root / rel
+    return candidate if is_workspace(candidate) else None
+
+
+def workspace_home() -> Path:
+    if value := os.environ.get("MUSIC_VIDEO_HOME"):
+        return Path(value).expanduser()
+    saved = saved_home()
+    try:
+        cwd = Path.cwd()
+    except OSError:
+        cwd = None
+    if cwd is not None and (mapped := _mapped_home(cwd, saved)) is not None:
+        return mapped
+    return saved or DEFAULT_HOME
 
 
 def remember_home(home: Path) -> None:
@@ -117,6 +179,12 @@ class Workspace:
     downloads_dir: Path
     billing_day: int | None
     download_budget: int | None
+    lane: str | None = None  # the linked git worktree's key (folder_key of its root); None in a main checkout
+    main_home: Path | None = None  # the same folder in the main checkout; `home` itself when not in a lane
+
+    def __post_init__(self):
+        if self.main_home is None:
+            object.__setattr__(self, "main_home", self.home)
 
     @property
     def specs_dir(self) -> Path:
@@ -125,16 +193,57 @@ class Workspace:
     def video_dir(self, video_id: str) -> Path:
         return self.videos_dir / video_id
 
+    @property
+    def work_root(self) -> Path:
+        """Where this checkout's work folders live: work_dir, or work_dir/.lanes/<key> in a git worktree."""
+        return self.work_dir if self.lane is None else self.work_dir / LANES / self.lane
+
+    @property
+    def finals_root(self) -> Path:
+        """Where this checkout's video finals live: results_dir, or results_dir/.lanes/<key> in a git worktree
+        (a dot-folder, so the library never lists it)."""
+        return self.results_dir if self.lane is None else self.results_dir / LANES / self.lane
+
     def results_for(self, video_id: str) -> Path:
-        """Finals: what gets shared or published (videos, the song, the web page)."""
-        return self.results_dir / video_id
+        """Video finals: what gets shared or published (videos, the web page)."""
+        return self.finals_root / video_id
+
+    def song_dir(self, song_id: str) -> Path:
+        """Where a downloaded song is filed: shared by every worktree (a download costs from one budget)."""
+        return self.results_dir / song_id
 
     def work_for(self, video_id: str) -> Path:
         """Everything regenerable while working on a video (timings, renders, checks): `clean` deletes it."""
-        return self.work_dir / video_id
+        return self.work_root / video_id
 
     def album_dir(self, album: str) -> Path:
         return self.results_dir / "albums" / album
+
+
+def worktree_homes(ws: Workspace) -> list[Path]:
+    """This workspace, then the same workspace folder in the main checkout and in every other linked worktree of the
+    repo that has a specs/ folder, once each: what one download budget counts. Outside git: just this workspace."""
+    homes = [ws.home]
+    found = repo_worktrees(ws.home)
+    if found is None:
+        return homes
+    main, linked = found
+    try:
+        rel = Path(ws.main_home).resolve().relative_to(main.resolve())
+    except (OSError, ValueError):
+        return homes
+    seen = {ws.home.resolve()}
+    for root in (main, *linked):
+        folder = root / rel
+        try:
+            key = folder.resolve()
+            if key in seen or not (folder / "specs").is_dir():
+                continue
+        except OSError:
+            continue
+        seen.add(key)
+        homes.append(folder)
+    return homes
 
 
 def _absolute(home: Path, value) -> Path:
@@ -156,8 +265,12 @@ def _optional_int(raw: dict, key: str, low: int, high: int, path: Path) -> int |
 
 def load_workspace(home: Path | None = None) -> Workspace:
     home = home or workspace_home()
-    path = home / CONFIG
+    path = config_path(home)
+    wt = linked_worktree(home)
+    main_home = main_counterpart(home) if wt is not None else home
     if not path.is_file():
+        if wt is not None:
+            raise MVError(f"no workspace at {home} (no {CONFIG} here or in {main_home})")
         raise MVError(f"no workspace at {home} (no {CONFIG}): run music-video init")
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -166,16 +279,20 @@ def load_workspace(home: Path | None = None) -> Workspace:
     artist = str(raw.get("artist") or "").strip()
     if not artist:
         raise MVError(f"{path}: artist is empty; set the name your songs are credited to")
+    # In a git worktree, the project's own folders (videos, work) are the worktree's; the shared ones (results,
+    # downloads) are the main checkout's, so a filed song's path stays valid after the branch merges.
     return Workspace(
         home=home,
         artist=artist,
         videos_dir=_absolute(home, raw.get("videos_dir", "videos")),
         # 0.1.0 called the results folder media_dir.
-        results_dir=_absolute(home, raw.get("results_dir") or raw.get("media_dir") or default_results()),
+        results_dir=_absolute(main_home, raw.get("results_dir") or raw.get("media_dir") or default_results()),
         work_dir=_absolute(home, raw.get("work_dir") or cache_dir() / "work"),
-        downloads_dir=_absolute(home, raw.get("downloads_dir", "~/Downloads")),
+        downloads_dir=_absolute(main_home, raw.get("downloads_dir", "~/Downloads")),
         billing_day=_optional_int(raw, "billing_day", 1, 31, path),
         download_budget=_optional_int(raw, "download_budget", 0, 10_000, path),
+        lane=folder_key(wt.root) if wt is not None else None,
+        main_home=main_home,
     )
 
 
@@ -186,7 +303,7 @@ def init_workspace(home: Path, artist: str, billing_day: int | None = None, down
         raise MVError(f"--billing-day must be 1-31, got {billing_day}")
     if download_budget is not None and download_budget < 0:
         raise MVError(f"--download-budget must be 0 or more, got {download_budget}")
-    created = not (home / CONFIG).is_file()
+    created = not config_path(home).is_file()  # in a git worktree, the main checkout's config counts
     if created:
         for sub in ("specs", "videos"):
             (home / sub).mkdir(parents=True, exist_ok=True)
@@ -201,15 +318,17 @@ def init_workspace(home: Path, artist: str, billing_day: int | None = None, down
             "results_dir": str(results_dir) if results_dir else "~/" + default_results().relative_to(Path.home()).as_posix(),
         }
         (home / CONFIG).write_text(yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
-    remember_home(home)
+    if linked_worktree(home) is None:  # a worktree never re-points every other session at itself
+        remember_home(home)
     return home, created
 
 
 def stored_path(ws: Workspace, path: Path) -> str:
-    """How a filed path is written in a spec: relative to the workspace, else `~/…`, else absolute."""
+    """How a filed path is written in a spec: relative to the workspace (the main checkout's, in a git worktree),
+    else `~/…`, else absolute."""
     path = Path(path)
-    if path.is_relative_to(ws.home):
-        return str(path.relative_to(ws.home))
+    if path.is_relative_to(ws.main_home):
+        return str(path.relative_to(ws.main_home))
     if path.is_relative_to(Path.home()):
         return "~/" + str(path.relative_to(Path.home()))
     return str(path)
@@ -217,25 +336,36 @@ def stored_path(ws: Workspace, path: Path) -> str:
 
 def filed_path(ws: Workspace, stored: str) -> Path:
     path = Path(stored).expanduser()
-    return path if path.is_absolute() else ws.home / path
+    return path if path.is_absolute() else ws.main_home / path
 
 
 PRIVATE_NAMES = "private-names.txt"
 
 
+def _private_names_files(ws: Workspace) -> list[Path]:
+    """The workspace's private-names.txt, then, in a git worktree, the main checkout's (the file is usually
+    gitignored, so a fresh worktree has none of its own)."""
+    files = [ws.home / PRIVATE_NAMES]
+    if ws.lane is not None and ws.main_home is not None:
+        files.append(ws.main_home / PRIVATE_NAMES)
+    return files
+
+
 def load_private_names(ws: Workspace) -> list[str]:
-    path = ws.home / PRIVATE_NAMES
-    if not path.is_file():
-        return []
-    lines = (line.strip() for line in path.read_text(encoding="utf-8").splitlines())
-    return [line for line in lines if line and not line.startswith("#")]
+    names: list[str] = []
+    for path in _private_names_files(ws):
+        if not path.is_file():
+            continue
+        lines = (line.strip() for line in path.read_text(encoding="utf-8").splitlines())
+        names += [line for line in lines if line and not line.startswith("#") and line not in names]
+    return names
 
 
 def private_names_warning(ws: Workspace) -> str | None:
     """What to tell the user when the workspace keeps no private-names.txt, so no name was checked.
     A file with no names in it is a deliberate empty list and says nothing."""
     path = ws.home / PRIVATE_NAMES
-    if path.is_file():
+    if any(f.is_file() for f in _private_names_files(ws)):
         return None
     return (f"warning: no {PRIVATE_NAMES} in {ws.home}; private names were not checked "
             f"(list them one per line in {path})")
