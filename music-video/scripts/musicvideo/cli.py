@@ -32,7 +32,7 @@ from .video.songfix import lifted_song
 from .video.timing import clock
 from .video import timing_editor
 from .workspace import (cache_dir, config_path, init_workspace, install_dir, load_private_names, load_workspace,
-                        saved_home, warn_if_no_private_names, workspace_home)
+                        main_counterpart, remember_home, saved_home, warn_if_no_private_names, workspace_home)
 from .worktrees import linked_worktree
 
 
@@ -45,7 +45,15 @@ def cmd_init(args) -> int:
                                    Path(args.results_dir).expanduser() if args.results_dir else None)
     print(f"{'created' if created else 'using existing'} workspace {home}")
     if (wt := linked_worktree(home)) is not None:
-        print(f"this is a worktree of {wt.main}; the saved workspace stays {saved_home() or 'unset'}")
+        if (saved := saved_home()) is None:
+            # Nothing saved yet: save the main checkout's folder (never the worktree), so that commands run here map
+            # to this worktree and commands run in the main checkout find the workspace there.
+            saved = main_counterpart(home)
+            remember_home(saved)
+            print(f"this is a worktree of {wt.main}; saved the workspace as {saved} (the main checkout's folder): "
+                  "this worktree maps to it")
+        else:
+            print(f"this is a worktree of {wt.main}; the saved workspace stays {saved}")
     return 0
 
 

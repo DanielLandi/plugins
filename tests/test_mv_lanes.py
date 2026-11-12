@@ -312,6 +312,21 @@ def test_init_in_a_lane_keeps_settings(mv_lane, tmp_path, capsys, monkeypatch):
     assert (tmp_path / "settings.json").read_bytes() == before
 
 
+def test_init_in_a_lane_with_nothing_saved_saves_the_main_checkout(mv_lane, tmp_path, capsys, monkeypatch):
+    from musicvideo.cli import main
+    (tmp_path / "settings.json").unlink()
+    monkeypatch.delenv("MUSIC_VIDEO_HOME")
+    monkeypatch.chdir(mv_lane.a)
+    assert main(["init", "--path", "."]) == 0
+    assert w.saved_home().resolve() == mv_lane.main.resolve()  # never the worktree itself
+    out = capsys.readouterr().out
+    assert f"saved the workspace as {mv_lane.main}" in out and "this worktree maps to it" in out
+    assert w.workspace_home().resolve() == mv_lane.a.resolve()  # later commands here use this worktree
+    assert w.load_workspace().lane == w.folder_key(mv_lane.a)
+    monkeypatch.chdir(mv_lane.main)
+    assert w.workspace_home().resolve() == mv_lane.main.resolve()
+
+
 def test_paths_in_a_lane(mv_lane, capsys, monkeypatch):
     import json
     from musicvideo.cli import main
