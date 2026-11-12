@@ -205,6 +205,15 @@ def test_private_names_fall_back_to_main(mv_lane, monkeypatch):
     assert w.load_private_names(ws) == ["Other", "Secret Name"]
 
 
+def test_private_names_keep_one_files_lines_as_they_are(mv_ws, mv_lane, monkeypatch):
+    (mv_lane.main / "private-names.txt").write_text("Alex\nSam\nAlex\n", encoding="utf-8")
+    assert w.load_private_names(w.load_workspace(mv_lane.main)) == ["Alex", "Sam", "Alex"]  # as before 0.9.0
+    ws = _home(monkeypatch, mv_lane.a)
+    assert w.load_private_names(ws) == ["Alex", "Sam", "Alex"]
+    (mv_lane.a / "private-names.txt").write_text("Kim\nKim\nSam\n", encoding="utf-8")
+    assert w.load_private_names(ws) == ["Kim", "Kim", "Sam", "Alex", "Alex"]  # main's adds only names not listed
+
+
 def test_a_lane_without_any_private_names_still_warns(mv_lane, monkeypatch):
     ws = _home(monkeypatch, mv_lane.a)
     assert "private names were not checked" in w.private_names_warning(ws)
@@ -225,8 +234,8 @@ def test_web_default_out_in_a_lane_is_the_lane_folder(web_video, mv_lane, monkey
     from musicvideo.cli import main
     calls, rt = web_video
     ws = _home(monkeypatch, mv_lane.a)
-    pub = ws.work_for("night-drive") / "public"
-    pub.mkdir(parents=True)
+    pub = ws.work_for("night-drive") / "public"  # seeded from the main checkout's
+    assert pub.is_dir()
     for name in ("timing.json", "analysis.json"):
         (pub / name).write_text("{}", encoding="utf-8")
     assert main(["web", "night-drive"]) == 0
@@ -310,6 +319,21 @@ def test_init_in_a_lane_keeps_settings(mv_lane, tmp_path, capsys, monkeypatch):
     assert "this is a worktree of" in out and f"the saved workspace stays {mv_lane.main}" in out
     assert main(["init", "--path", str(mv_lane.b)]) == 0  # an explicit lane path: still no re-pointing
     assert (tmp_path / "settings.json").read_bytes() == before
+
+
+def test_init_in_a_lane_with_nothing_saved_saves_the_main_checkout(mv_lane, tmp_path, capsys, monkeypatch):
+    from musicvideo.cli import main
+    (tmp_path / "settings.json").unlink()
+    monkeypatch.delenv("MUSIC_VIDEO_HOME")
+    monkeypatch.chdir(mv_lane.a)
+    assert main(["init", "--path", "."]) == 0
+    assert w.saved_home().resolve() == mv_lane.main.resolve()  # never the worktree itself
+    out = capsys.readouterr().out
+    assert f"saved the workspace as {mv_lane.main}" in out and "this worktree maps to it" in out
+    assert w.workspace_home().resolve() == mv_lane.a.resolve()  # later commands here use this worktree
+    assert w.load_workspace().lane == w.folder_key(mv_lane.a)
+    monkeypatch.chdir(mv_lane.main)
+    assert w.workspace_home().resolve() == mv_lane.main.resolve()
 
 
 def test_paths_in_a_lane(mv_lane, capsys, monkeypatch):
@@ -419,8 +443,29 @@ def test_downloads_in_cycle_counts_one_download_once():
     no_id = {"kept": {"downloaded_at": "2026-11-16T10:00:00+00:00"}}
     again = {"id": "x", "kept": {"downloaded_at": "2026-11-17T10:00:00+00:00"}}  # downloaded again: two downloads
     assert downloads_in_cycle([one, dict(one)], today, 15) == 1
-    assert downloads_in_cycle([no_id, dict(no_id)], today, 15) == 2
+    assert downloads_in_cycle([no_id, dict(no_id)], today, 15) == 2  # two files, nothing says they are one
     assert downloads_in_cycle([one, again], today, 15) == 2
+    # a spec without an id, seen in two worktrees, is known by its file name
+    a, b = Path("main") / "specs" / "x.yaml", Path("lane") / "specs" / "x.yaml"
+    assert downloads_in_cycle([(a, no_id), (b, dict(no_id))], today, 15) == 1
+    assert downloads_in_cycle([(a, no_id), (a.with_name("y.yaml"), dict(no_id))], today, 15) == 2
+
+
+def test_a_spec_without_an_id_counts_once_across_worktrees(mv_lane, monkeypatch, capsys):
+    from musicvideo.cli import main
+    from musicvideo.spec import load_spec, now_iso, save_spec
+    from musicvideo.video import home
+    at = now_iso()
+    for folder in mv_lane:  # one download, merged into every branch, of a spec written without an id
+        path = _downloaded(folder, "no-id", at)
+        data = load_spec(path)
+        del data["id"]
+        save_spec(path, data)
+    for folder in mv_lane:
+        monkeypatch.setenv("MUSIC_VIDEO_HOME", str(folder))
+        assert main(["status"]) == 0
+        assert "Downloads: 1 of 20" in capsys.readouterr().out
+        assert home.downloads(w.load_workspace(folder))["used"] == 1
 
 
 def test_a_plain_workspace_counts_as_today(mv_ws, capsys):
@@ -645,3 +690,147 @@ def test_ingest_never_replaces_another_worktrees_take_of_the_same_song(mv_lane, 
     data["kept"]["take_url"] = "https://suno.com/song/take-b"  # the same take: the same song, filed again
     save_spec(mine, data)
     assert ingest(ws, "night-drive", mp3).is_file()
+
+
+def test_downloaded_warns_when_another_worktree_holds_another_take(mv_lane, monkeypatch, capsys):
+    from musicvideo.cli import main
+    from musicvideo.spec import save_spec
+    from mv_fixtures import valid_spec
+    other = _downloaded(mv_lane.b, "night-drive")  # branch b recorded its own take (https://suno.com/song/x)
+    save_spec(mv_lane.a / "specs" / "night-drive.yaml", valid_spec(status="generated"))
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.a))
+    assert main(["downloaded", "night-drive", "--take-url", "https://suno.com/song/y"]) == 0
+    out, err = capsys.readouterr()
+    assert "recorded download 2 of 20" in out
+    assert f"warning: {other} records another take of 'night-drive' (https://suno.com/song/x)" in err
+    assert main(["downloaded", "night-drive", "--undo"]) == 0
+    capsys.readouterr()
+    assert main(["downloaded", "night-drive", "--take-url", "https://suno.com/song/x"]) == 0  # the same take
+    assert "warning" not in capsys.readouterr().err
+
+
+# --- phase 3: a lane's timings are seeded from the main checkout -------------------------------------------------
+
+SEEDED = ("public/song.mp3", "public/timing.json", "public/analysis.json", "vocals.wav", "transcript.json",
+          "aligned.json", "beats.json", "align-cache.json", "loop/loop.m4a", "loop/loop.json")
+NOT_SEEDED = ("renders/draft.mp4", "qc/qc-draft.json", "review/versions.json", "preview.mp4")
+
+
+def _main_work(folder, names=SEEDED + NOT_SEEDED):
+    for name in names:
+        f = folder / name
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(f"main {name}", encoding="utf-8")
+    return folder
+
+
+def test_a_lane_seeds_its_timings_from_the_main_checkout(mv_lane, monkeypatch, capsys):
+    m = w.load_workspace(mv_lane.main)
+    source = _main_work(m.work_for("night-drive"))
+    capsys.readouterr()
+    a = w.load_workspace(mv_lane.a)
+    work = a.work_for("night-drive")
+    assert work == m.work_dir / ".lanes" / a.lane / "night-drive"
+    for name in SEEDED:
+        copy, original = work / name, source / name
+        assert copy.read_text(encoding="utf-8") == f"main {name}", name
+        assert not copy.samefile(original), name  # a real copy: these files are rewritten in place
+        assert copy.stat().st_mtime_ns == original.stat().st_mtime_ns, name  # align's cache key stays valid
+    for name in NOT_SEEDED:
+        assert not (work / name).exists(), name
+    assert (work / ".seeded-from").read_text(encoding="utf-8").strip() == str(source)
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert err.count("\n") == 1 and "copied night-drive's timings from the main checkout" in err and a.lane in err
+    (work / "public" / "timing.json").write_text("lane's own", encoding="utf-8")
+    assert a.work_for("night-drive") == work  # seeded once: the lane's own changes stay
+    assert (work / "public" / "timing.json").read_text(encoding="utf-8") == "lane's own"
+    assert (source / "public" / "timing.json").read_text(encoding="utf-8") == "main public/timing.json"
+    assert capsys.readouterr().err == ""
+    assert sorted(p.name for p in work.parent.iterdir() if not p.name.startswith(".")) == ["night-drive"]
+
+
+def test_a_main_checkout_never_seeds_or_creates(mv_ws, mv_lane, capsys):
+    for ws in (mv_ws, w.load_workspace(mv_lane.main)):
+        assert not ws.work_for("night-drive").exists()
+        assert not ws.work_dir.exists() or not any(ws.work_dir.iterdir())
+    assert capsys.readouterr() == ("", "")
+
+
+def test_a_lane_seeds_nothing_without_timings_in_main(mv_lane, capsys):
+    m, a = w.load_workspace(mv_lane.main), w.load_workspace(mv_lane.a)
+    _main_work(m.work_for("night-drive"), NOT_SEEDED)  # renders and checks only: nothing a lane can reuse
+    assert not a.work_for("night-drive").exists() and not a.work_for("other").exists()
+    assert not (m.work_dir / ".lanes").exists()
+    assert capsys.readouterr().err == ""
+
+
+def test_a_lane_that_has_its_folder_is_never_seeded(mv_lane, capsys):
+    m, a = w.load_workspace(mv_lane.main), w.load_workspace(mv_lane.a)
+    _main_work(m.work_for("night-drive"))
+    (a.work_root / "night-drive").mkdir(parents=True)  # the lane's own work, even empty
+    assert not any(a.work_for("night-drive").iterdir())
+    assert capsys.readouterr().err == ""
+
+
+def test_a_lane_reseeds_after_clean(mv_lane, monkeypatch, capsys):
+    from musicvideo.cli import main
+    m, a = w.load_workspace(mv_lane.main), w.load_workspace(mv_lane.a)
+    _main_work(m.work_for("night-drive"))
+    assert (a.work_for("night-drive") / "vocals.wav").is_file()
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.a))
+    assert main(["clean", "night-drive"]) == 0  # deletes the lane's folder, never re-seeds it on the way
+    assert not (a.work_root / "night-drive").exists() and (m.work_for("night-drive") / "vocals.wav").is_file()
+    assert (a.work_for("night-drive") / "vocals.wav").is_file()
+
+
+def test_a_lane_seeds_from_mains_relative_work_dir(mv_lane, monkeypatch):
+    _set_main_config(mv_lane.main, work_dir="work")
+    m, a = w.load_workspace(mv_lane.main), w.load_workspace(mv_lane.a)
+    assert m.work_dir == mv_lane.main / "work" and a.work_dir == mv_lane.a / "work"
+    _main_work(m.work_for("night-drive"))
+    assert (a.work_for("night-drive") / "aligned.json").read_text(encoding="utf-8") == "main aligned.json"
+    assert a.work_for("night-drive") == mv_lane.a / "work" / ".lanes" / a.lane / "night-drive"
+
+
+def test_two_commands_seeding_at_once_copy_once(mv_lane, capsys):
+    import threading
+    m = w.load_workspace(mv_lane.main)
+    _main_work(m.work_for("night-drive"))
+    lanes = [w.load_workspace(mv_lane.a) for _ in range(4)]
+    stale = lanes[0].work_root / ".seeding" / "night-drive" / "12345"  # left by a command that died mid-copy
+    (stale / "public").mkdir(parents=True)
+    start, found, errors = threading.Barrier(len(lanes)), [], []
+
+    def seed(ws):
+        try:
+            start.wait()
+            found.append(sorted(p.relative_to(ws.work_for("night-drive")).as_posix()
+                                for p in ws.work_for("night-drive").rglob("*") if p.is_file()))
+        except Exception as e:  # noqa: BLE001 (reported below)
+            errors.append(e)
+
+    threads = [threading.Thread(target=seed, args=(ws,)) for ws in lanes]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == []
+    assert all(f == sorted((".seeded-from", *SEEDED)) for f in found)  # nobody saw a half-copied folder
+    assert capsys.readouterr().err.count("copied night-drive's timings") == 1
+    assert not stale.exists()
+    assert sorted(p.name for p in lanes[0].work_root.iterdir()) == [".seeding", "night-drive"]
+    assert [p.name for p in (lanes[0].work_root / ".seeding").iterdir() if p.is_dir()] == []
+
+
+def test_paths_in_a_lane_seeds_and_keeps_its_json(mv_lane, monkeypatch, capsys):
+    import json
+    from musicvideo.cli import main
+    m = w.load_workspace(mv_lane.main)
+    _main_work(m.work_for("night-drive"))
+    capsys.readouterr()
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.a))
+    assert main(["paths", "night-drive"]) == 0
+    out, err = capsys.readouterr()
+    public = Path(json.loads(out)["public"])
+    assert (public / "timing.json").is_file() and "copied night-drive's timings" in err

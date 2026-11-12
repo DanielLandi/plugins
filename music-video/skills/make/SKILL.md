@@ -60,16 +60,20 @@ Read once per session before step 1: `references/lyric-craft.md`, and the song s
 commands.
 
 In a git worktree of the project, `paths` prints that worktree's own folders (and a `lane` key). The song stays in
-the main results folder. Song downloads still count against the one budget.
+the main results folder. Song downloads still count against the one budget. The first command that needs a video's
+work folder there copies the main checkout's timings into it (it prints one line saying so): do not re-run `align`
+or `analyze` unless the timings change.
 
-- Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds, cuts, jolts),
+- Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds, cuts, jolts, characters),
   `CONCEPT.md`, `lyric-options.yaml`, `lyrics.md`, `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`,
   `JOURNAL.md`, `SOURCES.md`, `README.md`, `look.ts`, `video.ts`, `scenes.ts`, `cuts.ts`, `scenes/*.tsx`; `notes/`
   and `requests/` (written by the pages).
 - Working files, in `<work>`: the song's copy, timings, vocals, previews, renders, checks. All regenerable; `clean`
   deletes them once the video is delivered. (Your hand-written corrections, `timing-fixes.yaml`,
   `lyrics-as-sung.txt` and `song-fixes.yaml`, are not working files: they live in `<video>`.)
-- Finals, in `<results>`: the videos, thumbnail, subtitles, the song, and `<web>` (the live page).
+- Finals, in `<results>`: the videos, thumbnail, subtitles, the song, and `<web>` (the live page). In a git
+  worktree, the song stays in the main results folder, so `<results>` and the home's finals list hold only the
+  video's own files.
 - `<id>` is the song spec's id (the workspace's `specs/<id>.yaml`).
 
 **Resuming:** read `video.yaml` (`step:`), `JOURNAL.md` and `NOTES.md`, and the video's open requests

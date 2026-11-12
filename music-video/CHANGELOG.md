@@ -18,6 +18,25 @@ Draft for the coordinator: merge, then retitle with the version.
   chosen. `bakeoff record` keeps each run's model and verdict in `bakeoffs.md` next to `config.yaml`, and
   `bakeoff last --model <id>` tells the make skill to offer the benchmark once to a model that has not run it.
 
+## 0.11.1
+
+- `doctor` removes the engine of a plugin checkout that no longer exists (a removed worktree), printing one line with
+  the space freed. It keeps the installed engine, the current checkout's engine, any engine in use, one whose
+  checkout's drive is missing, and one with no readable owner record.
+- The Remotion `zod: installed 4.6.7, required 4.5.4` warning is expected: zod is raised on purpose for a security
+  fix, and nothing in the engine uses it.
+
+## 0.11.0
+
+- A git worktree of the project copies the main checkout's timings (`public/`, vocals, transcript, aligned words,
+  beats, `loop/`, align's cache) into its own work folder the first time it needs them, instead of re-running
+  `align`/`analyze`. Renders, checks and reviews are never copied. It prints one line, and two commands at once copy
+  only once. Main checkouts are unchanged.
+- `init` in a worktree with no saved workspace saves the main checkout's folder, so later commands find it.
+- A spec without an `id` counts once, not once per worktree, against the download budget.
+- `downloaded` warns when another worktree's copy of the spec holds a different take (`ingest` would refuse it).
+- The make skill's finals list says that in a worktree the song stays in the main results folder.
+
 ## 0.10.0
 
 - New make-skill references adapted from Imaginative-Prompting/claude-video-skills (MIT, credited in

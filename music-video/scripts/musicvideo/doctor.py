@@ -21,6 +21,25 @@ def _node_major() -> int:
     return int(m.group(1)) if m else 0
 
 
+def _size(n: int) -> str:
+    return f"{n / 1e9:.1f} GB" if n >= 1e9 else f"{n / 1e6:.0f} MB"
+
+
+def _prune_engines() -> None:
+    """Engines of plugin checkouts that are gone (a removed worktree): removed, one line each. Never fatal."""
+    try:
+        pruned = studio.prune_engines()
+    except (OSError, MVError) as e:
+        print(f"note could not look for engines of removed checkouts: {e}")
+        return
+    for p in pruned:
+        if p.removed:
+            print(f"ok   removed the engine of the removed checkout {p.checkout}: freed {_size(p.freed)} ({p.engine})"
+                  + (f"; {p.why}" if p.why else ""))
+        else:
+            print(f"note kept the engine of the removed checkout {p.checkout} ({p.engine}): {p.why}")
+
+
 def run_doctor(install: bool = True, avatars: bool = True) -> int:
     missing = [f"missing {tool}: {how}" for tool, how in NEEDS.items() if not shutil.which(tool)]
     if shutil.which("node") and _node_major() < 20:
@@ -43,6 +62,7 @@ def run_doctor(install: bool = True, avatars: bool = True) -> int:
     # Before the lock: the lock file lives in the engine folder, and the move only runs while that folder is absent.
     if studio.migrate_old_runtime():
         print(f"ok   moved the engine from the cache to {install_dir() / 'engine'}")
+    _prune_engines()
     checkout = studio.plugin_checkout()
     with studio.engine_lock(studio.runtime_dir()) as rt:
         try:
