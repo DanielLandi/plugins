@@ -367,3 +367,24 @@ def test_install_clears_the_stamp_before_npm_runs(tmp_path, monkeypatch):
     with pytest.raises(MVError, match="npm ci failed"):
         studio.install(rt)
     assert seen == [False] and not studio.is_installed(rt)
+
+
+def test_a_folder_that_refuses_locks_fails_at_once_not_as_busy(tmp_path, monkeypatch):
+    # A network drive may refuse locks outright (ENOLCK, ENOTSUP): waiting 10 minutes for "another command" misleads.
+    import errno
+    from musicvideo import filelock
+    if sys.platform == "win32":
+        import msvcrt
+        target, name = msvcrt, "locking"
+    else:
+        import fcntl
+        target, name = fcntl, "flock"
+
+    def refuse(*_a, **_k):
+        raise OSError(errno.ENOLCK, "No locks available")
+    monkeypatch.setattr(target, name, refuse)
+    t = time.monotonic()
+    with pytest.raises(MVError, match=r"cannot lock .*\.lock.*No locks available") as e:
+        with filelock.file_lock(tmp_path / "engine" / ".lock", timeout=5, busy="another command is updating it"):
+            pass
+    assert time.monotonic() - t < 1 and "another command" not in str(e.value)
