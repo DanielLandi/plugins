@@ -488,3 +488,102 @@ def test_ingest_refuses_a_file_another_worktree_owns(mv_lane, make_mp3, monkeypa
     data["status"], data["kept"]["file"] = "filed", taken
     save_spec(same, data)
     assert ingest(ws, "night-drive", mp3).name == "Test Artist - Night Drive.mp3"
+
+
+# --- the home and its requests in a lane -------------------------------------------------------------------------
+
+def test_a_lanes_home_takes_a_free_port_and_mains_keeps_8646(mv_lane, monkeypatch):
+    from musicvideo.cli import main
+    from musicvideo.video import home
+    seen = []
+    monkeypatch.setattr(home, "serve", lambda ws, port, open_page: seen.append((ws.lane, port)))
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.main))
+    assert main(["home"]) == 0
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.a))
+    assert main(["home"]) == 0
+    assert main(["home", "--port", "9000"]) == 0
+    key = w.folder_key(mv_lane.a)
+    assert seen == [(None, 8646), (key, 0), (key, 9000)]
+    assert home.default_port(w.load_workspace(mv_lane.main)) == home.PORT == 8646
+
+
+def test_a_lanes_home_says_which_worktree_it_serves(mv_lane, monkeypatch, capsys):
+    from musicvideo.video import home
+
+    class Stop(Exception):
+        pass
+
+    class Server:
+        server_address = ("127.0.0.1", 50123)
+
+        def serve_forever(self):
+            raise KeyboardInterrupt
+
+        def server_close(self):
+            pass
+
+    monkeypatch.setattr(home, "make_server", lambda app, port: Server())
+    for folder in (mv_lane.main, mv_lane.a):
+        home.serve(w.load_workspace(folder), port=0)
+    out = capsys.readouterr().out
+    a = w.load_workspace(mv_lane.a)
+    assert f"home of {mv_lane.main}: http://127.0.0.1:50123/ (Ctrl-C stops it)" in out
+    assert f"home of {a.home} (worktree {a.lane}): http://127.0.0.1:50123/ (Ctrl-C stops it)" in out
+
+
+def _get(url):
+    import json
+    import urllib.request
+    with urllib.request.urlopen(url, timeout=30) as r:
+        return json.loads(r.read())
+
+
+def _post(url, payload):
+    import json
+    import urllib.request
+    req = urllib.request.Request(url, data=json.dumps(payload).encode(), method="POST",
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return r.status, json.loads(r.read())
+
+
+def test_two_homes_serve_at_once_each_on_its_own_checkout(mv_lane, monkeypatch):
+    import threading
+    from musicvideo.video.home import Home, make_server
+    only = mv_lane.a / "videos" / "only-in-a"
+    only.mkdir(parents=True)
+    (only / "video.yaml").write_text("song: only-in-a\n", encoding="utf-8")
+    urls, apps, servers = {}, [], []
+    for name, folder in (("main", mv_lane.main), ("a", mv_lane.a)):
+        app = Home(w.load_workspace(folder))
+        server = make_server(app, port=0)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        urls[name] = f"http://127.0.0.1:{server.server_address[1]}"
+        apps.append(app)
+        servers.append(server)
+    try:
+        assert "only-in-a" in [v["id"] for v in _get(urls["a"] + "/api/state")["videos"]]
+        assert "only-in-a" not in [v["id"] for v in _get(urls["main"] + "/api/state")["videos"]]
+        status, _ = _post(urls["a"] + "/api/request", {"video": None, "kind": "new-video",
+                                                       "data": {"topic": "fog horns"}})
+        assert status == 200
+        assert (mv_lane.a / "requests" / "requests.json").is_file()
+        assert not (mv_lane.main / "requests").exists()
+    finally:
+        for app, server in zip(apps, servers):
+            app.pages.close()
+            server.shutdown()
+            server.server_close()
+
+
+def test_requests_are_per_lane(mv_lane, monkeypatch):
+    from musicvideo import requests as rq
+    ws_main, ws_a, ws_b = (w.load_workspace(f) for f in mv_lane)
+    (ws_a.video_dir("night-drive")).mkdir(parents=True, exist_ok=True)
+    rq.video_queue(ws_a, "night-drive").add("message", {"note": "warmer"})
+    rq.home_queue(ws_a).add("new-video", {"topic": "fog horns"})
+    assert (mv_lane.a / "requests" / "requests.json").is_file()
+    assert (mv_lane.a / "videos" / "night-drive" / "requests" / "requests.json").is_file()
+    assert rq.new_requests(ws_main) == [] and rq.new_requests(ws_b) == []
+    assert len(rq.new_requests(ws_a)) == 2
+    assert rq.wait_for_new(ws_b, timeout=0.2, every=0.05) == []

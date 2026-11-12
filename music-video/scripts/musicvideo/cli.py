@@ -369,7 +369,8 @@ def cmd_requests(args) -> int:
 
 def cmd_home(args) -> int:
     from .video import home
-    home.serve(load_workspace(), port=args.port, open_page=args.open)
+    ws = load_workspace()
+    home.serve(ws, port=args.port if args.port is not None else home.default_port(ws), open_page=args.open)
     return 0
 
 
@@ -627,7 +628,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true")
     p.add_argument("--taken", type=int, metavar="ROUND", help="mark every new note as taken into this round")
     p = sub.add_parser("home", help="one page with every song and video and its stage; its buttons queue requests for Claude")
-    p.add_argument("--port", type=int, default=8646)
+    p.add_argument("--port", type=int, default=None, help="default 8646; a free port in a git worktree")
     p.add_argument("--open", action="store_true", help="open the page in the browser")
     p = sub.add_parser("requests", help="what the user asked for on the home and sections pages, for Claude to carry out")
     p.add_argument("id", nargs="?", help="only this video's requests")

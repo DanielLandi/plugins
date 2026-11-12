@@ -561,6 +561,12 @@ def make_handler(app: Home):
     return Handler
 
 
+def default_port(ws: Workspace) -> int:
+    """8646 for the project folder; in a git worktree of it, a free port (0: the OS picks one), so 8646 always means
+    the main checkout's home and a request queued there never reaches another checkout's session."""
+    return PORT if ws.lane is None else 0
+
+
 def make_server(app: Home, port: int = PORT) -> ThreadingHTTPServer:
     try:
         server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(app))
@@ -574,7 +580,8 @@ def serve(ws: Workspace, port: int = PORT, open_page: bool = False) -> None:
     app = Home(ws)
     server = make_server(app, port)
     url = f"http://127.0.0.1:{server.server_address[1]}/"
-    print(f"home of {ws.home}: {url} (Ctrl-C stops it)", flush=True)
+    where = f"{ws.home} (worktree {ws.lane})" if ws.lane else f"{ws.home}"
+    print(f"home of {where}: {url} (Ctrl-C stops it)", flush=True)
     print("its buttons queue requests: music-video requests lists them", flush=True)
     if open_page:
         webbrowser.open(url)
