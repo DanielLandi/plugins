@@ -8,6 +8,12 @@ export const subtitles: LyricMode = 'words';
 /** The vertical cut is watched with the sound off: subtitles on unless the user says otherwise. */
 export const verticalSubtitles: LyricMode = 'words';
 
+/**
+ * Step 5's jolts question: do things jolt on the beat (the camera kicking on the kick drum, a shake on hits)? true
+ * only when the user said yes; unanswered means false. Keep `jolts:` in video.yaml the same (qc reads it there).
+ */
+export const jolts: boolean = false;
+
 export const lyricStyle: LyricStyle = {
   fontFamily: 'Helvetica, Arial, sans-serif',
   size: 0.06,

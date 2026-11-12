@@ -13,8 +13,10 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 - Easing: nothing linear except mechanical motion. `spring({ frame, fps, config: { damping: 200 } })` for calm,
   lower damping for bounce; `interpolate(..., { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })`.
 - Stagger related elements 2–4 frames; hold the key idea still for a beat; overlap actions.
-- Beat motion is small and eased (a nod, a sway). A quick pulse on every beat reads as a hiccup, and a camera that
-  jogs on the beat makes the words hard to read.
+- Beat motion follows the video's jolts answer (`jolts` in `look.ts`, from step 5). With no jolts (the default),
+  it is small and eased (a nod, a sway): a quick pulse on every beat reads as a hiccup, and a camera that jogs on
+  the beat makes the words hard to read. With jolts, what `LOOK.md` names (a camera kick on the kick drum, a shake
+  on the big hits) is small, dies within about a fifth of a second, and stays softer on a framing that must be read.
 - Frame characters whole, in 16:9 and 9:16; stand the camera back rather than zoom in.
 - Hold a line on screen until it can be read whole, then move on.
 - Lyric text on a surface (a card, a tag, a sign) drops the trailing comma when the line stands alone there.

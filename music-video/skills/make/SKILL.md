@@ -247,7 +247,14 @@ request done with `--video <id>`.
 
 Follow `references/look.md`: 2–3 directions, each a `LOOK.md` section and a look composition, 3–4 real 16:9
 style frames plus one 9:16 chorus frame each, shown side by side on one sheet. Iterate until the user approves one
-(or a merge). Then: final `LOOK.md`, `look.ts` values, remove the losing look code. `step: sample`.
+(or a merge).
+
+With the directions, ask the **jolts** question, default no: "Should things jolt on the beat: the camera kicking on
+the kick drum, a shake on the big hits?" It is this video's choice, not a rule either way. Record the answer (and
+what jolts, when yes) as the **Jolts:** line of `LOOK.md`, as `jolts` in `look.ts` and as `jolts:` in `video.yaml`;
+when the user does not answer, it is no. Every scene follows it (`references/studio.md`).
+
+Then: final `LOOK.md`, `look.ts` values, remove the losing look code. `step: sample`.
 
 ## 6. Sample, storyboard, subtitles ✋ (the go signal)
 
