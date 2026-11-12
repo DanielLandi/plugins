@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.1
+
+- `doctor` removes the engine of a plugin checkout that no longer exists (a removed worktree), printing one line with
+  the space freed. It keeps the installed engine, the current checkout's engine, any engine in use, one whose
+  checkout's drive is missing, and one with no readable owner record.
+- The Remotion `zod: installed 4.6.7, required 4.5.4` warning is expected: zod is raised on purpose for a security
+  fix, and nothing in the engine uses it.
+
 ## 0.11.0
 
 - A git worktree of the project copies the main checkout's timings (`public/`, vocals, transcript, aligned words,
