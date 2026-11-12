@@ -118,8 +118,12 @@ rendering motion.
 > <paste the section's STORYBOARD.md entry>
 >
 > **Timing:** this scene runs <start>–<end> s of the song (section `<section-id>`); the lyrics in it:
-> <paste the lines with their times from timing.json>. Beats, big moments and drum hits: `<public>/analysis.json` (drum hits only for jolts, and only if
-> `LOOK.md` says the video jolts).
+> <paste the lines with their times from timing.json>. Beats, big moments and drum hits:
+> `<public>/analysis.json` (drum hits only for jolts, and only if `LOOK.md` says the video jolts).
+>
+> **The user's notes on this scene, word for word** (oldest first, each with when it was given; they outrank this
+> brief and your own reading of it):
+> <paste every note of theirs that concerns this section, verbatim: from NOTES.md, the chat and the pages>
 >
 > **Deliver:** a named export (no default export) `export const <Pascal>: React.FC` in that file, and stop there:
 > do not edit `scenes.ts`. Render three stills at the scene's start, middle and peak, and look at each:
@@ -127,5 +131,7 @@ rendering motion.
 > Then run `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" typecheck <id>`. Do not render video. Report the
 > three still paths, the export name and one sentence on what moves on the beat.
 
-After an agent reports, the orchestrator wires `scenes.ts` (the import and the entry in place of `Placeholder` for
+Pass the user's notes to scene agents word for word, never summarised or reworded into your own steps (from
+claude-video-skills' directing-sessions, MIT): an agent builds what its brief says, and a paraphrase is what gets
+built. After an agent reports, the orchestrator wires `scenes.ts` (the import and the entry in place of `Placeholder` for
 `<section-id>`), then reviews the stills.

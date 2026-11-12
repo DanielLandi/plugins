@@ -36,3 +36,8 @@ def test_look_and_light_is_in_the_3d_sections():
     for phrase in ("Poly Haven", "CC0", "Only real light sources glow", "decay = 2", "A dark space, not a void"):
         assert phrase in studio, phrase
     assert "Only real lights\n  glow" in (REFS / "look.md").read_text(encoding="utf-8")
+
+
+def test_the_scene_brief_passes_the_users_notes_word_for_word():
+    brief = (REFS / "studio.md").read_text(encoding="utf-8").split("## Scene-agent brief", 1)[1]
+    assert "word for word" in brief and "verbatim" in brief
