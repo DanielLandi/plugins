@@ -1,4 +1,5 @@
 import re
+import sys
 import unicodedata
 from datetime import datetime
 from pathlib import Path
@@ -76,9 +77,17 @@ def iter_specs(ws: Workspace) -> Iterator[tuple[Path, dict]]:
 def iter_worktree_specs(ws: Workspace) -> Iterator[tuple[Path, dict]]:
     """The specs of this workspace and of the same workspace in every other worktree of its git repo (the one
     download budget and the shared song files span them all). Outside git: iter_specs."""
-    for home in worktree_homes(ws):
+    for i, home in enumerate(worktree_homes(ws)):
         for path in sorted((home / "specs").glob("*.yaml")):
-            yield path, load_spec(path)
+            if i == 0:  # this worktree's own specs: an unreadable one stops the command, as iter_specs does
+                yield path, load_spec(path)
+                continue
+            try:  # another branch's state (a spec mid-rebase) never stops this worktree's commands
+                data = load_spec(path)
+            except (MVError, OSError, UnicodeDecodeError) as e:
+                print(f"warning: skipped a spec of another worktree: {e}", file=sys.stderr)
+                continue
+            yield path, data
 
 
 def find_spec(ws: Workspace, spec_id: str) -> Path:

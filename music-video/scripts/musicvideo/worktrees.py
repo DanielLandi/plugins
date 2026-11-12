@@ -61,6 +61,10 @@ def linked_worktree(folder: Path) -> Worktree | None:
         common = _against(admin, _read_line(commondir)).resolve()
         if common.name != ".git" or not common.is_dir():
             return None
+        # git keeps every worktree's admin dir in <common>/worktrees/: one written anywhere else (next to a hand-made
+        # `.git` file) is not git's record, however its files agree.
+        if admin.resolve().parent != (common / "worktrees").resolve():
+            return None
         return Worktree(root, common.parent, common)
     except (OSError, UnicodeDecodeError, IndexError, ValueError):
         return None

@@ -80,8 +80,14 @@ def ingest(ws: Workspace, spec_id: str, file: Path | None = None) -> Path:
     # Song folders are shared by every worktree: another branch's spec may already own this file. The same spec in
     # another worktree (the same file name) is this song, not another.
     for other_path, other in iter_worktree_specs(ws):
-        if other_path.stem != spec_path.stem and (other.get("kept") or {}).get("file") == rel:
+        other_kept = other.get("kept") or {}
+        if other_path == spec_path or other_kept.get("file") != rel:
+            continue
+        if other_path.stem != spec_path.stem:
             raise MVError(f"{dest.name} already belongs to spec '{other['id']}' — change this song's title")
+        if other_kept.get("take_url") != kept.get("take_url"):  # another branch filed its own take of this song
+            raise MVError(f"{dest} already holds another take of '{spec_id}' ({other_kept.get('take_url')}), filed "
+                          f"from {other_path}: merge that branch's spec, or keep one take, before filing this one")
 
     tmp = dest.with_name(dest.name + ".part")
     shutil.copy2(file, tmp)

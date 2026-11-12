@@ -587,3 +587,61 @@ def test_requests_are_per_lane(mv_lane, monkeypatch):
     assert rq.new_requests(ws_main) == [] and rq.new_requests(ws_b) == []
     assert len(rq.new_requests(ws_a)) == 2
     assert rq.wait_for_new(ws_b, timeout=0.2, every=0.05) == []
+
+
+# --- final review fixes -----------------------------------------------------------------------------------------
+
+def test_a_hand_made_admin_dir_outside_the_repos_worktrees_is_not_a_lane(mv_lane, tmp_path, monkeypatch):
+    evil = tmp_path / "evil"
+    (evil / "specs").mkdir(parents=True)
+    fake = evil / "fake"
+    fake.mkdir()
+    (evil / ".git").write_text("gitdir: fake\n", encoding="utf-8")
+    (fake / "gitdir").write_text("../.git\n", encoding="utf-8")  # points back, but is not git's own record
+    (fake / "commondir").write_text(f"{mv_lane.main / '.git'}\n", encoding="utf-8")
+    assert linked_worktree(evil) is None
+    monkeypatch.delenv("MUSIC_VIDEO_HOME")
+    w.remember_home(mv_lane.main)
+    monkeypatch.chdir(evil)
+    assert w.workspace_home() == mv_lane.main
+
+
+def test_a_broken_spec_in_another_worktree_never_stops_this_one(mv_lane, monkeypatch, capsys):
+    from musicvideo.cli import main
+    from musicvideo.spec import save_spec
+    from musicvideo.video import home
+    from mv_fixtures import valid_spec
+    _downloaded(mv_lane.main, "in-main")
+    _downloaded(mv_lane.a, "in-a")
+    (mv_lane.b / "specs" / "mid-rebase.yaml").write_text("<<<<<<< HEAD\n- a\n", encoding="utf-8")
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.main))
+    assert main(["status"]) == 0
+    out, err = capsys.readouterr()
+    assert "Downloads: 2 of 20" in out and "mid-rebase.yaml" in err
+    assert home.downloads(w.load_workspace(mv_lane.main))["used"] == 2
+    save_spec(mv_lane.main / "specs" / "next.yaml", valid_spec(id="next", title="Next", status="generated"))
+    assert main(["downloaded", "next", "--take-url", "u"]) == 0
+    assert "recorded download 3 of 20" in capsys.readouterr().out
+    monkeypatch.setenv("MUSIC_VIDEO_HOME", str(mv_lane.b))
+    assert main(["status"]) == 2  # its own broken spec still stops this worktree's commands, as today
+
+
+def test_ingest_never_replaces_another_worktrees_take_of_the_same_song(mv_lane, make_mp3, monkeypatch, tmp_path):
+    from musicvideo.ingest import ingest
+    from musicvideo.spec import load_spec, save_spec
+    ws = _home(monkeypatch, mv_lane.a)
+    filed = _downloaded(mv_lane.b, "night-drive")  # branch b downloaded and filed its own take first
+    data = load_spec(filed)
+    data["status"], data["kept"]["take_url"] = "filed", "https://suno.com/song/take-b"
+    data["kept"]["file"] = w.stored_path(ws, ws.song_dir("night-drive") / "Test Artist - Night Drive.mp3")
+    save_spec(filed, data)
+    mine = _downloaded(mv_lane.a, "night-drive")
+    data = load_spec(mine)
+    data["kept"]["take_url"] = "https://suno.com/song/take-a"
+    save_spec(mine, data)
+    mp3 = make_mp3(tmp_path / "elsewhere" / "Night Drive.mp3")
+    with pytest.raises(MVError, match="another take"):
+        ingest(ws, "night-drive", mp3)
+    data["kept"]["take_url"] = "https://suno.com/song/take-b"  # the same take: the same song, filed again
+    save_spec(mine, data)
+    assert ingest(ws, "night-drive", mp3).is_file()
