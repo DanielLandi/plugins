@@ -1,3 +1,5 @@
+import type React from 'react';
+
 // The JSON written by music-video align (timing.json) and music-video analyze (analysis.json).
 export type TimingWord = {
   i: number; text: string; start: number; end: number; conf: number; source: string; line: number; backing: boolean;
@@ -29,3 +31,11 @@ export type SongProps = {
   /** Render this many frames per output frame (tools/blur.ts averages them into motion blur). Default 1. */
   subframes?: number;
 };
+
+/**
+ * How a video's characters are animated, chosen at the look step (look.ts `characterEngine`, video.yaml
+ * `characters:`): 'raw' (written from scratch in scene code) or 'vrm' (three-vrm avatars, `@mv/kit/three`).
+ */
+export type CharacterEngine = 'raw' | 'vrm';
+/** One engine's take in a bake-off (bakeoff.ts, written by `music-video bakeoff new`). */
+export type BakeoffEntry = { engine: CharacterEngine; Component: React.FC };

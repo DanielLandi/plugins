@@ -1,4 +1,4 @@
-import type { LyricMode, LyricStyle } from '@mv/kit';
+import type { CharacterEngine, LyricMode, LyricStyle } from '@mv/kit';
 
 // Written from LOOK.md once the look is approved (step 5). Fonts: load with @remotion/google-fonts/<Family>.
 export const palette = { background: '#101418', neutral: '#d9dde3', neutral2: '#5a6270', accent: '#f5c542' };
@@ -13,6 +13,13 @@ export const verticalSubtitles: LyricMode = 'words';
  * only when the user said yes; unanswered means false. Keep `jolts:` in video.yaml the same (qc reads it there).
  */
 export const jolts: boolean = false;
+
+/**
+ * Step 5's character engine, when the video has characters: 'raw' (drawn and moved from scratch in scene code) or
+ * 'vrm' (three-vrm anime avatars). null means no characters. Keep `characters:` in video.yaml and the
+ * **Characters:** line of LOOK.md the same.
+ */
+export const characterEngine: CharacterEngine | null = null;
 
 export const lyricStyle: LyricStyle = {
   fontFamily: 'Helvetica, Arial, sans-serif',
