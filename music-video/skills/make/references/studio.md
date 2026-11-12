@@ -38,6 +38,31 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 - `<Model>` loads a GLB (`import url from '@mv/assets/models/<file>.glb'`); the bundled CC0 models are listed in
   `${CLAUDE_PLUGIN_ROOT}/studio/assets/models/SOURCES.md`. New models must be CC0, listed in the video's `SOURCES.md`.
 - Put the kit's `SanitizeShader` before any bloom pass: one NaN pixel otherwise blanks part of the frame.
+- **Real textures on every set surface** (look-and-light, adapted from claude-video-skills, MIT): wood, plaster,
+  carpet, concrete, fabric, metal and asphalt get real PBR maps (albedo, roughness, normal), not a flat colour: smooth,
+  flatly shaded surfaces read as placeholders. Poly Haven (polyhaven.com) has CC0 textures, HDRIs and models; a 1k
+  or 2k set usually holds up, judged at the closest framing it appears in. Keep the files in `<video>/textures/`,
+  each listed in the video's `SOURCES.md` (name, author, page, CC0), import them (`import wood from
+  './textures/wood_diff_1k.jpg'`), load with three's `TextureLoader` and hold the frame until they are in, the way
+  `<Model>` holds it for a GLB (`kit/three/model.tsx`). The albedo map is `SRGBColorSpace`; roughness and normal stay
+  linear. The kit's procedural wood, brick and cork (with `setRelief`) are fine where a real map is not needed.
+- **Only real light sources glow.** Lamps, bulbs, LED strips, screens, lit windows, tubes and fire emit, at real
+  levels. Every other surface has zero emissive: coins, metal, rails, painted text, sand, accent bands. Capping a fake
+  glow low is still a fake glow; an emissive authored under ~0.4 usually means a surface faking its own light. Before
+  a lighting pass, list every emissive material and every light (intensity, distance, decay) and zero the fakes at
+  their source.
+- **Real falloff.** Point and spot lights get `decay = 2` and a `distance`; set each light's intensity at its
+  nearest subject (illuminance = intensity / distance²), not by eye. A `RectAreaLight` has no range and casts no
+  shadow, so a small practical (a phone, a screen, a bulb) is a short-range `SpotLight` or `PointLight`, gone within
+  about a metre. No camera-side fill, and no emissive "rim" terms lighting people evenly. To find what a light adds,
+  turn it off (or solo it) and compare stills of the subject; the brightest light in a list is not always the one
+  that matters.
+- **A dark space, not a void.** Keep sets and crowds dark and muted, lit only by their sources at their real reach,
+  so the thing that should read is the lit one. Never float a scene in pure black all round: give it a floor, haze or
+  a dim structure, lit by the scene's own sources and falling off fast. Watch for a bloom veil from a large white
+  surface (an LED wall) washing everything, and zoom into dark areas for banding.
+- **Judge colour in the film's light.** Tune a colour on a still of the real scene where it appears, not on a
+  swatch: a grey tuned in a lineup came out charcoal in the real scene.
 - Portrait width is about half the camera distance at fov 48: size words for that.
 - Lyrics on things (letters, signs, screens): `surfaceTexture(id, w, h, key, draw)` is a canvas texture redrawn only
   when `key` changes (pass the sung-word count; `sungWords`, `wrap`, `bareEnd`, `paperGrain` help draw it).

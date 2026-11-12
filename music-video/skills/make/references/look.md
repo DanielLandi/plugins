@@ -13,6 +13,12 @@ A look is a system before it is pictures. Write it, then prove it with real fram
   kit's film-print `FinishPost` and depth on flat things (paper with thickness, carved frames, relief on
   procedural textures; see `studio.md`). It costs almost no render time, so plan it with the look instead of
   leaving it for the end.
+- **Light and materials (3D):** which real sources light each place (lamps, screens, windows, the sky), how dark the
+  set stays around them, and the real textures its surfaces get (Poly Haven, CC0; `studio.md`). Only real lights
+  glow; nothing else gets an emissive glow. A style is structure, not a filter: name what makes it (outlines, a
+  screen-fixed halftone, hard light bands, a saturated world against a muted hero, one accent reserved for one
+  thing). When a character comes from photos, take its colours and markings from them and build the form as a
+  clean stylized version; never fit the sculpt to one photo's pose.
 - **Motion language:** springy, smooth or mechanical; what happens on beats (kit `useBeat`, `pulse`), on downbeats,
   on big moments (`analysis.hits`), and with energy (`useEnergy`).
 - **Jolts:** the answer to the jolts question (step 5): no (the default, also when unanswered) or yes, and what

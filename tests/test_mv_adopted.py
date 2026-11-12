@@ -29,3 +29,10 @@ def test_shot_design_fits_our_scene_changes_and_jolts():
     assert "Hold the framing with a slight shake on the beat instead" not in shot
     skill = (PLUGIN / "skills" / "make" / "SKILL.md").read_text(encoding="utf-8")
     assert "`references/shot-design.md` before keying any camera move" in skill
+
+
+def test_look_and_light_is_in_the_3d_sections():
+    studio = (REFS / "studio.md").read_text(encoding="utf-8").split("## 3D", 1)[1].split("\n## ", 1)[0]
+    for phrase in ("Poly Haven", "CC0", "Only real light sources glow", "decay = 2", "A dark space, not a void"):
+        assert phrase in studio, phrase
+    assert "Only real lights\n  glow" in (REFS / "look.md").read_text(encoding="utf-8")
