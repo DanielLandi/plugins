@@ -219,7 +219,7 @@ downloads per cycle), then starts at the concept.
 | Folder | Default (macOS) | What's in it |
 |---|---|---|
 | **Project** | `~/Documents/Music Videos/` (`init --path` for another) | `config.yaml`, `specs/<id>.yaml` (one per song), `albums/<album>.yaml`, `videos/<id>/` (each video's documents and scene code). Small: keep it in git if you like. |
-| **Install** | `~/Library/Application Support/music-video/` | `engine/`: the engine (Remotion, its browser, compilers, three.js), installed once by `doctor`; the alignment models; `engines/<checkout>/`: an engine per git checkout of the plugin, its packages hard-linked from any installed engine with the same `package-lock.json` (`engine/` or another checkout's) |
+| **Install** | `~/Library/Application Support/music-video/` | `engine/`: the engine (Remotion, its browser, compilers, three.js), installed once by `doctor`; the alignment models; `avatars/`: the CC0 sample characters (about 64 MB, with their `SOURCES.md`); `engines/<checkout>/`: an engine per git checkout of the plugin, its packages hard-linked from any installed engine with the same `package-lock.json` (`engine/` or another checkout's) |
 | **Work** | `~/Library/Caches/music-video/work/<id>/` | everything regenerable: timings, vocals, previews, renders, checks. `clean <id>` frees it. In a git worktree of the project: `.lanes/<worktree>/<id>/`. |
 | **Results** | `~/Movies/Music Videos/` (`results_dir`) | `<id>/`: the final videos, thumbnail, subtitles, the song and `web/` (the live page); `albums/<album>/`: tagged MP3s and `manifest.json`; `.lanes/<worktree>/<id>/`: a git worktree's own video finals, hidden from the library (its songs still go to `<id>/`) |
 
@@ -238,7 +238,9 @@ The skills run these for you; each is `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/mus
 
 | Command | What it does |
 |---|---|
-| `doctor` | check uv, Node, ffmpeg; install the video engine into the install folder |
+| `doctor` | check uv, Node, ffmpeg; install the video engine and the character avatars into the install folder (`--no-avatars` skips them) |
+| `avatars` | the four CC0 VRoid sample characters for `vrm` videos: `status`, `install`, or `add <file>` for a copy you downloaded (checked against the pinned checksum) |
+| `bakeoff` | character engines side by side: `new <id>` starts one take per engine (raw, vrm) of a fixed brief, kept as review-page variants; `record` keeps the verdict and model in `bakeoffs.md`; `last --model <id>` says when a new model should be checked |
 | `init` | create or point at your workspace |
 | `new`, `validate`, `round`, `downloaded`, `status` | song specs, Create rounds, the download budget |
 | `ingest`, `album` | file a downloaded MP3, tagged, into its results or album folder; rebuild an album's `manifest.json` |

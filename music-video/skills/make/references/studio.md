@@ -84,6 +84,30 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
   out the far ones.
 - An element held across a cut (a match-cut anchor) must leave with its group: left alone, it reads as a mistake.
 
+## Characters (the video's character engine, `characterEngine` in `look.ts`)
+
+- **`raw`**: draw and move characters from scratch in scene code (SVG, canvas or three.js). Give them weight, breath
+  and follow-through yourself (`animation.md`); nothing here does it for you.
+- **`vrm`**: `<Avatar url drive from />` from `@mv/kit/three` is a three-vrm character on the `<Stage>`. Import the
+  CC0 samples as `import first from '@mv/avatars/vroid-sample-1.vrm'` (…`-2` to `-4`; installed once by
+  `music-video avatars install`, which a render asks for when they are missing), or a user's own CC0/OFL file in the
+  video's folder (`'./hero.vrm'`, listed in `SOURCES.md`). `drive(t)` (song seconds) returns `{ pos, yaw, pose,
+  hips?, expr?, lookAt?, wind? }`; `from={<the scene's start>}` is where its hair and cloth physics start, so pass
+  the scene's (or the bake-off window's) start, never 0 for a late scene. Any frame then renders the same alone or
+  in sequence.
+- Poses are in normalized bone space (T-pose, facing +z, the character's left is +x): `poses.relax`, `waveR/L`,
+  `high5R/L`, `guardR/L`, `punchR/L`, `fistBumpR/L`, `startle`, `dash`, `laugh`…; `poseTrack(t, [[t0, pose, ease]…])`
+  keys them, `mixPose`, `addPose` and `mirrorPose` combine them, and `breath`, `sway`, `walkCycle`, `fingers` are
+  layers on top. `track`, `ramp`, `swell` and `eases` key any number; `faceYaw(from, to)` turns a character to face
+  a point; `seeded(n)` is a repeatable random stream.
+- Expressions (`expr`): `happy`, `angry`, `sad`, `relaxed`, `blink`, mouth shapes `aa`, `ih`, `ou`, `ee`, `oh`; the
+  samples add `Surprised`. `lookAt` is a world point the eyes follow. `wind` pushes hair and cloth (a gust, an
+  impact). `outline` thickens the cel outline; `silhouette` paints the whole character one colour (an impact frame).
+- Hands are posed by hand: when two characters touch (a high five, a fist bump), render the contact frame and adjust
+  until the hands really meet; the samples differ in height. `bakeoff/vrm.tsx` in the plugin's `studio/` is a
+  working two-character scene to start from.
+- Each `<Avatar>` loads its own copy (about 15 MB): keep a scene to a few characters.
+
 ## Stills and renders (one video render at a time)
 Many stills in one go (one bundle, plus a contact sheet), at song seconds:
 
