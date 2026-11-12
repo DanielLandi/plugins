@@ -59,7 +59,9 @@ Read once per session before step 1: `references/lyric-craft.md`, and the song s
 commands.
 
 In a git worktree of the project, `paths` prints that worktree's own folders (and a `lane` key). The song stays in
-the main results folder. Song downloads still count against the one budget.
+the main results folder. Song downloads still count against the one budget. The first command that needs a video's
+work folder there copies the main checkout's timings into it (it prints one line saying so): do not re-run `align`
+or `analyze` unless the timings change.
 
 - Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds, cuts, jolts),
   `CONCEPT.md`, `lyric-options.yaml`, `lyrics.md`, `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`,

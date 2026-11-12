@@ -181,6 +181,7 @@ class Workspace:
     download_budget: int | None
     lane: str | None = None  # the linked git worktree's key (folder_key of its root); None in a main checkout
     main_home: Path | None = None  # the same folder in the main checkout; `home` itself when not in a lane
+    main_work_dir: Path | None = None  # in a lane, the main checkout's work_dir: where its timings are seeded from
 
     def __post_init__(self):
         if self.main_home is None:
@@ -213,8 +214,13 @@ class Workspace:
         return self.results_dir / song_id
 
     def work_for(self, video_id: str) -> Path:
-        """Everything regenerable while working on a video (timings, renders, checks): `clean` deletes it."""
-        return self.work_root / video_id
+        """Everything regenerable while working on a video (timings, renders, checks): `clean` deletes it.
+        In a git worktree, the first time it is needed and missing, the main checkout's timings are copied in."""
+        folder = self.work_root / video_id
+        if self.lane is not None and self.main_work_dir is not None and not folder.exists():
+            from .seed import seed_work
+            seed_work(self.main_work_dir / video_id, folder, self.lane)
+        return folder
 
     def album_dir(self, album: str) -> Path:
         return self.results_dir / "albums" / album
@@ -293,7 +299,21 @@ def load_workspace(home: Path | None = None) -> Workspace:
         download_budget=_optional_int(raw, "download_budget", 0, 10_000, path),
         lane=folder_key(wt.root) if wt is not None else None,
         main_home=main_home,
+        main_work_dir=_main_work_dir(main_home, path, raw) if wt is not None else None,
     )
+
+
+def _main_work_dir(main_home: Path, path: Path, raw: dict) -> Path:
+    """The main checkout's work_dir, as the main checkout itself resolves it: from its own config.yaml when the
+    worktree has another one, relative to the main checkout's folder."""
+    main_config = main_home / CONFIG
+    if path != main_config and main_config.is_file():
+        try:
+            loaded = yaml.safe_load(main_config.read_text(encoding="utf-8"))
+            raw = loaded if isinstance(loaded, dict) else {}
+        except (OSError, UnicodeDecodeError, yaml.YAMLError):
+            pass
+    return _absolute(main_home, raw.get("work_dir") or cache_dir() / "work")
 
 
 def init_workspace(home: Path, artist: str, billing_day: int | None = None, download_budget: int | None = None,
