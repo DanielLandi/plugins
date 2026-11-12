@@ -16,7 +16,9 @@ two questions: which engine suits this video (at the look step), and whether the
 ## The benchmark brief (fixed: the model watch compares runs only while it stays the same)
 
 One scene, 10 s of the song, two original characters (the samples, or ones drawn from scratch for `raw`; never a
-recreation of an existing show's characters or look). The window puts the song's strongest hit 6 s in.
+recreation of an existing show's characters or look). The window puts the song's strongest hit 6 s in; near the
+song's start or end, or with `--from`, it lands elsewhere: `bakeoff new` prints where, and each take gets it as
+`hit` (seconds into the window). The times below are for a hit at 6 s: move them with it.
 
 1. **0–2.5 s, the rooftop.** Late light over a city roof. The first character waits at the railing, looking out,
    weight shifting, hair moving in the breeze. The second arrives across the roof and stops short.
@@ -46,8 +48,8 @@ really meet, on the hit), do faces carry the reactions, does it sit on the music
    wrote are kept. It prints the commands below with the real paths, and asks for `avatars install` when the vrm
    take needs the samples.
 2. Write each take from the brief, one engine at a time, with the same care as a real scene (`studio.md`,
-   `animation.md`, `shot-design.md`). Each take's `t = 0` is the window's start (`useSongTime() - from`); a vrm
-   `<Avatar>` gets `from={from}`. Do not let one take borrow from another: each shows what its engine does.
+   `animation.md`, `shot-design.md`). Each take gets `from`, `to` and `hit`: its `t = 0` is the window's start
+   (`useSongTime() - from`), the clash lands at `t = hit`, and a vrm `<Avatar>` gets `from={from}`. Do not let one take borrow from another: each shows what its engine does.
 3. Render, add the song, check and keep each take as a variant of the scene `bakeoff`:
 
    ```bash
@@ -66,7 +68,12 @@ really meet, on the hit), do faces carry the reactions, does it sit on the music
    ```
 
    Inside a video, write the winner into the look (`characterEngine`, `characters:`, the **Characters:** line),
-   then delete `bakeoff/` and empty `entries` in `bakeoff.ts`. The kept versions stay on the review page.
+   then clear the takes (deleting `bakeoff/` by hand would leave `bakeoff.ts` importing files that are gone, and
+   the video would no longer build). The kept versions stay on the review page:
+
+   ```bash
+   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" bakeoff clear <id>
+   ```
 
 ## The model watch
 

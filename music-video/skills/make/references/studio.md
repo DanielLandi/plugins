@@ -91,7 +91,8 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 - **`vrm`**: `<Avatar url drive from />` from `@mv/kit/three` is a three-vrm character on the `<Stage>`. Import the
   CC0 samples as `import first from '@mv/avatars/vroid-sample-1.vrm'` (…`-2` to `-4`; installed once by
   `music-video avatars install`, which a render asks for when they are missing), or a user's own CC0/OFL file in the
-  video's folder (`'./hero.vrm'`, listed in `SOURCES.md`). `drive(t)` (song seconds) returns `{ pos, yaw, pose,
+  video's folder (`'./hero.vrm'`, listed in `SOURCES.md`; the samples' row is added to `SOURCES.md` by the first
+  render that uses them). `drive(t)` (song seconds) returns `{ pos, yaw, pose,
   hips?, expr?, lookAt?, wind? }`; `from={<the scene's start>}` is where its hair and cloth physics start, so pass
   the scene's (or the bake-off window's) start, never 0 for a late scene. Any frame then renders the same alone or
   in sequence.

@@ -275,7 +275,8 @@ Model watch, only when the video has characters: run
 offer, offer once, in one line, to run the benchmark bake-off on its own later (`references/bakeoff.md`); it must
 never block the video. A no is recorded with `bakeoff record --model <your model id> --declined`.
 
-Then: final `LOOK.md`, `look.ts` values, remove the losing look code (and the bake-off's takes). `step: sample`.
+Then: final `LOOK.md`, `look.ts` values, remove the losing look code (and the bake-off's takes, with
+`bakeoff clear <id>`). `step: sample`.
 
 ## 6. Sample, storyboard, subtitles ✋ (the go signal)
 

@@ -49,4 +49,14 @@ describe('replayTo', () => {
     replayTo(r, m, drive, 6, 30, 4);
     expect(r.steps() - n).toBe(4);
   });
+  it('a later frame continues from an earlier one instead of replaying (render tabs skip frames)', () => {
+    const r = spring(), fresh = spring();
+    const m: ReplayState = { frame: -1 };
+    replayTo(r, m, drive, 10, 30, 4);
+    const n = r.steps();
+    replayTo(r, m, drive, 40, 30, 4);
+    expect(r.steps() - n).toBe(30 * 4);
+    replayTo(fresh, { frame: -1 }, drive, 40, 30, 4);
+    expect(r.x()).toBe(fresh.x());
+  });
 });

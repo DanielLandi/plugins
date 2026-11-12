@@ -183,3 +183,16 @@ def test_a_video_without_avatars_needs_none(mv_ws):
     (vdir / "index.tsx").write_text("import x from './car.glb';\n", encoding="utf-8")
     assert avatars.imported(vdir) == set()
     avatars.check_video(vdir)
+
+
+def test_a_video_using_avatars_credits_them(fake, mv_ws):
+    vdir = mv_ws.video_dir("duel")
+    vdir.mkdir(parents=True)
+    (vdir / "scene.tsx").write_text("import a from '@mv/avatars/test-sample-1.vrm';\n", encoding="utf-8")
+    (vdir / "SOURCES.md").write_text("| Asset | Source | Licence |\n|---|---|---|\n", encoding="utf-8")
+    avatars.install()
+    avatars.check_video(vdir)
+    text = (vdir / "SOURCES.md").read_text(encoding="utf-8")
+    assert "test-sample-1.vrm" in text and "CC0" in text
+    avatars.check_video(vdir)
+    assert (vdir / "SOURCES.md").read_text(encoding="utf-8") == text  # once

@@ -14,8 +14,9 @@ Draft for the coordinator: merge, then retitle with the version.
   not in the plugin. A render of a video that needs them and lacks them says how to get them.
 - Bake-off: `bakeoff new <id>` puts one take per engine of a fixed brief (two original characters on a rooftop, a
   clash on the hit, a fist bump) on the review page as variants of one scene; the vrm starter is a working
-  two-character scene. `bakeoff record` keeps each run's model and verdict in `bakeoffs.md` next to `config.yaml`,
-  and `bakeoff last --model <id>` tells the make skill to offer the benchmark once to a model that has not run it.
+  two-character scene, timed to where the song's hit lands. `bakeoff clear` removes the takes once the engine is
+  chosen. `bakeoff record` keeps each run's model and verdict in `bakeoffs.md` next to `config.yaml`, and
+  `bakeoff last --model <id>` tells the make skill to offer the benchmark once to a model that has not run it.
 
 ## 0.10.0
 

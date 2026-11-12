@@ -68,7 +68,7 @@ def _look_step():
 def test_the_look_step_offers_the_engines():
     step = _look_step()
     for must in ("`raw`", "`vrm`", "**Characters:**", "characterEngine", "characters:", "bakeoff new",
-                 "references/bakeoff.md", "--variant"):
+                 "references/bakeoff.md", "--variant", "bakeoff clear"):
         assert must in step, must
     assert re.search(r"raw[^.]*(always|first)", step)
 
@@ -83,7 +83,8 @@ def test_the_model_watch_offers_once_and_never_blocks():
 def test_the_bakeoff_reference_holds_the_brief():
     ref = (SKILL / "references" / "bakeoff.md").read_text(encoding="utf-8")
     for must in ("rooftop", "close-up", "clash", "on the hit", "fist bump", "original characters", "10 s",
-                 "bakeoff new", "--scene bakeoff --variant", "bakeoff record", "bakeoff last", "avatars install"):
+                 "bakeoff new", "--scene bakeoff --variant", "bakeoff record", "bakeoff last", "avatars install",
+                 "bakeoff clear", "`hit`"):
         assert must.lower() in ref.lower(), must
     # The brief is the plugin's own: it never names a show, a studio or a real person to imitate.
     assert not re.search(r"\b(in the style of|like the show|after the anime)\b", ref, re.I)

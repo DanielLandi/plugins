@@ -10,9 +10,12 @@ import second from '@mv/avatars/vroid-sample-2.vrm';
 
 // The vrm engine's starting point for the bake-off brief (the make skill's references/bakeoff.md), and the template
 // for any two-character VRM scene: a rooftop at dusk, one character waiting, the other walking in, a turn to each
-// other, a playful square-up and a fist bump on the hit. Every value is a function of t (seconds into the window);
-// HIT is where the song's strongest hit lands in the default window. Rewrite the beats to the brief.
+// other, a playful square-up and a fist bump on the hit. Every value is a function of t (seconds into the window),
+// written for a hit at HIT = 6 s; `beat` below bends the window so the bump lands on the real hit. Rewrite the beats
+// to the brief.
 const HIT = 6;
+/** Window time → choreography time: the stretch before the real hit is scaled to HIT s, after it runs as is. */
+const beat = (u: number, hit: number) => (hit > 0 && u <= hit ? (u * HIT) / hit : HIT + (u - hit));
 const A_AT: Vec3 = [-0.46, 0, 0];
 const B_STOP = 0.46;
 const bx = (t: number) => track(t, [[0, 3.2], [2.6, B_STOP, eases.out]]);
@@ -82,24 +85,29 @@ const driveB = (t: number): AvatarState => {
   };
 };
 
-/** The camera on the window's clock (seconds into the window), turned into song-time keys below. */
-const shots = (from: number): CameraKey[] => [
-  { t: from, pos: [0.3, 1.25, 5.2], look: [0.6, 1.0, 0], fov: 30 },
-  { t: from + 2.6, pos: [0.0, 1.3, 4.6], look: [0, 1.1, 0], fov: 30 },
-  { t: from + 4.4, pos: [-0.2, 1.35, 3.6], look: [0, 1.15, 0], fov: 30 },
-  { t: from + HIT - 0.15, pos: [0.25, 1.3, 2.6], look: [0, 1.2, 0], fov: 32, ease: 'in' },
-  { t: from + HIT + 0.4, pos: [0.15, 1.3, 2.9], look: [0, 1.2, 0], fov: 32, ease: 'out' },
-  { t: from + 10, pos: [0.0, 1.35, 3.8], look: [0, 1.1, 0], fov: 30 },
+/** The camera on the window's clock (choreography seconds mapped back onto the window), as song-time keys. */
+const shots = (from: number, hit: number): CameraKey[] => {
+  const at = (c: number) => from + (c <= HIT ? (c * hit) / HIT : hit + (c - HIT));
+  return keys.map((k) => ({ ...k, t: at(k.t) }));
+};
+const keys: CameraKey[] = [
+  { t: 0, pos: [0.3, 1.25, 5.2], look: [0.6, 1.0, 0], fov: 30 },
+  { t: 2.6, pos: [0.0, 1.3, 4.6], look: [0, 1.1, 0], fov: 30 },
+  { t: 4.4, pos: [-0.2, 1.35, 3.6], look: [0, 1.15, 0], fov: 30 },
+  { t: HIT - 0.15, pos: [0.25, 1.3, 2.6], look: [0, 1.2, 0], fov: 32, ease: 'in' },
+  { t: HIT + 0.4, pos: [0.15, 1.3, 2.9], look: [0, 1.2, 0], fov: 32, ease: 'out' },
+  { t: 10, pos: [0.0, 1.35, 3.8], look: [0, 1.1, 0], fov: 30 },
 ];
 
-export const Bakeoff: React.FC<BakeoffProps> = ({ from }) => {
-  // drive() gets song time; the beats above are written in window time.
-  const a = useCallback((t: number) => driveA(t - from), [from]);
-  const b = useCallback((t: number) => driveB(t - from), [from]);
+export const Bakeoff: React.FC<BakeoffProps> = ({ from, hit: at }) => {
+  const hit = Math.max(1, at); // a hit right at the window's start still leaves the walk-in a second
+  // drive() gets song time; the beats above are written in window time, for a hit at HIT.
+  const a = useCallback((t: number) => driveA(beat(t - from, hit)), [from, hit]);
+  const b = useCallback((t: number) => driveB(beat(t - from, hit)), [from, hit]);
   return (
     <AbsoluteFill>
       <Stage background="#2a2346" fov={30} exposure={1.05}>
-        <CameraRig keys={shots(from)} fov={30} />
+        <CameraRig keys={shots(from, hit)} fov={30} />
         <SkyDome zenith="#2b2a5c" horizon="#f2a07b" ground="#3a3048" sunColor="#ffd9a8" sunDir={[-0.6, 0.08, -1]} sunSize={0.002} glow={0.5} />
         <hemisphereLight args={['#c9c4ff', '#3b2f45', 0.9]} />
         <directionalLight position={[-3, 2.2, -2]} intensity={2.2} color="#ffc596" />

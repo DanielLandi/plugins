@@ -136,3 +136,42 @@ def test_a_given_start_stays_inside_the_song(mv_ws):
         bakeoff.scaffold(mv_ws, "duel", start=4.5)
     with pytest.raises(MVError, match="negative"):
         bakeoff.scaffold(mv_ws, "duel", start=-1)
+
+
+def test_clear_leaves_a_video_that_builds(mv_ws, capsys):
+    _song(mv_ws, "duel")
+    main(["new-video", "duel"])
+    bakeoff.scaffold(mv_ws, "duel")
+    assert main(["bakeoff", "clear", "duel"]) == 0
+    vdir = mv_ws.video_dir("duel")
+    assert not (vdir / "bakeoff").exists()
+    ts = (vdir / "bakeoff.ts").read_text(encoding="utf-8")
+    assert "./bakeoff/" not in ts and "entries: []" in ts  # no import of a deleted take
+    assert ts == (bakeoff.studio.PLUGIN_STUDIO / "template" / "bakeoff.ts").read_text(encoding="utf-8")
+
+
+def test_a_mistyped_song_leaves_nothing_behind(mv_ws):
+    with pytest.raises(MVError, match="typo"):
+        bakeoff.scaffold(mv_ws, "duel-x", song="typo")
+    assert not mv_ws.video_dir("duel-x").exists()
+    with pytest.raises(MVError, match="typo"):
+        bakeoff.scaffold(mv_ws, "duel-x", song="typo", start=3)
+    assert not mv_ws.video_dir("duel-x").exists()
+    _song(mv_ws, "real-song")
+    assert bakeoff.scaffold(mv_ws, "duel-x", song="real-song")["engines"] == ["raw", "vrm"]
+
+
+def test_the_hit_is_written_where_it_lands(mv_ws):
+    _song(mv_ws, "duel")  # strongest hit at 41.5 s
+    main(["new-video", "duel"])
+    out = bakeoff.scaffold(mv_ws, "duel")
+    assert out["hit"] == 6.0
+    assert "hit: 6," in (mv_ws.video_dir("duel") / "bakeoff.ts").read_text(encoding="utf-8")
+    out = bakeoff.scaffold(mv_ws, "duel", start=38)
+    assert out["hit"] == 3.5  # the hit moved with the window
+    _song(mv_ws, "early", duration=30.0, hits=[{"t": 2.0, "strength": 1}])
+    main(["new-video", "early"])
+    assert bakeoff.scaffold(mv_ws, "early")["hit"] == 2.0  # clamped window: not 6 s in
+    _song(mv_ws, "flat", duration=30.0, hits=[])
+    main(["new-video", "flat"])
+    assert bakeoff.scaffold(mv_ws, "flat")["hit"] == 6.0  # no hit in the window: the brief's 6 s

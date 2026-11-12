@@ -18,8 +18,8 @@ export type ReplayState = { frame: number };
 
 /**
  * Bring `r` to `frame`: from rest it first settles for `settle` seconds under drive(0) (hair falls into place), then
- * steps every frame up to this one, `sub` steps per frame. Only the frame right after the last one continues from
- * where it was; anything else replays from rest.
+ * steps every frame up to this one, `sub` steps per frame. A later frame continues from where it was (render tabs
+ * take every few frames); an earlier one replays from rest.
  */
 export const replayTo = <S,>(r: Replayable<S>, mem: ReplayState, drive: (t: number) => S, frame: number, fps: number,
   sub = 4, settle = 1): void => {
@@ -31,7 +31,8 @@ export const replayTo = <S,>(r: Replayable<S>, mem: ReplayState, drive: (t: numb
       r.step(dt);
     }
   };
-  if (mem.frame < 0 || frame !== mem.frame + 1) {
+  let f = mem.frame + 1;
+  if (mem.frame < 0 || frame < mem.frame) {
     r.apply(drive(0));
     r.reset();
     const still = drive(0);
@@ -39,9 +40,9 @@ export const replayTo = <S,>(r: Replayable<S>, mem: ReplayState, drive: (t: numb
       r.apply(still);
       r.step(dt);
     }
-    for (let f = 1; f <= frame; f++) stepFrame(f);
-  } else {
-    stepFrame(frame);
+    f = 1;
   }
+  // Onwards from where it is: the same steps a full replay would take, so the result is the same either way.
+  for (; f <= frame; f++) stepFrame(f);
   mem.frame = frame;
 };

@@ -7,12 +7,14 @@ next to the workspace's config.yaml; `watch` tells a later session whether its m
 """
 import json
 import re
+import shutil
 from datetime import date
 from pathlib import Path
 
 import yaml
 
 from . import studio
+from .avatars import credit_avatars
 from .characters import ENGINES, check_engines
 from .errors import MVError
 from .workspace import Workspace
@@ -84,60 +86,69 @@ def _written(vdir: Path) -> list[str]:
     return [e for e in ENGINES if (folder / f"{e}.tsx").is_file()]
 
 
-def _bakeoff_ts(engines: list[str], window: tuple[float, float]) -> str:
+def _bakeoff_ts(engines: list[str], window: tuple[float, float], hit: float) -> str:
     names = {e: e[:1].upper() + e[1:] for e in engines}
     imports = "".join(f"import {{ Bakeoff as {names[e]} }} from './bakeoff/{e}';\n" for e in engines)
     entries = ", ".join(f"{{ engine: '{e}', Component: {names[e]} }}" for e in engines)
     return ("import type { BakeoffEntry } from '@mv/kit';\n" + imports + "\n"
             "// Written by `music-video bakeoff new`: one take of the brief per character engine (bakeoff/<engine>.tsx),\n"
-            "// each a composition <id>-bakeoff-<engine> over this song window (seconds). Edit from/to by hand, or\n"
-            "// run bakeoff new again with --from; delete the takes and empty `entries` once the engine is chosen.\n"
-            f"export const bakeoff: {{ from: number; to: number; entries: BakeoffEntry[] }} = {{\n"
-            f"  from: {window[0]:g}, to: {window[1]:g},\n  entries: [{entries}],\n}};\n")
+            "// each a composition <id>-bakeoff-<engine> over this song window (seconds); `hit` is where the song's\n"
+            "// strongest hit lands, in seconds into the window. Run bakeoff new again with --from to move it, and\n"
+            "// `music-video bakeoff clear <id>` once the engine is chosen (deleting the takes by hand breaks these imports).\n"
+            f"export const bakeoff: {{ from: number; to: number; hit: number; entries: BakeoffEntry[] }} = {{\n"
+            f"  from: {window[0]:g}, to: {window[1]:g}, hit: {hit:g},\n  entries: [{entries}],\n}};\n")
 
 
 def _fmt(x: float) -> str:
     return f"{x:g}"
 
 
-def _sources(vdir: Path) -> None:
-    path = vdir / "SOURCES.md"
-    text = path.read_text(encoding="utf-8") if path.is_file() else "| Asset | Source | Licence |\n|---|---|---|\n"
-    if "vroid-sample" in text:
-        return
-    row = ("| Characters (vrm): `vroid-sample-1.vrm` … `vroid-sample-4.vrm` | VRoid β AvatarSample_1–4 by VRoid Project "
-           "(pixiv Inc.), https://vroid.pixiv.help/hc/en-us/articles/4402614652569; installed by music-video avatars "
-           "install | CC0 |\n")
-    path.write_text(text.rstrip("\n") + "\n" + row, encoding="utf-8")
+def _analysis(ws: Workspace, song_id: str) -> dict:
+    """The song's analysis.json: a bake-off needs it to place its window, and a render needs it anyway."""
+    path = ws.work_for(song_id) / "public" / "analysis.json"
+    if not path.is_file():
+        raise MVError(f"no analysis.json for the song '{song_id}' ({path}): check the song id (the workspace's specs/ "
+                      f"folder lists them), or run music-video analyze {song_id} first")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def hit_in(analysis: dict, window: tuple[float, float]) -> float:
+    """Where the window's strongest hit lands, in seconds into the window; HIT_AT (or the window's end, if shorter)
+    when no hit falls inside it."""
+    a, b = window
+    inside = [h for h in analysis.get("hits") or [] if a <= float(h["t"]) < b]
+    if not inside:
+        return round(min(HIT_AT, b - a), 2)
+    top = max(float(h.get("strength", 0)) for h in inside)
+    return round(min(float(h["t"]) for h in inside if float(h.get("strength", 0)) == top) - a, 2)
 
 
 def scaffold(ws: Workspace, video_id: str, engines: list[str] | None = None, start: float | None = None,
              song: str | None = None) -> dict:
     """Start (or extend) a bake-off in a video: starters for engines not written yet, and bakeoff.ts. With `song`,
-    a missing video is created from the template, borrowing that song."""
+    a missing video is created from the template, borrowing that song. Nothing is created when the song has no
+    analysis."""
     wanted = check_engines(["raw", *(engines or ENGINES)])  # raw is always in a bake-off, first
     vdir = ws.video_dir(video_id)
     if not vdir.is_dir():
         if not song:
             raise MVError(f"no video '{video_id}': give --song <song id> to start a bake-off video that borrows that "
                           "song's timing, or use an existing video's id")
+        analysis = _analysis(ws, song)  # before anything is created: a mistyped song leaves nothing behind
         studio.new_video(ws, video_id)
         _set_song(vdir, song)
-    elif song and str(_meta(vdir).get("song") or video_id) != song:
-        raise MVError(f"{video_id} already uses the song {_meta(vdir).get('song') or video_id}: leave out --song")
+    else:
+        if song and str(_meta(vdir).get("song") or video_id) != song:
+            raise MVError(f"{video_id} already uses the song {_meta(vdir).get('song') or video_id}: leave out --song")
+        analysis = _analysis(ws, str(_meta(vdir).get("song") or video_id))
     old_ts = vdir / "bakeoff.ts"
-    song_id = str(_meta(vdir).get("song") or video_id)
-    analysis_file = ws.work_for(song_id) / "public" / "analysis.json"
-    analysis = json.loads(analysis_file.read_text(encoding="utf-8")) if analysis_file.is_file() else None
-    window = None
     if start is not None:
         window = _given_window(float(start), analysis)
     elif old_ts.is_file() and (m := WINDOW_RE.search(old_ts.read_text(encoding="utf-8"))) and _written(vdir):
         window = (float(m.group(1)), float(m.group(2)))
-    if window is None:
-        if analysis is None:
-            raise MVError(f"no analysis.json for {song_id}: run music-video analyze {song_id}, or give --from <seconds>")
+    else:
         window = default_window(analysis)
+    hit = hit_in(analysis, window)
     added = []
     (vdir / "bakeoff").mkdir(exist_ok=True)
     for engine in wanted:
@@ -146,12 +157,25 @@ def scaffold(ws: Workspace, video_id: str, engines: list[str] | None = None, sta
             target.write_text((STARTERS / f"{engine}.tsx").read_text(encoding="utf-8"), encoding="utf-8")
             added.append(engine)
     takes = _written(vdir)
-    old_ts.write_text(_bakeoff_ts(takes, window), encoding="utf-8")
+    old_ts.write_text(_bakeoff_ts(takes, window, hit), encoding="utf-8")
     if "vrm" in takes:
-        _sources(vdir)
+        credit_avatars(vdir)
     index = vdir / "index.tsx"
     wired = index.is_file() and "from './bakeoff'" in index.read_text(encoding="utf-8")
-    return {"video": video_id, "dir": vdir, "engines": takes, "added": added, "window": window, "wired": wired}
+    return {"video": video_id, "dir": vdir, "engines": takes, "added": added, "window": window, "hit": hit,
+            "wired": wired}
+
+
+def clear(ws: Workspace, video_id: str) -> Path:
+    """After the choice: the takes go, and bakeoff.ts goes back to the template's empty one (no imports), so the
+    video still builds. Versions kept on the review page stay."""
+    vdir = ws.video_dir(video_id)
+    if not vdir.is_dir():
+        raise MVError(f"no video '{video_id}'")
+    shutil.rmtree(vdir / "bakeoff", ignore_errors=True)
+    (vdir / "bakeoff.ts").write_text((studio.PLUGIN_STUDIO / "template" / "bakeoff.ts").read_text(encoding="utf-8"),
+                                     encoding="utf-8")
+    return vdir
 
 
 def next_steps(ws: Workspace, out: dict) -> list[str]:

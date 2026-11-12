@@ -252,10 +252,29 @@ def check_video(video_dir: Path) -> None:
     """Before a render: every avatar the video imports is installed and intact, or one line says how to get it."""
     known = {a.file: a for a in _avatars()}
     folder = avatar_dir()
-    gone = sorted(f for f in imported(video_dir) if f not in known or state(known[f], folder) != "ok")
+    used = imported(video_dir)
+    gone = sorted(f for f in used if f not in known or state(known[f], folder) != "ok")
+    if used and not gone:
+        credit_avatars(video_dir)
     if gone:
         unknown = [f for f in gone if f not in known]
         hint = (f" ({', '.join(unknown)} is not one of the samples: they are {', '.join(sorted(known))})"
                 if unknown else "")
         raise MVError(f"this video uses character avatars that are not installed: {', '.join(gone)}{hint}. Run "
                       "music-video avatars install (or music-video avatars add <file> with a copy you downloaded)")
+
+
+CREDIT_MARK = "vroid-sample"
+
+
+def credit_avatars(video_dir: Path) -> None:
+    """The video's SOURCES.md names the samples' CC0 source (once): when a bake-off adds a vrm take, and when a
+    render finds the video importing them."""
+    path = video_dir / "SOURCES.md"
+    text = path.read_text(encoding="utf-8") if path.is_file() else "| Asset | Source | Licence |\n|---|---|---|\n"
+    if CREDIT_MARK in text or any(a.file in text for a in _avatars()):
+        return
+    files = ", ".join(f"`{a.file}`" for a in _avatars())
+    row = (f"| Characters (vrm): {files} | VRoid β AvatarSample_1–4 by VRoid Project (pixiv Inc.), {CC0_PAGE}; "
+           "installed by music-video avatars install | CC0 |\n")
+    path.write_text(text.rstrip("\n") + "\n" + row, encoding="utf-8")

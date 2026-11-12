@@ -478,11 +478,16 @@ def cmd_bakeoff(args) -> int:
         print(f"recorded {row['date']} {row['model']}: {row['verdict']} in {ws.home / bakeoff.BAKEOFFS}")
         return 0
     if not args.id:
-        raise MVError("say which video: music-video bakeoff new <id> [--song <song id>]")
+        raise MVError(f"say which video: music-video bakeoff {args.action} <id>")
+    if args.action == "clear":
+        vdir = bakeoff.clear(ws, args.id)
+        print(f"cleared the bake-off in {vdir}: takes removed, bakeoff.ts empty (kept versions stay on the review page)")
+        return 0
     out = bakeoff.scaffold(ws, args.id, engines=args.engines.split(",") if args.engines else None,
                            start=args.start, song=args.song)
     a, b = out["window"]
-    print(f"bake-off in {out['dir']}: {', '.join(out['engines'])} over {clock(a)}–{clock(b)} of the song"
+    print(f"bake-off in {out['dir']}: {', '.join(out['engines'])} over {clock(a)}–{clock(b)} of the song, "
+          f"the hit {out['hit']:g} s in"
           + (f" (new: {', '.join(out['added'])})" if out["added"] else ""))
     print("write each take from the brief: the make skill's references/bakeoff.md (bakeoff/<engine>.tsx)")
     if not out["wired"]:
@@ -641,9 +646,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("doctor", help="check the tools and install the video engine (once, about 1.7 GB)")
     p.add_argument("--no-install", action="store_true", help="only check; do not install the engine's packages")
     p.add_argument("--no-avatars", action="store_true", help="do not download the character avatars")
-    p = sub.add_parser("bakeoff", help="character engines side by side: start a bake-off in a video, record its verdict, or see the last one")
-    p.add_argument("action", choices=["new", "record", "last"])
-    p.add_argument("id", nargs="?", help="the video (new, record)")
+    p = sub.add_parser("bakeoff", help="character engines side by side: start a bake-off in a video, record its verdict, see the last one, or clear it")
+    p.add_argument("action", choices=["new", "record", "last", "clear"])
+    p.add_argument("id", nargs="?", help="the video (new, record, clear)")
     p.add_argument("--song", help="new: start a new video for the bake-off, borrowing this song's timing")
     p.add_argument("--engines", help="comma-separated engines (default: all; raw is always included)")
     p.add_argument("--from", dest="start", type=float, help="new: where the window starts, in song seconds")
