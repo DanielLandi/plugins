@@ -388,3 +388,14 @@ def test_a_folder_that_refuses_locks_fails_at_once_not_as_busy(tmp_path, monkeyp
         with filelock.file_lock(tmp_path / "engine" / ".lock", timeout=5, busy="another command is updating it"):
             pass
     assert time.monotonic() - t < 1 and "another command" not in str(e.value)
+
+
+def test_seed_gives_the_engine_its_own_hidden_npm_lockfile(tmp_path, monkeypatch):
+    # npm rewrites node_modules/.package-lock.json in place: a hard link would let one engine's npm edit the other's.
+    src = installed_engine(tmp_path / "install" / "engine", '{"v": 1}')
+    (src / "node_modules/.package-lock.json").write_text('{"packages": {}}', encoding="utf-8")
+    monkeypatch.setattr(studio, "PLUGIN_STUDIO", dev_copy(tmp_path, "plugins", lock='{"v": 1}'))
+    rt = studio.ensure_ready()
+    a, b = src / "node_modules/.package-lock.json", rt / "node_modules/.package-lock.json"
+    assert b.read_text(encoding="utf-8") == '{"packages": {}}' and os.stat(a).st_ino != os.stat(b).st_ino
+    assert os.stat(src / "node_modules/remotion/index.js").st_ino == os.stat(rt / "node_modules/remotion/index.js").st_ino

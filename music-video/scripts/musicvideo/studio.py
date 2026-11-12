@@ -27,6 +27,7 @@ KEEP = {"node_modules", ".entries"}  # runtime-only folders, never synced or pru
 LOCK_STAMP = ".installed-lock"
 SYNCED = ".synced.json"  # what the last sync copied: the only files a sync may delete
 SEED_SKIP = {".cache", ".vite", ".vite-temp"}  # tool caches written in place: never shared between engines
+SEED_COPY = {".package-lock.json"}  # npm's hidden lockfile, rewritten in place by npm: each engine gets its own copy
 LEASES = ".leases"  # one file per command using the engine (removed when it ends)
 LEASE_MAX_AGE = 48 * 3600  # a lease older than this is stale whatever its pid says (pids get reused)
 OWNER = ".owner.json"  # a checkout's engine: which checkout it serves, when it was last used
@@ -255,8 +256,10 @@ def find_seed(rt: Path) -> Path | None:
                  and (c / LOCK_STAMP).read_text(encoding="utf-8") == want), None)
 
 
-def link_tree(src: Path, dest: Path, skip: frozenset[str] | set[str] = frozenset()) -> None:
-    """dest as a tree of hard links to src's files (symlinks re-created), leaving out the top-level names in skip.
+def link_tree(src: Path, dest: Path, skip: frozenset[str] | set[str] = frozenset(),
+              copy: frozenset[str] | set[str] = frozenset()) -> None:
+    """dest as a tree of hard links to src's files (symlinks re-created), leaving out the top-level names in skip and
+    copying the top-level files in copy.
     npm ci replaces files rather than rewriting them, so a later install in src never changes dest. Where hard
     links fail (another volume, an odd file system), dest becomes a full copy instead."""
     def link(s: Path, d: Path, top: bool) -> None:
@@ -270,6 +273,8 @@ def link_tree(src: Path, dest: Path, skip: frozenset[str] | set[str] = frozenset
                     os.symlink(os.readlink(e.path), target)
                 elif e.is_dir():
                     link(Path(e.path), target, False)
+                elif top and e.name in copy:
+                    shutil.copy2(e.path, target)
                 else:
                     os.link(e.path, target)
     try:
@@ -289,7 +294,7 @@ def seed_modules(rt: Path) -> Path | None:
     if leases := live_leases(rt):  # replacing node_modules under a running command breaks it, as npm ci would
         raise MVError(_in_use(leases[0]))
     shutil.rmtree(rt / "node_modules", ignore_errors=True)  # an earlier seed may have stopped half-way
-    link_tree(seed / "node_modules", rt / "node_modules", SEED_SKIP)
+    link_tree(seed / "node_modules", rt / "node_modules", SEED_SKIP, SEED_COPY)
     (rt / LOCK_STAMP).write_text(lock_hash(rt), encoding="utf-8")
     return seed
 
