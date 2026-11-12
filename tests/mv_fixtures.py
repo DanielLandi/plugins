@@ -30,6 +30,13 @@ def mv_isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("MV_SETTINGS", str(tmp_path / "settings.json"))
     monkeypatch.setenv("MV_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setenv("MV_INSTALL_DIR", str(tmp_path / "install"))
+    # No test downloads anything: doctor's avatar step sees an offline network unless a test serves files itself.
+    from urllib.error import URLError
+    from musicvideo import avatars
+
+    def offline(url, dest):
+        raise URLError("tests run offline")
+    monkeypatch.setattr(avatars, "fetch_url", offline)
 
 
 @pytest.fixture
