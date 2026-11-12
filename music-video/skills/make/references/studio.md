@@ -81,8 +81,9 @@ rendering motion.
 > nothing, not even your own stills: leave every file where it is.
 >
 > **Read first:** `${CLAUDE_PLUGIN_ROOT}/skills/make/references/studio.md` (rules),
-> `${CLAUDE_PLUGIN_ROOT}/skills/make/references/animation.md` (how things move), `<video>/LOOK.md` (the
-> approved look — follow it exactly), `<video>/look.ts`, the kit API in `${CLAUDE_PLUGIN_ROOT}/studio/kit/index.ts`
+> `${CLAUDE_PLUGIN_ROOT}/skills/make/references/animation.md` (how things move), with a moving camera
+> `${CLAUDE_PLUGIN_ROOT}/skills/make/references/shot-design.md`, `<video>/LOOK.md` (the approved look — follow it
+> exactly, its jolts answer included), `<video>/look.ts`, the kit API in `${CLAUDE_PLUGIN_ROOT}/studio/kit/index.ts`
 > (and `kit/three/index.ts` for 3D), and this storyboard entry:
 >
 > <paste the section's STORYBOARD.md entry>

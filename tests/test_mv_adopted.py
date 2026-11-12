@@ -4,7 +4,7 @@ from conftest import REPO
 
 PLUGIN = REPO / "music-video"
 REFS = PLUGIN / "skills" / "make" / "references"
-ADAPTED = {"animation.md"}
+ADAPTED = {"animation.md", "shot-design.md", "shot-balance.md", "shot-card.md"}
 
 
 def test_adapted_references_carry_the_credit_and_the_notice_names_them():
@@ -21,3 +21,11 @@ def test_the_make_skill_and_the_scene_brief_read_animation_before_scene_code():
     assert "`references/animation.md` before any scene code" in skill
     brief = (REFS / "studio.md").read_text(encoding="utf-8").split("## Scene-agent brief", 1)[1]
     assert "references/animation.md" in brief
+
+
+def test_shot_design_fits_our_scene_changes_and_jolts():
+    shot = (REFS / "shot-design.md").read_text(encoding="utf-8")
+    assert "cuts.ts" in shot and "--cut" in shot and "`ease: 'cut'`" in shot
+    assert "Hold the framing with a slight shake on the beat instead" not in shot
+    skill = (PLUGIN / "skills" / "make" / "SKILL.md").read_text(encoding="utf-8")
+    assert "`references/shot-design.md` before keying any camera move" in skill
