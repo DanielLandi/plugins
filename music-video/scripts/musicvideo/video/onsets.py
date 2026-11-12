@@ -5,6 +5,7 @@ fricative at its noise onset (a sung s or f hisses well before the vowel), a sto
 sonorant where the voice rises into it, never on a breath or an "h" before it. The kind of first sound comes from the
 word's spelling; its time is measured on the vocal stem.
 """
+import re
 import unicodedata
 from dataclasses import replace
 from typing import Literal
@@ -16,9 +17,16 @@ from .timing import MIN_WORD_S, Word, too_short
 Sound = Literal["fricative", "stop", "voiced"]
 
 _SOFT = set("eiy")
-# A word that starts with a digit is sung as the number's name.
+# A word that starts with a digit is sung as the number's name: the whole number's in English and Portuguese, the
+# first digit's when the number is not a plain integer (12.5, 1º, 007) or the language is another one.
 _DIGITS = {"en": "zero one two three four five six seven eight nine".split(),
            "pt": "zero um dois tres quatro cinco seis sete oito nove".split()}
+_TEENS = {"en": "ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split(),
+          "pt": "dez onze doze treze catorze quinze dezesseis dezessete dezoito dezenove".split()}
+_TENS = {"en": "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split(),
+         "pt": "_ _ vinte trinta quarenta cinquenta sessenta setenta oitenta noventa".split()}
+_PT_HUNDREDS = "_ cento duzentos trezentos quatrocentos quinhentos seiscentos setecentos oitocentos novecentos".split()
+_EN_ORDINALS = {1: "first", 2: "second", 3: "third"}  # the others start like the number itself (twelfth, twenty-first)
 
 
 def _letters(word: str) -> str:
@@ -78,11 +86,74 @@ def _other(w: str) -> Sound:
     return "voiced"
 
 
+def _english_number(n: int) -> str:
+    if n < 10:
+        return _DIGITS["en"][n]
+    if n < 20:
+        return _TEENS["en"][n - 10]
+    if n < 100:
+        return _TENS["en"][n // 10] + (f"-{_DIGITS['en'][n % 10]}" if n % 10 else "")
+    if n < 1000:
+        rest = n % 100
+        return f"{_DIGITS['en'][n // 100]} hundred" + (f" and {_english_number(rest)}" if rest else "")
+    rest = n % 100
+    if n < 2000 and (n // 100) % 10:  # 1100-1999 are sung as years: fifteen hundred, nineteen eighty-four
+        tail = " hundred" if not rest else f" oh {_DIGITS['en'][rest]}" if rest < 10 else f" {_english_number(rest)}"
+        return _english_number(n // 100) + tail
+    rest = n % 1000
+    head = f"{_english_number(n // 1000)} thousand"
+    return head + ("" if not rest else f" and {_english_number(rest)}" if rest < 100 else f" {_english_number(rest)}")
+
+
+def _portuguese_number(n: int) -> str:
+    if n < 10:
+        return _DIGITS["pt"][n]
+    if n < 20:
+        return _TEENS["pt"][n - 10]
+    if n < 100:
+        return _TENS["pt"][n // 10] + (f" e {_DIGITS['pt'][n % 10]}" if n % 10 else "")
+    if n < 1000:
+        if n == 100:
+            return "cem"
+        rest = n % 100
+        return _PT_HUNDREDS[n // 100] + (f" e {_portuguese_number(rest)}" if rest else "")
+    rest = n % 1000
+    head = "mil" if n < 2000 else f"{_portuguese_number(n // 1000)} mil"
+    if not rest:
+        return head
+    # "e" before a last group under a hundred or of whole hundreds: mil e cem, mil novecentos e oitenta e cinco
+    return head + (" e " if rest < 100 or rest % 100 == 0 else " ") + _portuguese_number(rest)
+
+
+def spell_number(n: int, lang: str) -> str | None:
+    """The number as it is sung, in English or Portuguese (accents folded), for 0 <= n < 1,000,000; None otherwise."""
+    code = (lang or "").lower()[:2]
+    if code not in ("en", "pt") or not 0 <= n < 1_000_000:
+        return None
+    return _english_number(n) if code == "en" else _portuguese_number(n)
+
+
+def _number_name(w: str, code: str) -> str:
+    """The name a word starting with a digit is sung as."""
+    digits = re.match(r"\d+", w).group()
+    rest = w[len(digits):]
+    whole = None
+    if not (len(digits) > 1 and digits[0] == "0") and not re.match(r"[.,]\d", rest):
+        n = int(digits)
+        if not rest[:1].isalnum():  # 12, 9-to-5, 24/7
+            whole = spell_number(n, code)
+        elif code == "en" and re.fullmatch(r"(st|nd|rd|th)\b.*", rest):  # 1st, 12th
+            whole = _EN_ORDINALS.get(n) or spell_number(n, code)
+        elif code == "en" and re.fullmatch(r"s\b.*", rest):  # the 80s
+            whole = spell_number(n, code)
+    return whole or _DIGITS.get(code, _DIGITS["en"])[int(digits[0])]
+
+
 def first_sound(word: str, lang: str) -> Sound:
     w = _letters(word)
     code = (lang or "").lower()[:2]
     if w[:1].isdigit():
-        w = _DIGITS.get(code, _DIGITS["en"])[int(w[0])]
+        w = _number_name(w, code)
     if not w:
         return "voiced"
     return _english(w) if code == "en" else _portuguese(w) if code == "pt" else _other(w)
