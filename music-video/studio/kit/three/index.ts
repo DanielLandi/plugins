@@ -9,3 +9,4 @@ export * from './settle';
 export * from './sanitize';
 export * from './surfaces';
 export * from './finish';
+export * from './vrm';
