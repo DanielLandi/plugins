@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.5
+
+- A word that is a number takes its first sound from the whole number as sung, not its first digit: "12" starts
+  like "twelve", "20" like "twenty" ("vinte" in Portuguese), "1984" like "nineteen eighty-four", "1st" like "first"
+  (English and Portuguese, up to 999,999; decimals, leading zeros and other languages keep the first digit).
+- A Portuguese word-initial "r" stays classed as a hiss: there are no corrected Portuguese timings yet to check it
+  against (the rule's comment says how to re-check).
+
 ## 0.8.4
 
 - Word starts follow the first sound: `align` moves each word's start onto the onset of its first sound, measured
