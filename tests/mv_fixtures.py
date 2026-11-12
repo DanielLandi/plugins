@@ -118,3 +118,44 @@ def requires_ffmpeg():
     import shutil
     if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
         pytest.skip("ffmpeg not installed")
+
+
+def fake_repo(root):
+    """A git main checkout, as far as music-video reads one: a `.git` directory."""
+    (root / ".git").mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def fake_worktree(main, root, relative: bool = False):
+    """A linked worktree of `main`, written the way `git worktree add` writes it: an admin folder in the common git
+    dir (`gitdir`, `commondir`) and a `.git` file in the worktree (relative paths with worktree.useRelativePaths)."""
+    import os
+    admin = main / ".git" / "worktrees" / root.name
+    admin.mkdir(parents=True, exist_ok=True)
+    root.mkdir(parents=True, exist_ok=True)
+    (admin / "gitdir").write_text(f"{root / '.git'}\n", encoding="utf-8")
+    (admin / "commondir").write_text("../..\n", encoding="utf-8")
+    target = os.path.relpath(admin, root) if relative else str(admin)
+    (root / ".git").write_text(f"gitdir: {target}\n", encoding="utf-8")
+    return root
+
+
+Lanes = __import__("collections").namedtuple("Lanes", "main a b")
+
+
+@pytest.fixture
+def mv_lane(mv_ws, tmp_path):
+    """mv_ws as a git main checkout with two linked worktrees (lane-a, lane-b) holding copies of its specs/ and
+    videos/ and no config.yaml of their own. MUSIC_VIDEO_HOME still points at the main checkout."""
+    import shutil
+    main = fake_repo(mv_ws.home)
+    lanes = []
+    for name in ("lane-a", "lane-b"):
+        root = fake_worktree(main, tmp_path / "worktrees" / name)
+        for sub in ("specs", "videos"):
+            if (main / sub).is_dir():
+                shutil.copytree(main / sub, root / sub)
+            else:
+                (root / sub).mkdir()
+        lanes.append(root)
+    return Lanes(main, *lanes)
