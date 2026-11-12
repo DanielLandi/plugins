@@ -195,7 +195,7 @@ def process_started(pid: int) -> float | None:
         return None
 
 
-_held: list[Path] = []
+_held: list[Path] = []  # the leases this process holds: release_leases() removes them when the command ends
 
 
 def take_lease(rt: Path, video_id: str) -> Path:
@@ -280,12 +280,12 @@ def install(rt: Path) -> None:
     npm = shutil.which("npm")
     if not npm:
         raise MVError("Node.js (npm) not found: install Node 20 or newer, then run music-video doctor")
-    # --include=dev: the build tools (tsx, typescript) are dev dependencies, which an npm set to omit them would skip.
     if leases := live_leases(rt):
         raise MVError(_in_use(leases[0]))
     # npm ci deletes and re-extracts node_modules: until it is done, the engine must not look installed (a checkout
     # seeding from it then would link a half-extracted tree).
     (rt / LOCK_STAMP).unlink(missing_ok=True)
+    # --include=dev: the build tools (tsx, typescript) are dev dependencies, which an npm set to omit them would skip.
     if subprocess.run([npm, "ci", "--include=dev", "--no-audit", "--no-fund"], cwd=rt).returncode:
         raise MVError(f"npm ci failed in {rt}")
     if subprocess.run([*tool(rt, "remotion"), "browser", "ensure"], cwd=rt).returncode:
@@ -393,7 +393,7 @@ def ensure_ready(video_id: str | None = None) -> Path:
         refuse_other_source(rt)
         sync_runtime(dest=rt)
         if not is_installed(rt) and (seed := seed_modules(rt)):
-            print(f"seeded the engine for this checkout from {seed}", file=sys.stderr)
+            print(f"seeded the engine's packages in {rt} from {seed}", file=sys.stderr)
         if not is_installed(rt):
             raise MVError("the video engine's packages are not installed or are out of date: run music-video doctor")
         if video_id is not None:
