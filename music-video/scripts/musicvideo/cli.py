@@ -129,7 +129,7 @@ def cmd_downloaded(args) -> int:
     billing_day, budget = _budget(ws)
     today = date.today()
     start = cycle_start(today, billing_day)
-    used = downloads_in_cycle((d for _, d in iter_worktree_specs(ws)), today, billing_day)  # every worktree
+    used = downloads_in_cycle(iter_worktree_specs(ws), today, billing_day)  # every worktree
     if used >= budget and not args.paid_extra:
         raise MVError(f"download budget used up: {used} of {budget} since {start}; "
                       "pass --paid-extra only if the user confirmed buying an extra download")
@@ -148,7 +148,7 @@ def cmd_status(args) -> int:
         print("Downloads: not tracked (set billing_day and download_budget in config.yaml)")
     else:
         today = date.today()
-        used = downloads_in_cycle((d for _, d in iter_worktree_specs(ws)), today, ws.billing_day)
+        used = downloads_in_cycle(iter_worktree_specs(ws), today, ws.billing_day)
         left = max(ws.download_budget - used, 0)
         start = cycle_start(today, ws.billing_day)
         print(f"Downloads: {used} of {ws.download_budget} used since {start} ({left} left)")

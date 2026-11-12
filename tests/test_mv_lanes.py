@@ -419,8 +419,29 @@ def test_downloads_in_cycle_counts_one_download_once():
     no_id = {"kept": {"downloaded_at": "2026-11-16T10:00:00+00:00"}}
     again = {"id": "x", "kept": {"downloaded_at": "2026-11-17T10:00:00+00:00"}}  # downloaded again: two downloads
     assert downloads_in_cycle([one, dict(one)], today, 15) == 1
-    assert downloads_in_cycle([no_id, dict(no_id)], today, 15) == 2
+    assert downloads_in_cycle([no_id, dict(no_id)], today, 15) == 2  # two files, nothing says they are one
     assert downloads_in_cycle([one, again], today, 15) == 2
+    # a spec without an id, seen in two worktrees, is known by its file name
+    a, b = Path("main") / "specs" / "x.yaml", Path("lane") / "specs" / "x.yaml"
+    assert downloads_in_cycle([(a, no_id), (b, dict(no_id))], today, 15) == 1
+    assert downloads_in_cycle([(a, no_id), (a.with_name("y.yaml"), dict(no_id))], today, 15) == 2
+
+
+def test_a_spec_without_an_id_counts_once_across_worktrees(mv_lane, monkeypatch, capsys):
+    from musicvideo.cli import main
+    from musicvideo.spec import load_spec, now_iso, save_spec
+    from musicvideo.video import home
+    at = now_iso()
+    for folder in mv_lane:  # one download, merged into every branch, of a spec written without an id
+        path = _downloaded(folder, "no-id", at)
+        data = load_spec(path)
+        del data["id"]
+        save_spec(path, data)
+    for folder in mv_lane:
+        monkeypatch.setenv("MUSIC_VIDEO_HOME", str(folder))
+        assert main(["status"]) == 0
+        assert "Downloads: 1 of 20" in capsys.readouterr().out
+        assert home.downloads(w.load_workspace(folder))["used"] == 1
 
 
 def test_a_plain_workspace_counts_as_today(mv_ws, capsys):

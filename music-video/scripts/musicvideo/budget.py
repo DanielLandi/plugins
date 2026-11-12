@@ -1,5 +1,6 @@
 from calendar import monthrange
 from datetime import date
+from pathlib import Path
 from typing import Iterable
 
 from .spec import parse_dt
@@ -17,18 +18,21 @@ def cycle_start(today: date, billing_day: int) -> date:
     return _on_day(year, month, billing_day)
 
 
-def downloads_in_cycle(specs: Iterable[dict], today: date, billing_day: int) -> int:
+def downloads_in_cycle(specs: Iterable[dict | tuple[Path, dict]], today: date, billing_day: int) -> int:
     """Downloads recorded since the cycle started. A spec seen in several git worktrees (one download merged into
-    two branches) counts once, by its id and download time."""
+    two branches) counts once, by its id and download time; given as (path, data), a spec without an id is known
+    by its file name."""
     start = cycle_start(today, billing_day)
     count = 0
     seen = set()
-    for data in specs:
+    for item in specs:
+        path, data = item if isinstance(item, tuple) else (None, item)
         at = (data.get("kept") or {}).get("downloaded_at")
         if not at or not start <= parse_dt(at).astimezone().date() <= today:
             continue
-        if data.get("id"):
-            key = (data["id"], str(at))
+        name = data.get("id") or (path.stem if path is not None else None)
+        if name:
+            key = (name, str(at))
             if key in seen:
                 continue
             seen.add(key)
