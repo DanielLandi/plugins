@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.0
+
+- A git worktree of the project copies the main checkout's timings (`public/`, vocals, transcript, aligned words,
+  beats, `loop/`, align's cache) into its own work folder the first time it needs them, instead of re-running
+  `align`/`analyze`. Renders, checks and reviews are never copied. It prints one line, and two commands at once copy
+  only once. Main checkouts are unchanged.
+- `init` in a worktree with no saved workspace saves the main checkout's folder, so later commands find it.
+- A spec without an `id` counts once, not once per worktree, against the download budget.
+- `downloaded` warns when another worktree's copy of the spec holds a different take (`ingest` would refuse it).
+- The make skill's finals list says that in a worktree the song stays in the main results folder.
+
 ## 0.10.0
 
 - New make-skill references adapted from Imaginative-Prompting/claude-video-skills (MIT, credited in
