@@ -38,7 +38,8 @@ then wait for the completion notice): renders, the board and the first `align` c
 
 Read once per session before step 1: `references/lyric-craft.md`, and the song skill's
 `../song/references/originals.md` and the generator's references (`../song/references/generators/suno/`). Read
-`references/look.md` before step 5, `references/storyboard.md` before step 6, `references/studio.md` and
+`references/look.md` before step 5 (and `references/bakeoff.md` when the video has characters),
+`references/storyboard.md` before step 6, `references/studio.md` and
 `references/animation.md` before any scene code, `references/shot-design.md` before keying any camera move, and `references/checks.md` and `references/taste.md` before showing any render.
 
 ## Hard rules
@@ -63,7 +64,7 @@ the main results folder. Song downloads still count against the one budget. The 
 work folder there copies the main checkout's timings into it (it prints one line saying so): do not re-run `align`
 or `analyze` unless the timings change.
 
-- Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds, cuts, jolts),
+- Code and documents, in `<video>`: `video.yaml` (step, waiting, topic, checklist, gl, holds, cuts, jolts, characters),
   `CONCEPT.md`, `lyric-options.yaml`, `lyrics.md`, `directions.yaml`, `LOOK.md`, `STORYBOARD.md`, `NOTES.md`,
   `JOURNAL.md`, `SOURCES.md`, `README.md`, `look.ts`, `video.ts`, `scenes.ts`, `cuts.ts`, `scenes/*.tsx`; `notes/`
   and `requests/` (written by the pages).
@@ -264,7 +265,24 @@ the kick drum, a shake on the big hits?" It is this video's choice, not a rule e
 what jolts, when yes) as the **Jolts:** line of `LOOK.md`, as `jolts` in `look.ts` and as `jolts:` in `video.yaml`;
 when the user does not answer, it is no. Every scene follows it (`references/studio.md`).
 
-Then: final `LOOK.md`, `look.ts` values, remove the losing look code. `step: sample`.
+When the concept has characters, each direction also names its **character engine**, so the sheet compares
+engines as well as styles: `raw` (you draw and move the characters from scratch in scene code; always offered,
+first), `vrm` (three-vrm anime characters from `@mv/kit/three`, with the CC0 sample avatars) or `cartoon`
+(hand-inked 2D rubber-hose characters from `@mv/kit/cartoon`: brush lines that boil, eye pops and jaw drops,
+squash and stretch). When the user wants
+to see the engines move before choosing, or cannot tell from stills, run a bake-off (`references/bakeoff.md`):
+`bakeoff new <id>` puts one take per engine on the review page as variants of the scene `bakeoff`
+(`version … --scene bakeoff --variant <engine>`), and `bakeoff record` keeps the verdict. Record the choice as the
+**Characters:** line of `LOOK.md`, `characterEngine` in `look.ts` and `characters:` in `video.yaml`; no characters
+leaves them none/null.
+
+Model watch, only when the video has characters: run
+`uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" bakeoff last --model <your model id>`. When it says to
+offer, offer once, in one line, to run the benchmark bake-off on its own later (`references/bakeoff.md`); it must
+never block the video. A no is recorded with `bakeoff record --model <your model id> --declined`.
+
+Then: final `LOOK.md`, `look.ts` values, remove the losing look code (and the bake-off's takes, with
+`bakeoff clear <id>`). `step: sample`.
 
 ## 6. Sample, storyboard, subtitles ✋ (the go signal)
 

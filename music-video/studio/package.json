@@ -15,6 +15,7 @@
     "web": "tsx tools/web.ts"
   },
   "dependencies": {
+    "@pixiv/three-vrm": "3.5.5",
     "@react-three/fiber": "9.8.1",
     "@remotion/bundler": "4.0.534",
     "@remotion/cli": "4.0.534",
@@ -23,6 +24,8 @@
     "@remotion/renderer": "4.0.534",
     "@remotion/three": "4.0.534",
     "@remotion/transitions": "4.0.534",
+    "flubber": "0.4.2",
+    "perfect-freehand": "1.2.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "three": "0.186.1"

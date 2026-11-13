@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 
 from . import __version__
-from . import library, studio
+from . import avatars, bakeoff, library, studio
 from .doctor import run_doctor
 from .albums import load_album, write_manifest
 from .errors import MVError
@@ -471,13 +471,72 @@ def cmd_album(args) -> int:
 
 
 def cmd_doctor(args) -> int:
-    return run_doctor(not args.no_install)
+    return run_doctor(not args.no_install, avatars=not args.no_avatars)
 
 
-def _prepare(video_id):
+def cmd_bakeoff(args) -> int:
+    ws = load_workspace()
+    if args.action == "last":
+        if not args.model:
+            raise MVError("say which model this session runs: --model <model id>")
+        w = bakeoff.watch(ws, args.model)
+        last = w["last"]
+        print(f"last bake-off: {last['date']}, {last['model']} ({', '.join(last['engines'])}, video {last['video']}): "
+              f"{last['verdict']}" if last else "last bake-off: none yet")
+        print(("offer the benchmark once (never blocking): " if w["offer"] else "no offer: ") + w["reason"])
+        print(f"record: {ws.home / bakeoff.BAKEOFFS}")
+        return 0
+    if args.action == "record":
+        row = bakeoff.record(ws, args.id, args.model or "", args.verdict or "",
+                             engines=args.engines.split(",") if args.engines else None, declined=args.declined)
+        print(f"recorded {row['date']} {row['model']}: {row['verdict']} in {ws.home / bakeoff.BAKEOFFS}")
+        return 0
+    if not args.id:
+        raise MVError(f"say which video: music-video bakeoff {args.action} <id>")
+    if args.action == "clear":
+        vdir = bakeoff.clear(ws, args.id)
+        print(f"cleared the bake-off in {vdir}: takes removed, bakeoff.ts empty (kept versions stay on the review page)")
+        return 0
+    out = bakeoff.scaffold(ws, args.id, engines=args.engines.split(",") if args.engines else None,
+                           start=args.start, song=args.song)
+    a, b = out["window"]
+    print(f"bake-off in {out['dir']}: {', '.join(out['engines'])} over {clock(a)}–{clock(b)} of the song, "
+          f"the hit {out['hit']:g} s in"
+          + (f" (new: {', '.join(out['added'])})" if out["added"] else ""))
+    print("write each take from the brief: the make skill's references/bakeoff.md (bakeoff/<engine>.tsx)")
+    if not out["wired"]:
+        print("this video's index.tsx does not register bake-off compositions yet: add")
+        print(bakeoff.WIRING)
+    if "vrm" in out["engines"] and any(avatars.state(x) != "ok" for x in avatars.AVATARS):
+        print("the vrm take needs the sample avatars: run music-video avatars install")
+    print("then, per engine, render, add the song, check and keep it as a variant:")
+    for line in bakeoff.next_steps(ws, out):
+        print(f"  {line}")
+    return 0
+
+
+def cmd_avatars(args) -> int:
+    if args.action == "add":
+        if not args.file:
+            raise MVError("say which file: music-video avatars add <file.vrm or .zip>")
+        a = avatars.add(Path(args.file))
+        print(f"ok   {a.file} ({a.name}) in {avatars.avatar_dir()}")
+        return 0
+    if args.action == "install":
+        for line in avatars.install():
+            print(line)
+    for line in avatars.status_lines():
+        print(line)
+    print(f"folder: {avatars.avatar_dir()} (CC0, see SOURCES.md there)")
+    return 0
+
+
+def _prepare(video_id, need_avatars: bool = True):
     ws = load_workspace()
     rt = studio.ensure_ready(video_id, ws.lane)  # with this command's lease on the engine, released when it ends (main)
     ctx = studio.video_context(ws, video_id)
+    if need_avatars:
+        avatars.check_video(ctx.dir)  # a missing avatar stops here in one line, not in the bundler
     entry = studio.write_entry(rt, ctx.dir, video_id, lane=ctx.lane)
     return rt, ctx, entry, studio.tool_env(rt, ctx, entry)
 
@@ -548,7 +607,7 @@ def cmd_new_video(args) -> int:
 
 
 def cmd_typecheck(args) -> int:
-    rt, ctx, entry, env = _prepare(args.id)
+    rt, ctx, entry, env = _prepare(args.id, need_avatars=False)  # types need no model files
     return studio.run_node([*studio.tool(rt, "tsc"), "-p", str(studio.typecheck_config(rt, ctx))], rt, env)
 
 
@@ -591,7 +650,7 @@ HANDLERS: dict = {"library": cmd_library, "web": cmd_web, "album": cmd_album, "l
                   "render": _remotion("render"), "still": _remotion("still"), "stills": _tool("stills.ts", 1),
                   "blur": _tool("blur.ts", 1), "board": _tool("board.ts"), "doctor": cmd_doctor, "align": cmd_align, "analyze": cmd_analyze, "preview": cmd_preview, "edit-timing": cmd_edit_timing, "mux": cmd_mux,
                   "qc": cmd_qc, "version": cmd_version, "review": cmd_review, "sections": cmd_sections, "notes": cmd_notes, "requests": cmd_requests, "home": cmd_home, "paths": cmd_paths, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
-                  "downloaded": cmd_downloaded, "status": cmd_status}
+                  "downloaded": cmd_downloaded, "status": cmd_status, "avatars": cmd_avatars, "bakeoff": cmd_bakeoff}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -600,6 +659,19 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("doctor", help="check the tools and install the video engine (once, about 1.7 GB)")
     p.add_argument("--no-install", action="store_true", help="only check; do not install the engine's packages")
+    p.add_argument("--no-avatars", action="store_true", help="do not download the character avatars")
+    p = sub.add_parser("bakeoff", help="character engines side by side: start a bake-off in a video, record its verdict, see the last one, or clear it")
+    p.add_argument("action", choices=["new", "record", "last", "clear"])
+    p.add_argument("id", nargs="?", help="the video (new, record, clear)")
+    p.add_argument("--song", help="new: start a new video for the bake-off, borrowing this song's timing")
+    p.add_argument("--engines", help="comma-separated engines (default: all; raw is always included)")
+    p.add_argument("--from", dest="start", type=float, help="new: where the window starts, in song seconds")
+    p.add_argument("--model", help="record, last: the model id that ran it, or this session's")
+    p.add_argument("--verdict", help="record: the user's verdict, in their words")
+    p.add_argument("--declined", action="store_true", help="record: the user declined the offer (not offered again to this model)")
+    p = sub.add_parser("avatars", help="the CC0 sample characters for the vrm engine: status, install, or add a downloaded file")
+    p.add_argument("action", nargs="?", default="status", choices=["status", "install", "add"])
+    p.add_argument("file", nargs="?", help="with add: a .vrm (or the mirror's .zip) you downloaded yourself")
     p = sub.add_parser("init", help="create (or point at) your workspace")
     p.add_argument("--path", help="workspace folder (default: ~/Movies/Music Videos)")
     p.add_argument("--artist", help="the name your songs are credited to")

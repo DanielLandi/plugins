@@ -62,6 +62,15 @@ Downloaded from Poly Pizza. CC0 does not require credit; it is given anyway.
 | `woman-headset-overscore.glb` | Woman wearing headset | overscore_media | https://poly.pizza/m/Qy6esq7e1z | CC0 1.0 |
 | `business-dude-polygonal.glb` | Business Dude | Polygonal Mind | https://poly.pizza/m/odKDM2t8Cr | CC0 1.0 |
 
+## Character avatars (CC0 1.0; downloaded by `doctor`, not shipped)
+
+The `vrm` character engine uses the four VRoid β sample avatars (β Ver AvatarSample_1 to 4, by VRoid Project,
+pixiv Inc.). pixiv waives copyright on them (CC0): https://vroid.pixiv.help/hc/en-us/articles/4402614652569. They
+are not in this repo: `music-video doctor` (or `music-video avatars install`) downloads them into the install
+folder, from the OpenGameArt CC0 mirror (https://opengameart.org/content/vroid-studio-cc0-models), and keeps a file
+only when its sha256 matches the one pinned in `scripts/musicvideo/avatars.py`. The install folder's `SOURCES.md`
+lists each one. AvatarSample_A, B and C have other terms and are never used.
+
 ## Fonts
 
 - **Outfit** (SIL Open Font License 1.1), by The Outfit Project Authors: converted to a static typeface JSON in
@@ -73,6 +82,32 @@ Downloaded from Poly Pizza. CC0 does not require credit; it is given anyway.
 
 - **three.js** (MIT), **React** (MIT), **@react-three/fiber** (MIT), **Vite** (MIT, builds the web page), and
   their dependencies under their own licences.
+- **@pixiv/three-vrm** 3.5.5 (MIT, Copyright (c) 2019-2026 pixiv Inc.) and its `@pixiv/three-vrm-*` packages: VRM
+  loading, MToon shading, spring bones, expressions and look-at for the `vrm` character engine. The kit's
+  `kit/three/vrm/` follows its documented use; none of its code is copied into this repo.
+- **perfect-freehand** 1.2.3 (MIT, Copyright (c) 2021 Stephen Ruiz Ltd, by Steve Ruiz): the brush strokes of the
+  `cartoon` character engine (`kit/cartoon/ink.tsx`).
+- **flubber** 0.4.2 (MIT, Copyright (c) 2017 Noah Veltman): the mouth and smear shape morphs of the `cartoon`
+  engine (`kit/cartoon/rig.ts`). Its dependencies come under their own licences: d3-array and d3-polygon
+  (BSD-3-Clause), earcut, svg-path-properties and topojson-client (ISC), svgpath (MIT).
+  The kit's `kit/cartoon/` uses both packages through their documented functions; none of their code is copied
+  into this repo. Both licences read:
+
+  ```text
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+  documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+  the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+  to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+  the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+  THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+  IN THE SOFTWARE.
+  ```
 - **Remotion** (`remotion`, `@remotion/*`, including `@remotion/player`, which a built web page ships): Remotion's
   own licence. Remotion is free for individuals and companies
   of up to 3 people; larger companies need a company licence from remotion.pro. The licence is between you and

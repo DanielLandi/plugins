@@ -5,7 +5,7 @@
 // The output folder is emptied first, so it must be empty or an earlier build (tools/web-out.ts).
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { registerHooks } from 'node:module';
+import { stubModelFiles } from './stub-assets';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build, type Plugin } from 'vite';
@@ -32,10 +32,7 @@ checkOut(out);
 
 // The entry's `words` (if any) decide which sung words the page keeps. Scenes may import 3D models, which only the
 // bundler can load: stub them while reading the entry in Node.
-registerHooks({
-  load: (url, context, next) =>
-    /\.(glb|gltf)$/.test(url) ? { format: 'module', source: 'export default "";', shortCircuit: true } : next(url, context),
-});
+stubModelFiles();
 const { web: entry } = (await import(pathToFileURL(entryFile).href)) as { web?: WebEntry };
 if (!entry?.Component) {
   console.error('error: the video\'s web.tsx must export `web` ({ Component, fps, frames }): nothing was built');
@@ -96,7 +93,7 @@ try {
     base: './',
     logLevel: 'warn',
     plugins: [selfHostedFonts, htmlFields],
-    assetsInclude: ['**/*.glb', '**/*.gltf'],
+    assetsInclude: ['**/*.glb', '**/*.gltf', '**/*.vrm'],
     resolve: {
       preserveSymlinks: true,
       alias: [
@@ -105,6 +102,7 @@ try {
         { find: '@mv/web-styles', replacement: existsSync(videoStyles) ? videoStyles : join(web, 'no-styles.css') },
         { find: /^@mv\/kit/, replacement: join(studio, 'kit') },
         { find: /^@mv\/assets/, replacement: join(studio, 'assets') },
+        { find: /^@mv\/avatars/, replacement: process.env.MV_AVATARS ?? join(studio, 'avatars') },
       ],
       dedupe: ['react', 'react-dom', 'remotion', 'three', '@remotion/player', '@react-three/fiber'],
     },

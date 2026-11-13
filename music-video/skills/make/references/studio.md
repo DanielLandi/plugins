@@ -84,6 +84,58 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
   out the far ones.
 - An element held across a cut (a match-cut anchor) must leave with its group: left alone, it reads as a mistake.
 
+## Characters (the video's character engine, `characterEngine` in `look.ts`)
+
+- **`raw`**: draw and move characters from scratch in scene code (SVG, canvas or three.js). Give them weight, breath
+  and follow-through yourself (`animation.md`); nothing here does it for you.
+- **`vrm`**: `<Avatar url drive from />` from `@mv/kit/three` is a three-vrm character on the `<Stage>`. Import the
+  CC0 samples as `import first from '@mv/avatars/vroid-sample-1.vrm'` (…`-2` to `-4`; installed once by
+  `music-video avatars install`, which a render asks for when they are missing), or a user's own CC0/OFL file in the
+  video's folder (`'./hero.vrm'`, listed in `SOURCES.md`; the samples' row is added to `SOURCES.md` by the first
+  render that uses them). `drive(t)` (song seconds) returns `{ pos, yaw, pose,
+  hips?, expr?, lookAt?, wind? }`; `from={<the scene's start>}` is where its hair and cloth physics start, so pass
+  the scene's (or the bake-off window's) start, never 0 for a late scene. Any frame then renders the same alone or
+  in sequence.
+- Poses are in normalized bone space (T-pose, facing +z, the character's left is +x): `poses.relax`, `waveR/L`,
+  `high5R/L`, `guardR/L`, `punchR/L`, `fistBumpR/L`, `startle`, `dash`, `laugh`…; `poseTrack(t, [[t0, pose, ease]…])`
+  keys them, `mixPose`, `addPose` and `mirrorPose` combine them, and `breath`, `sway`, `walkCycle`, `fingers` are
+  layers on top. `track`, `ramp`, `swell` and `eases` key any number; `faceYaw(from, to)` turns a character to face
+  a point; `seeded(n)` is a repeatable random stream.
+- Expressions (`expr`): `happy`, `angry`, `sad`, `relaxed`, `blink`, mouth shapes `aa`, `ih`, `ou`, `ee`, `oh`; the
+  samples add `Surprised`. `lookAt` is a world point the eyes follow. `wind` pushes hair and cloth (a gust, an
+  impact). `outline` thickens the cel outline; `silhouette` paints the whole character one colour (an impact frame).
+- Hands are posed by hand: when two characters touch (a high five, a fist bump), render the contact frame and adjust
+  until the hands really meet; the samples differ in height. `bakeoff/vrm.tsx` in the plugin's `studio/` is a
+  working two-character scene to start from.
+- Each `<Avatar>` loads its own copy (about 15 MB): keep a scene to a few characters.
+- **`cartoon`**: hand-inked 2D rubber-hose characters from `@mv/kit/cartoon`, plain SVG. A character is data
+  (`Character`: colours, proportions, a hat or a sprout); `cast.bean` and `cast.plum` are two originals, and a
+  video writes its own the same way (never a recreation of an existing show's characters). Inside the scene's
+  `<svg>`, `<Cartoon character={cast.bean} pose={pose} seed={1} />` draws one in brush ink whose lines boil on
+  twos; give each character its own `seed`. Coordinates are the composition's pixels; the feet stand on
+  `ground`.
+- A cartoon `Pose` is numbers: `x`, `ground`, `face` (1 right, -1 left), squash and stretch (`sx`, `sy`, with
+  `vol(sy)` for an sx that keeps the volume), `lean`, `lift`, `spin`, `scale`; the face acts with `look`, `pupil`,
+  `eyeScale` (an eye pop), `eyeOpen` (a blink or a squint), `eyesClosed` (happy arcs), `brow`, `swirl` (dizzy) and
+  `mouth` (`smile`, `grin`, `laugh`, `o`, `shout`, `flat`, `frown`, `wavy`, or `['flat', 'shout', k]` to morph);
+  `armF`/`armB` take a `hand` offset from the shoulder or a `world` point to reach (a stretchy reach, a fist bump),
+  with `sag`, `wiggle`, `open` and `front` (with both, `reach` 0–1 blends from the one to the other; `mixPose`
+  and `poseTrack` do it for you); `walk(x, face, amount, stride, scale)` cycles the feet with the distance walked so
+  they never slide (pass the pose's `scale`); `smear` (0–1) stretches the body into a dash; `hatLift`, `hatSpin`, `sprout` move what is on top.
+- Presets are layers: `poses.take` (the double take: stretched, eyes popped, jaw dropped), `poses.rest`, `wave`,
+  `startle`, `guard`, `windup`, `punch`, `cheer`, `laugh`, `shrug`, `lookOut`; `poseTrack(t, [[t0, pose, ease]…])`
+  keys them, `mixPose` and `addPose` combine them, `breath` is a layer on top; `track`, `ramp`, `swell`, `eases` and `seeded` are the vrm engine's own.
+  Cartoon timing: `hop`, `hopSquash`, `springStep` (overshoot and settle), `wobble` (dies out), and
+  `follow(signal, t, { from })` for hats, sprouts and ears that lag and boing; pass the scene's start as `from`, so
+  any frame renders the same alone or in sequence.
+- Effects in the same `<svg>`: `Shadow`, `ImpactBurst`, `DustPuffs`, `TakeLines`, `SpeedLines`, `Emote` (`!`, `?`,
+  sweat, heart), `StarRing`; `Flash` (an impact frame) goes outside it. Close-ups are camera moves:
+  `style={zoomAt(z, x, y)}` on the scene's container pushes in about a point in its pixels, at any size, and the
+  ink scales with it. For the 9:16 cut, draw in a fixed 1920×1080 viewBox with
+  `preserveAspectRatio="xMidYMid slice"` (it shows the middle 608 units) and keep the characters there. `shake(t, t0)` only when the video's jolts answer is yes. Ink set pieces with `inkPath(points, seed,
+  width, closed)` so the set boils with the characters. `bakeoff/cartoon.tsx` in the plugin's `studio/` is a
+  working two-character scene to start from.
+
 ## Stills and renders (one video render at a time)
 Many stills in one go (one bundle, plus a contact sheet), at song seconds:
 

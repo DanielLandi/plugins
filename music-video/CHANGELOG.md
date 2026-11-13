@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased (draft, not bumped)
+
+Draft for the coordinator: merge, then retitle with the version.
+
+- Character engines: a video with characters picks how they are animated at the look step, recorded like jolts
+  (`characters:` in `video.yaml`, `characterEngine` in `look.ts`, a **Characters:** line in `LOOK.md`). `raw`: the
+  model writes characters and motion from scratch, as before. `vrm`: 3D anime characters through @pixiv/three-vrm
+  3.5.5 (MIT): `<Avatar>` with cel shading, spring-bone hair and cloth, expressions and look-at, poses and keyframes
+  in `@mv/kit/three`, and physics that replays deterministically (a seeked frame matches a sequential render).
+- `doctor` downloads the four CC0 VRoid β sample avatars (about 64 MB, once) into the install folder, checked against
+  pinned checksums; offline or missing never fails it. `avatars status|install|add <file>` manages them. They are
+  not in the plugin. A render of a video that needs them and lacks them says how to get them.
+- Bake-off: `bakeoff new <id>` puts one take per engine of a fixed brief (two original characters on a rooftop, a
+  clash on the hit, a fist bump) on the review page as variants of one scene; the vrm starter is a working
+  two-character scene, timed to where the song's hit lands. `bakeoff clear` removes the takes once the engine is
+  chosen. `bakeoff record` keeps each run's model and verdict in `bakeoffs.md` next to `config.yaml`, and
+  `bakeoff last --model <id>` tells the make skill to offer the benchmark once to a model that has not run it.
+- A third character engine, `cartoon`: hand-inked 2D rubber-hose characters from `@mv/kit/cartoon`, in plain SVG.
+  Brush lines from perfect-freehand 1.2.3 (MIT) that boil on twos like redrawn cels; mouths and dash smears that
+  morph with flubber 0.4.2 (MIT); faces that act (eye pops, jaw drops, squints, happy arcs, dizzy swirls), squash
+  and stretch, stretchy reaches, hops, springs and lagging hats and sprouts; poses keyed with `poseTrack` and the
+  same `track`/`ramp`/`swell` as the vrm engine; impact bursts, dust, take and speed lines, emotes and a push-in
+  camera. Two original characters come with it; a video draws its own as data. Frames are deterministic: a frame
+  rendered alone is pixel-identical to the same frame in a sequence. It needs nothing installed.
+- The look step offers `cartoon` next to `raw` and `vrm`, and `bakeoff new` writes a cartoon take too: a working
+  two-character rooftop scene on the benchmark brief (a double take, a wave, a square-up, the fists meeting on the
+  hit, a laugh).
+
 ## 0.11.1
 
 - `doctor` removes the engine of a plugin checkout that no longer exists (a removed worktree), printing one line with

@@ -77,6 +77,8 @@ def test_tool_env(mv_ws, tmp_path):
     env = studio.tool_env(tmp_path / "rt", ctx, tmp_path / "rt/.entries/night-drive/index.ts")
     assert env["MV_STUDIO"] == str(tmp_path / "rt") and env["MV_GL"] == "angle"
     assert env["MV_PUBLIC"] == str(ctx.public) and env["INIT_CWD"] == os.getcwd()
+    from musicvideo.avatars import avatar_dir
+    assert env["MV_AVATARS"] == str(avatar_dir())
     link = tmp_path / "rt" / ".entries" / "night-drive" / "src"
     assert env["MV_VIDEO_DIR"] == str(link) and link.resolve() == vdir.resolve()
     assert "--preserve-symlinks" in env["NODE_OPTIONS"].split()

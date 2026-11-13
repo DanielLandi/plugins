@@ -4,3 +4,5 @@
 
 - **Jolts:** no (step 5's question: do things jolt on the beat, a camera kick on the kick drum, a shake on hits?
   Unanswered means no.)
+- **Characters:** none (step 5: when the video has characters, which engine animates them, raw, vrm or cartoon, and the
+  bake-off's verdict when one was run).

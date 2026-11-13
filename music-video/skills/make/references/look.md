@@ -24,6 +24,10 @@ A look is a system before it is pictures. Write it, then prove it with real fram
 - **Jolts:** the answer to the jolts question (step 5): no (the default, also when unanswered) or yes, and what
   jolts (the camera kicks on the kick drum, a shake on the big hits). With no, nothing kicks or shakes on the beat:
   beat motion is eased. With yes, jolts are small and die within about a fifth of a second.
+- **Characters:** none, or the engine that animates them: `raw` (drawn and moved from scratch in scene code),
+  `vrm` (three-vrm anime characters) or `cartoon` (hand-inked 2D rubber-hose characters whose faces act; both in
+  `studio.md` "Characters"), and the bake-off's verdict when one ran
+  (`bakeoff.md`). Each direction with characters names its engine, so the sheet compares engines too.
 - **Medium:** 2D (SVG/CSS/canvas), 3D (the kit's `@mv/kit/three`, see `studio.md`), or shaders. 3D and shaders need
   `gl: angle` in `video.yaml`. Worlds can mix: a realistic world and a low-poly one, a lo-fi tape for a bridge.
 - **Lyrics in the world:** overlay (kit `LyricLayer`) or diegetic (words drawn into the scene). When the words are
@@ -45,4 +49,5 @@ A look is a system before it is pictures. Write it, then prove it with real fram
 - Show the user the directions' contact sheets (`<renders>/frames/<letter>/<id>-look-<letter>-sheet.png`) one
   after another, in the same message, so they compare them at a glance.
 - If they do not look like one film side by side, the system is not done.
-- After approval: write `look.ts` (palette, fonts, `lyricStyle`, `jolts`), delete the losing `looks/*` and their compositions.
+- After approval: write `look.ts` (palette, fonts, `lyricStyle`, `jolts`, `characterEngine`), delete the losing
+  `looks/*` and their compositions.

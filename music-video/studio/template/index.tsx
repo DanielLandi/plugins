@@ -4,6 +4,7 @@ import {
   Excerpt, LyricLayer, SafeArea, Series, SongAudio, songMetadata, SongProvider,
   type LyricMode, type SongData, type SongProps,
 } from '@mv/kit';
+import { bakeoff } from './bakeoff';
 import { cuts } from './cuts';
 import { lyricStyle, palette, subtitles, verticalSubtitles } from './look';
 import { scenes } from './scenes';
@@ -41,6 +42,19 @@ const Thumb: React.FC<Props> = ({ data }) =>
     </>
   ) : null;
 
+// A bake-off take: one engine's version of the brief over the bake-off window, with the song and no lyrics.
+const Bakeoff: React.FC<Props & { engine?: string }> = ({ data, engine }) => {
+  const Take = bakeoff.entries.find((e) => e.engine === engine)?.Component;
+  return data && Take ? (
+    <Excerpt from={bakeoff.from}>
+      <SongProvider data={data}>
+        <Take from={bakeoff.from} to={bakeoff.to} hit={bakeoff.hit} />
+        <SongAudio />
+      </SongProvider>
+    </Excerpt>
+  ) : null;
+};
+
 const common = { fps: 30, durationInFrames: 1, defaultProps: { data: null } as Props };
 
 export const Compositions: React.FC = () => (
@@ -49,5 +63,9 @@ export const Compositions: React.FC = () => (
     <Composition id={`${ID}-sample`} component={Sample} width={1920} height={1080} {...common} calculateMetadata={songMetadata<Props>(ranges.sample)} />
     <Composition id={`${ID}-vertical`} component={Vertical} width={1080} height={1920} {...common} calculateMetadata={songMetadata<Props>(ranges.vertical)} />
     <Composition id={`${ID}-thumb`} component={Thumb} width={1280} height={720} {...common} calculateMetadata={songMetadata<Props>()} />
+    {bakeoff.entries.map(({ engine }) => (
+      <Composition key={engine} id={`${ID}-bakeoff-${engine}`} component={Bakeoff} width={1920} height={1080}
+        {...common} defaultProps={{ data: null, engine }} calculateMetadata={songMetadata<Props & { engine?: string }>(bakeoff)} />
+    ))}
   </>
 );

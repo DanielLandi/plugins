@@ -3,7 +3,7 @@ import re
 import shutil
 import subprocess
 
-from . import studio
+from . import avatars as avatars_module, studio
 from .errors import MVError
 from .workspace import config_path, install_dir, load_workspace, workspace_home
 
@@ -40,7 +40,7 @@ def _prune_engines() -> None:
             print(f"note kept the engine of the removed checkout {p.checkout} ({p.engine}): {p.why}")
 
 
-def run_doctor(install: bool = True) -> int:
+def run_doctor(install: bool = True, avatars: bool = True) -> int:
     missing = [f"missing {tool}: {how}" for tool, how in NEEDS.items() if not shutil.which(tool)]
     if shutil.which("node") and _node_major() < 20:
         missing.append("Node is older than 20: install a current LTS from https://nodejs.org")
@@ -84,4 +84,7 @@ def run_doctor(install: bool = True) -> int:
         else:
             print("todo video engine not installed: run music-video doctor")
             return 1
+    # The character avatars are optional: whatever happens here, the exit code stays the engine's.
+    for line in avatars_module.doctor_lines(install and avatars):
+        print(line)
     return 0
