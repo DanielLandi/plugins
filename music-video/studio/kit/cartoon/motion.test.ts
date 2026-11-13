@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boilSeed, follow, hop, hopSquash, noise1, springStep, track, vol, wobble } from './motion';
+import { boilSeed, follow, outputFrame, hop, hopSquash, noise1, springStep, track, vol, wobble } from './motion';
 import { track as vrmTrack } from '../three/vrm/motion';
 
 describe('cartoon motion', () => {
@@ -44,5 +44,22 @@ describe('cartoon motion', () => {
     expect(boilSeed(10)).toBe(boilSeed(11));
     expect(boilSeed(11)).not.toBe(boilSeed(12));
     expect(boilSeed(10, 3)).toBe(boilSeed(11, 3));
+  });
+});
+
+describe('outputFrame (#35)', () => {
+  it('is the frame itself in a sharp render', () => {
+    for (const f of [0, 1, 2, 47, 300]) expect(outputFrame(f, 30)).toBe(f);
+  });
+  it('maps every sub-frame of a blurred frame\'s shutter to that frame, so the boil holds still within it', () => {
+    // blur: steps sub-frames per frame, frame k averages sub-frames k·steps − half … k·steps + half − 1
+    for (const [samples, steps] of [[8, 16], [32, 64], [16, 16]]) {
+      const half = Math.floor(samples / 2);
+      for (const k of [1, 2, 3, 10]) {
+        const window = Array.from({ length: samples }, (_, i) => k * steps - half + i);
+        expect(new Set(window.map((f) => outputFrame(f, 30 * steps)))).toEqual(new Set([k]));
+        expect(new Set(window.map((f) => boilSeed(outputFrame(f, 30 * steps), 2)))).toEqual(new Set([boilSeed(k, 2)]));
+      }
+    }
   });
 });

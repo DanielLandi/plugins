@@ -1,8 +1,11 @@
 import React from 'react';
-import { useCurrentFrame } from 'remotion';
+import { useCurrentFrame, useVideoConfig } from 'remotion';
 import { InkShapes } from './ink';
-import { boilSeed } from './motion';
+import { boilSeed, outputFrame } from './motion';
 import { buildCharacter, type Character, type Pose } from './rig';
+
+/** The frame to key boil and effects on: the output frame, also under `blur`'s sub-frames (see outputFrame). */
+export const useInkFrame = () => outputFrame(useCurrentFrame(), useVideoConfig().fps);
 
 /**
  * One cartoon character in a pose, drawn in brush ink inside the scene's <svg>. The lines boil every `hold` frames
@@ -11,6 +14,6 @@ import { buildCharacter, type Character, type Pose } from './rig';
 export const Cartoon: React.FC<{ character: Character; pose: Pose; seed?: number; hold?: number; boil?: number }> = ({
   character, pose, seed = 1, hold = 2, boil,
 }) => {
-  const frame = useCurrentFrame();
+  const frame = useInkFrame();
   return <InkShapes shapes={buildCharacter(character, pose)} seed={boilSeed(frame, hold, seed)} boil={boil} />;
 };

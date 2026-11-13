@@ -134,7 +134,8 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 - The one exception to song seconds: the line boil (`boilSeed(frame, hold, seed)` inside `<Cartoon>`) and the
   effects' shimmer (the `frame` prop) are keyed on the frame on purpose, so lines are redrawn every few frames like
   cels (the characters on twos) rather than crawling; the seed is a pure function of the frame number, so a frame still renders the same alone
-  or in sequence.
+  or in sequence. Give effects `const frame = useInkFrame()`, never `useCurrentFrame()`: it is the output frame
+  also under `blur` (whose sub-frames would otherwise each boil, and the blurred lines ghost).
 - Effects in the same `<svg>`: `Shadow`, `ImpactBurst`, `DustPuffs`, `TakeLines`, `SpeedLines`, `Emote` (`!`, `?`,
   sweat, heart), `StarRing`; `Flash` (an impact frame) goes outside it. Close-ups are camera moves:
   `style={zoomAt(z, x, y)}` on the scene's container pushes in about a point in its pixels, at any size, and the

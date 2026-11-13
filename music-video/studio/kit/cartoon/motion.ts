@@ -81,6 +81,13 @@ export const noise1 = (x: number, seed = 0) => {
 };
 
 /** The line-boil seed: it changes every `hold` frames (drawn on twos by default), like redrawn cels. */
+/**
+ * The output frame (at `base` fps) a rendered frame belongs to. In a sharp render it is the frame itself; in a `blur`
+ * render (fps = base × sub-frames) every sub-frame inside a frame's shutter maps to that frame, so frame-keyed
+ * drawing (the boil, effects) holds still within one blurred frame instead of ghosting (#35).
+ */
+export const outputFrame = (frame: number, fps: number, base = 30) => Math.round((frame * base) / fps);
+
 export const boilSeed = (frame: number, hold = 2, base = 1) => base * 1000 + Math.floor(frame / hold);
 
 export { clamp };
