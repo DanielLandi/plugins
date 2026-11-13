@@ -29,11 +29,16 @@ def check_engines(names: list[str]) -> list[str]:
     return out
 
 
-def characters_setting(ws: Workspace, video_id: str) -> str | None:
-    """`characters:` in the video's video.yaml: an engine, or None when it has no characters (or the key is absent)."""
-    path = ws.video_dir(video_id) / "video.yaml"
-    meta = yaml.safe_load(path.read_text(encoding="utf-8")) if path.is_file() else None
+def engine_of(meta: object) -> str | None:
+    """`characters:` in a parsed video.yaml: an engine, or None when it has no characters (or the key is absent).
+    An unknown value raises MVError naming the engines, so a typo stops the video's first render or typecheck."""
     value = meta.get("characters") if isinstance(meta, dict) else None
     if value is None or value is False:
         return None
     return check_engines([str(value)])[0]
+
+
+def characters_setting(ws: Workspace, video_id: str) -> str | None:
+    """`characters:` in the video's video.yaml (see engine_of)."""
+    path = ws.video_dir(video_id) / "video.yaml"
+    return engine_of(yaml.safe_load(path.read_text(encoding="utf-8")) if path.is_file() else None)

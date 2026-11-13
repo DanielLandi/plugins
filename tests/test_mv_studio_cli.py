@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -132,3 +133,33 @@ def test_stills_and_blur_outputs_resolve_against_the_callers_folder(fake_node, t
     stills, blur = calls[0][0], calls[1][0]
     assert stills[4:] == ["--seconds", "night-drive-full", str((tmp_path / "out stills").resolve()), "1,2"]
     assert blur[4:] == ["night-drive-full", str((tmp_path / "b.mp4").resolve()), "--samples=32"]
+
+
+def _set_characters(mv_ws, value):
+    meta = mv_ws.video_dir("night-drive") / "video.yaml"
+    text = meta.read_text(encoding="utf-8")
+    meta.write_text(re.sub(r"(?m)^characters:.*$", f"characters: {value}", text), encoding="utf-8")
+
+
+def test_a_mistyped_character_engine_stops_the_render_in_one_line(fake_node, mv_ws, capsys):
+    calls, rt, pub = fake_node
+    _set_characters(mv_ws, "vmr")
+    assert main(["render", "night-drive", "night-drive-full", "out.mp4"]) == 2
+    err = capsys.readouterr().err
+    assert "vmr" in err and "raw, vrm, cartoon" in err and len(err.strip().splitlines()) == 1
+    assert calls == []
+    for ok in ("vrm", "null"):
+        _set_characters(mv_ws, ok)
+        assert main(["render", "night-drive", "night-drive-full", "out.mp4"]) == 0
+
+
+def test_a_vrm_render_with_the_avatars_missing_says_how_to_get_them(fake_node, mv_ws, capsys):
+    calls, rt, pub = fake_node
+    _set_characters(mv_ws, "vrm")
+    (mv_ws.video_dir("night-drive") / "duel.tsx").write_text(
+        "import hero from '@mv/avatars/vroid-sample-1.vrm';\nexport const x = hero;\n", encoding="utf-8")
+    assert main(["render", "night-drive", "night-drive-full", "out.mp4"]) == 2
+    err = capsys.readouterr().err
+    assert "vroid-sample-1.vrm" in err and "music-video avatars install" in err and "avatars add" in err
+    assert "Traceback" not in err and len(err.strip().splitlines()) == 1
+    assert calls == []  # stopped before the bundler

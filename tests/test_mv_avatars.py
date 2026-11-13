@@ -1,9 +1,13 @@
 """The CC0 VRoid sample avatars: downloaded into the install folder with pinned checksums, never bundled, and never
 a reason for doctor to fail."""
+import errno
 import hashlib
+import http.client
 import io
 import re
+import time
 import zipfile
+from pathlib import Path
 from urllib.error import URLError
 
 import pytest
@@ -196,3 +200,71 @@ def test_a_video_using_avatars_credits_them(fake, mv_ws):
     assert "test-sample-1.vrm" in text and "CC0" in text
     avatars.check_video(vdir)
     assert (vdir / "SOURCES.md").read_text(encoding="utf-8") == text  # once
+
+
+@pytest.mark.parametrize("error", [http.client.IncompleteRead(b"glTF half"), http.client.RemoteDisconnected("gone")])
+def test_a_broken_connection_is_offline_not_a_traceback(fake, monkeypatch, error):
+    a = fake.entries[0]
+
+    def broken(url, dest):
+        dest.write_bytes(b"PK half a zip")  # the connection drops mid-download
+        raise error
+    monkeypatch.setattr(avatars, "fetch_url", broken)
+    with pytest.raises(MVError, match=r"test-sample-1\.vrm: could not download"):
+        avatars.download(a)
+    assert not [p for p in avatars.avatar_dir().iterdir() if p.name.endswith(".part")]
+    with pytest.raises(MVError):
+        avatars.install()  # every avatar is tried, and the failure is one MVError
+
+
+@pytest.mark.parametrize("kind", ["vrm", "zip"])
+def test_add_on_a_full_disk_says_so_in_one_line_and_leaves_nothing(fake, monkeypatch, tmp_path, kind):
+    a = fake.entries[0]
+    src = tmp_path / f"mine.{kind}"
+    if kind == "zip":
+        src.write_bytes(fake.served[a.zip_url])
+    else:
+        with zipfile.ZipFile(io.BytesIO(fake.served[a.zip_url])) as z:
+            src.write_bytes(z.read(a.member))
+
+    def full(path, data=None, *args, **kwargs):
+        Path(path).write_text("half", encoding="utf-8")
+        raise OSError(errno.ENOSPC, "No space left on device")
+    monkeypatch.setattr(avatars.shutil, "copyfile", lambda s, d: full(d))
+    monkeypatch.setattr(Path, "write_bytes", lambda self, data: full(self))
+    with pytest.raises(MVError, match=r"could not add .*No space left on device"):
+        avatars.add(src)
+    folder = avatars.avatar_dir()
+    assert not [p for p in folder.iterdir() if p.name.endswith(".part")]
+    assert avatars.state(a) == "missing"
+
+
+def test_doctor_waits_a_day_after_a_failed_download(fake, monkeypatch, tmp_path, capsys):
+    doctor = _doctor_env(monkeypatch, tmp_path)
+    fake.served_backup = dict(fake.served)
+    fake.served.clear()  # the mirror is down
+    doctor.run_doctor()
+    assert len(fake.calls) == 2
+    fake.calls.clear()
+    capsys.readouterr()
+    assert doctor.run_doctor() == 0  # the next run does not wait on the dead mirror again
+    out = capsys.readouterr().out
+    assert fake.calls == []
+    note = [line for line in out.splitlines() if "avatar" in line]
+    assert len(note) == 1 and "music-video avatars install" in note[0] and "24 h" in note[0]
+    fake.served.update(fake.served_backup)  # the mirror is back: an explicit install always tries
+    avatars.install()
+    assert all(avatars.state(a) == "ok" for a in fake.entries)
+    assert not (avatars.avatar_dir() / avatars.FAILED).exists()  # a success clears the memory
+
+
+def test_doctor_tries_again_after_a_day(fake, monkeypatch, tmp_path):
+    doctor = _doctor_env(monkeypatch, tmp_path)
+    fake.served_backup = dict(fake.served)
+    fake.served.clear()
+    doctor.run_doctor()
+    fake.served.update(fake.served_backup)
+    real = time.time()
+    monkeypatch.setattr(avatars.time, "time", lambda: real + 25 * 3600)
+    doctor.run_doctor()
+    assert all(avatars.state(a) == "ok" for a in fake.entries)
