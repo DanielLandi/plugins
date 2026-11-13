@@ -80,3 +80,9 @@ describe('review fixes', () => {
     }
   });
 });
+
+describe('review fixes (#34)', () => {
+  it('poseTrack with no keys says what it needs', () => {
+    expect(() => poseTrack(1, [])).toThrow(/poseTrack needs at least one key/);
+  });
+});

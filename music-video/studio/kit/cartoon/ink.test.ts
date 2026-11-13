@@ -83,3 +83,15 @@ describe('the camera', () => {
     }
   });
 });
+
+describe('review fixes (#34)', () => {
+  it('scale 0 draws nothing, and no scale puts a NaN in a path', () => {
+    const at = (scale: number) => buildCharacter(cast.bean, { ...pose(1.7), scale, lift: 40 });
+    expect(at(0)).toEqual([]);
+    expect(at(-0.5)).toEqual([]);
+    for (const scale of [0, -0.5, 1e-4, 0.01, 1]) {
+      const svg = renderToStaticMarkup(createElement('svg', null, createElement(InkShapes, { shapes: at(scale), seed: 3 })));
+      expect(svg).not.toMatch(/NaN|Infinity|undefined/);
+    }
+  });
+});

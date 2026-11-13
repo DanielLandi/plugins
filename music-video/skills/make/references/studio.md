@@ -121,13 +121,20 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
   `armF`/`armB` take a `hand` offset from the shoulder or a `world` point to reach (a stretchy reach, a fist bump),
   with `sag`, `wiggle`, `open` and `front` (with both, `reach` 0–1 blends from the one to the other; `mixPose`
   and `poseTrack` do it for you); `walk(x, face, amount, stride, scale)` cycles the feet with the distance walked so
-  they never slide (pass the pose's `scale`); `smear` (0–1) stretches the body into a dash; `hatLift`, `hatSpin`, `sprout` move what is on top.
+  they never slide (pass the pose's `scale`); `smear` (0–1) stretches the body into a dash trailing behind its back,
+  or opposite `smearDir` when set (the way it moves on screen, 1 right or -1 left: a smear while backing away);
+  `hatLift`, `hatSpin`, `sprout` move what is on top.
 - Presets are layers: `poses.take` (the double take: stretched, eyes popped, jaw dropped), `poses.rest`, `wave`,
   `startle`, `guard`, `windup`, `punch`, `cheer`, `laugh`, `shrug`, `lookOut`; `poseTrack(t, [[t0, pose, ease]…])`
   keys them, `mixPose` and `addPose` combine them, `breath` is a layer on top; `track`, `ramp`, `swell`, `eases` and `seeded` are the vrm engine's own.
   Cartoon timing: `hop`, `hopSquash`, `springStep` (overshoot and settle), `wobble` (dies out), and
-  `follow(signal, t, { from })` for hats, sprouts and ears that lag and boing; pass the scene's start as `from`, so
-  any frame renders the same alone or in sequence.
+  `follow(signal, t, { from })` for hats, sprouts and ears that lag and boing; it replays the spring from `from` on
+  every frame, so pass the scene's start: the lag starts at rest where the scene starts, and a late scene does not
+  replay the song from 0 on every frame.
+- The one exception to song seconds: the line boil (`boilSeed(frame, hold, seed)` inside `<Cartoon>`) and the
+  effects' shimmer (the `frame` prop) are keyed on the frame on purpose, so lines are redrawn every few frames like
+  cels (the characters on twos) rather than crawling; the seed is a pure function of the frame number, so a frame still renders the same alone
+  or in sequence.
 - Effects in the same `<svg>`: `Shadow`, `ImpactBurst`, `DustPuffs`, `TakeLines`, `SpeedLines`, `Emote` (`!`, `?`,
   sweat, heart), `StarRing`; `Flash` (an impact frame) goes outside it. Close-ups are camera moves:
   `style={zoomAt(z, x, y)}` on the scene's container pushes in about a point in its pixels, at any size, and the

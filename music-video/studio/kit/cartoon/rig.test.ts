@@ -62,3 +62,33 @@ describe('cartoon rig', () => {
     expect(mean(xs(-1))).toBeLessThan(490);
   });
 });
+
+describe('review fixes (#34)', () => {
+  const pts = (s: Shape) => (s.k === 'dot' ? [[s.x, s.y] as [number, number]] : s.pts);
+
+  it('a smear trails behind the character by default, whichever way it faces', () => {
+    // > 0: the body reaches further right of x than left of it (the trail is on the right)
+    const trail = (face: 1 | -1, smearDir?: 1 | -1) => {
+      const shapes = buildCharacter(cast.bean, { x: 600, ground: 900, face, smear: 1, ...(smearDir ? { smearDir } : {}) });
+      const outline = shapes.find((s) => s.k === 'blob' && s.fill === 'none'); // the body's ink outline
+      const xs = pts(outline!).map((p) => p[0]);
+      return Math.max(...xs) - 600 - (600 - Math.min(...xs));
+    };
+    expect(trail(1)).toBeLessThan(-100); // faces right: trails left
+    expect(trail(-1)).toBeGreaterThan(100); // faces left: trails right
+    // smearDir is the way it moves on screen: the trail goes the other way, whichever way it faces
+    expect(trail(1, -1)).toBeGreaterThan(100);
+    expect(trail(-1, 1)).toBeLessThan(-100);
+  });
+
+  it('a reach lands on its scene point with spin, either facing, at any scale', () => {
+    for (const face of [1, -1] as const) for (const spin of [0, 0.8, -2]) {
+      const world: [number, number] = [1100, 620];
+      const shapes = buildCharacter(cast.bean, { x: 700, ground: 900, face, spin, scale: 0.7, sy: 1.2, armF: { world } });
+      const hose = pts(shapes[3]); // the front arm's hose (the back arm is shapes 0–2)
+      const hand = hose[hose.length - 1];
+      expect(hand[0]).toBeCloseTo(world[0], 1);
+      expect(hand[1]).toBeCloseTo(world[1], 1);
+    }
+  });
+});

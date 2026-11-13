@@ -96,6 +96,7 @@ export const addPose = <T extends PoseLayer>(a: T, b: PoseLayer, w = 1): T => {
 export type PoseKey = readonly [number, PoseLayer, EaseFn?];
 
 export const poseTrack = (t: number, keys: readonly PoseKey[]): PoseLayer => {
+  if (!keys.length) throw new Error('poseTrack needs at least one key: [[t, pose], …] (time in seconds, a pose layer)');
   if (t <= keys[0][0]) return keys[0][1];
   for (let i = 1; i < keys.length; i++) {
     const [t1, p1, e] = keys[i];
