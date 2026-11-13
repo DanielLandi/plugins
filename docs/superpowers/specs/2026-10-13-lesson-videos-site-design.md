@@ -1,3 +1,7 @@
+> ⚠️ ARCHIVED (2026-11-12): historical reference only. lesson-videos no longer works with slide2video.com (since
+> 1.0.7); the website works with the `slide2video` plugin (repo slide2video/slide2video-plugin). This document does
+> not describe current behavior. See also `2026-10-14-slide2video-design-pass-design.md`.
+
 # slide2video.com — a website for lesson-videos, processed on the teacher's own Mac
 
 **Date:** 2026-10-13 · **Status:** approved in chat, awaiting written-spec review
