@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.2
+
+- `render` has the stall watch `blur` has: a render that shows no new progress for 15 minutes is stopped with
+  everything it started and started again, twice at most (`--stall=<minutes>`, 0 turns it off; `--retries=<n>`).
+- 3D: `<Stage>` sets its tone mapping, exposure and colour space before the scene's first render, so a scene that
+  sets `gl.toneMappingExposure` itself keeps it on the first frame of every render tab and every still (they came
+  out dark).
+
 ## 0.12.1
 
 - The engine runs Remotion 4.0.540. Remotion now asks for the zod release with the security fix itself, so the

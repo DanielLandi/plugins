@@ -12,7 +12,7 @@ import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { watchedRun } from './stall';
+import { retriedRun } from './stall';
 
 const studio = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -52,13 +52,9 @@ if (flags.frames) {
 }
 console.log(`motion blur: ${samples} samples over a ${shutter}° shutter (${steps} sub-frames per frame, ${30 * steps} fps)`);
 const t0 = performance.now();
-const stallMin = Number(flags.stall ?? 15), tries = 1 + Math.max(0, Number(flags.retries ?? 2));
-let render = await watchedRun(process.execPath, renderArgs, { cwd: studio, env: process.env, stallMs: stallMin * 60000 });
-for (let n = 2; render.stalled && n <= tries; n++) {
-  console.error(`blur: no progress for ${stallMin} min (at "${render.line}"): stopped it; starting again (try ${n} of ${tries})`);
-  render = await watchedRun(process.execPath, renderArgs, { cwd: studio, env: process.env, stallMs: stallMin * 60000 });
-}
-if (render.stalled) console.error(`blur: no progress for ${stallMin} min (at "${render.line}") on the last try: giving up`);
+const render = await retriedRun(process.execPath, renderArgs, {
+  cwd: studio, env: process.env, stallMs: Number(flags.stall ?? 15) * 60000, tries: 1 + Math.max(0, Number(flags.retries ?? 2)), label: 'blur',
+});
 if (render.status !== 0) {
   rmSync(work, { recursive: true, force: true });
   process.exit(render.status || 1);

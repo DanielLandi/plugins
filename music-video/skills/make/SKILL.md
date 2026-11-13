@@ -422,7 +422,8 @@ Follow `references/storyboard.md`:
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" blur <id> <id>-full "<renders>/final-blur-silent.mp4" --samples=32
    ```
 
-   A render that shows no progress for 15 minutes is killed and started again (twice at most). When the user asks
+   `render` and `blur` kill a render that shows no progress for 15 minutes and start it again (twice at most;
+   `--stall=<minutes>`, `--retries=<n>`). When the user asks
    how a long render is going, check that it is moving: the progress count in its output changes between two looks a
    minute apart, and the renderer is using the CPU (`ps`). A repeated last line is not progress.
 

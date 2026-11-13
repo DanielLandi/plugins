@@ -80,3 +80,38 @@ export const watchedRun = (cmd: string, args: string[], opts: { cwd: string; env
       done({ status, stalled, line: watch.line });
     });
   });
+
+/** watchedRun, started again (up to `tries` runs in all) while it stalls; `say` reports each restart and a give-up. */
+export const retriedRun = async (
+  cmd: string,
+  args: string[],
+  opts: { cwd: string; env: NodeJS.ProcessEnv; stallMs: number; checkMs?: number; tries: number; label: string; say?: (m: string) => void },
+) => {
+  const say = opts.say ?? ((m: string) => console.error(m));
+  const min = Number((opts.stallMs / 60000).toPrecision(2));
+  let run = await watchedRun(cmd, args, opts), n = 1;
+  while (run.stalled && n < opts.tries) {
+    n += 1;
+    say(`${opts.label}: no progress for ${min} min (at "${run.line}"): stopped it; starting again (try ${n} of ${opts.tries})`);
+    run = await watchedRun(cmd, args, opts);
+  }
+  if (run.stalled) say(`${opts.label}: no progress for ${min} min (at "${run.line}") on the last try: giving up`);
+  return { ...run, tries: n };
+};
+
+/** tools/watched.ts's arguments: [--stall=<min>] [--retries=<n>] [--label=<name>] -- <command> [args…]. */
+export const watchedArgs = (argv: string[]) => {
+  const split = argv.indexOf('--');
+  if (split < 0 || split === argv.length - 1) throw new Error('usage: watched.ts [--stall=15] [--retries=2] [--label=render] -- <command> [args…]');
+  const flags: Record<string, string> = Object.fromEntries(argv.slice(0, split).map((a) => {
+    const i = a.indexOf('=');
+    return i < 0 ? [a.replace(/^--/, ''), 'true'] : [a.slice(2, i), a.slice(i + 1)];
+  }));
+  return {
+    stallMs: Number(flags.stall ?? 15) * 60000,
+    tries: 1 + Math.max(0, Number(flags.retries ?? 2)),
+    label: flags.label ?? 'render',
+    cmd: argv[split + 1],
+    args: argv.slice(split + 2),
+  };
+};
