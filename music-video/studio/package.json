@@ -17,13 +17,13 @@
   "dependencies": {
     "@pixiv/three-vrm": "3.5.5",
     "@react-three/fiber": "9.8.1",
-    "@remotion/bundler": "4.0.534",
-    "@remotion/cli": "4.0.534",
-    "@remotion/google-fonts": "4.0.534",
-    "@remotion/player": "4.0.534",
-    "@remotion/renderer": "4.0.534",
-    "@remotion/three": "4.0.534",
-    "@remotion/transitions": "4.0.534",
+    "@remotion/bundler": "4.0.540",
+    "@remotion/cli": "4.0.540",
+    "@remotion/google-fonts": "4.0.540",
+    "@remotion/player": "4.0.540",
+    "@remotion/renderer": "4.0.540",
+    "@remotion/three": "4.0.540",
+    "@remotion/transitions": "4.0.540",
     "flubber": "0.4.2",
     "perfect-freehand": "1.2.3",
     "react": "19.3.0",
@@ -41,8 +41,5 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.7",
     "vitest": "^4.1.12"
-  },
-  "overrides": {
-    "zod": "^4.6.6"
   }
 }

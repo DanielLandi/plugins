@@ -105,7 +105,7 @@ def test_docs_name_the_avatar_source_and_command():
     readme = (PLUGIN / "README.md").read_text(encoding="utf-8")
     assert "avatars" in readme and "bakeoff" in readme
     changelog = (PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
-    assert "bakeoff" in changelog.split("\n## ", 2)[1]
+    assert "`bakeoff new <id>`" in changelog
 
 
 def test_studio_reference_explains_the_cartoon_kit():
