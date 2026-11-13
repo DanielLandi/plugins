@@ -1,8 +1,6 @@
 # Changelog
 
-## Unreleased (draft, not bumped)
-
-Draft for the coordinator: merge, then retitle with the version.
+## 0.12.0
 
 - Character engines: a video with characters picks how they are animated at the look step, recorded like jolts
   (`characters:` in `video.yaml`, `characterEngine` in `look.ts`, a **Characters:** line in `LOOK.md`). `raw`: the
