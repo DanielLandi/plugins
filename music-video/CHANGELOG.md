@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.1
+
+- The engine runs Remotion 4.0.540. Remotion now asks for the zod release with the security fix itself, so the
+  `zod: installed …, required …` warning is gone and the plugin no longer overrides zod. The engine's dependencies
+  carry no known security advisories (fast-uri 3.1.9). `doctor` updates the engine on its next run.
+
 ## 0.12.0
 
 - Character engines: a video with characters picks how they are animated at the look step, recorded like jolts
