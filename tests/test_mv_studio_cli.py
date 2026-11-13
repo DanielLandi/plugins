@@ -71,12 +71,29 @@ def fake_node(mv_ws, monkeypatch, tmp_path):
 def test_render_resolves_output_and_builds_args(fake_node, tmp_path):
     calls, rt, pub = fake_node
     assert main(["render", "night-drive", "night-drive-full", "out.mp4", "--muted"]) == 0
-    cmd, cwd, env = calls[0]
+    watched, cwd, env = calls[0]
+    # a render runs under the stall watch (#16): tools/watched.ts kills and restarts a render that stops progressing
+    split = watched.index("--")
+    assert watched[:split] == ["node", str(rt / "node_modules/tsx/dist/cli.mjs"), "tools/watched.ts", "--stall=15",
+                               "--retries=2", "--label=render"]
+    cmd = watched[split + 1:]
     assert cmd[:3] == ["node", str(rt / "node_modules/@remotion/cli/remotion-cli.js"), "render"]
     assert cmd[3] == str(rt / ".entries" / "night-drive" / "index.ts")
     assert cmd[4:6] == ["night-drive-full", str((tmp_path / "out.mp4").resolve())]
     assert "--muted" in cmd and f"--public-dir={pub}" in cmd and "--gl=angle" in cmd
     assert cwd == rt and env["MV_VIDEO"] == "night-drive"
+
+
+def test_render_takes_the_stall_flags_and_still_runs_unwatched(fake_node):
+    calls, rt, pub = fake_node
+    assert main(["render", "night-drive", "night-drive-full", "out.mp4", "--stall=30", "--retries=0", "--muted"]) == 0
+    watched = calls[0][0]
+    split = watched.index("--")
+    assert watched[3:5] == ["--stall=30", "--retries=0"]
+    assert not any(a.startswith(("--stall", "--retries")) for a in watched[split + 1:])  # never reach Remotion
+    assert "--muted" in watched[split + 1:]
+    assert main(["still", "night-drive", "night-drive-full", "s.png", "--frame=3"]) == 0
+    assert calls[1][0][1] == str(rt / "node_modules/@remotion/cli/remotion-cli.js")  # a still is short: no watch
 
 
 def test_studio_has_no_gl_flag(fake_node):

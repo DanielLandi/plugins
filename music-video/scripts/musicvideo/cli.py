@@ -560,9 +560,15 @@ def _remotion(command):
         rt, ctx, entry, env = _prepare(args.id)
         if command in ("render", "still"):
             rest = _resolve_output(rest, 1)
+        watch = [a for a in rest if a.startswith(("--stall=", "--retries="))] if command == "render" else []
+        rest = [a for a in rest if a not in watch]
         cmd = [*studio.tool(rt, "remotion"), command, str(entry), *rest, f"--public-dir={ctx.public}"]
         if command != "studio":
             cmd.append(f"--gl={ctx.gl}")
+        if command == "render":  # a long render can hang with no frame failing: watch it as blur does (#16)
+            flags = {a.split("=", 1)[0]: a for a in ["--stall=15", "--retries=2", *watch]}
+            cmd = [*studio.tool(rt, "tsx"), "tools/watched.ts", flags["--stall"], flags["--retries"], "--label=render",
+                   "--", *cmd]
         return studio.run_node(cmd, rt, env)
     return run
 
@@ -779,7 +785,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("typecheck", help="type-check a video's code against the engine")
     p.add_argument("id")
     for name, text in (("studio", "open Remotion Studio on a video"),
-                       ("render", "render a composition: <id> <composition> <out> [remotion flags]"),
+                       ("render", "render a composition: <id> <composition> <out> [--stall=15] [--retries=2] [remotion flags]"),
                        ("still", "render one frame: <id> <composition> <out.png> [--frame=N]"),
                        ("stills", "several stills + a contact sheet: <id> <composition> <out-dir> <frames> [--seconds]"),
                        ("blur", "motion-blurred render: <id> <composition> <out.mp4> [--samples=32]"),
