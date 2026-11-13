@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.12.3
+
+- A typo in a video's `characters:` setting (for example `vmr`) stops render, still, studio and typecheck with one
+  line naming the engines: raw, vrm, cartoon.
+- `avatars install` treats a dropped connection like being offline (one line, no half-downloaded file), and
+  `avatars add` on a full disk says so in one line and leaves nothing behind.
+- After a failed avatar download, `doctor` waits 24 h before trying again instead of waiting on a down mirror every
+  run; `music-video avatars install` tries at once.
+- A vrm character's pose follows the song clock exactly, even when its scene starts between two frames.
+- Cartoon: smears trail behind the character by default, whichever way it faces (`smearDir`, 1 right or -1 left,
+  sets the screen direction it moves when that differs); a character at `scale: 0` is simply not drawn; a spinning
+  character's reach lands its hand exactly on the scene point; `poseTrack` with no keys says it needs one.
+
 ## 0.12.2
 
 - `render` has the stall watch `blur` has: a render that shows no new progress for 15 minutes is stopped with
