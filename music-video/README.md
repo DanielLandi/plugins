@@ -238,7 +238,7 @@ The skills run these for you; each is `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/mus
 
 | Command | What it does |
 |---|---|
-| `doctor` | check uv, Node, ffmpeg; install the video engine and the character avatars into the install folder (`--no-avatars` skips them) |
+| `doctor` | check uv, Node, ffmpeg; install the video engine and the character avatars into the install folder (`--no-avatars` skips them; after a failed avatar download it waits 24 h before trying again, and `avatars install` tries now) |
 | `avatars` | the four CC0 VRoid sample characters for `vrm` videos: `status`, `install`, or `add <file>` for a copy you downloaded (checked against the pinned checksum) |
 | `bakeoff` | character engines side by side: `new <id>` starts one take per engine (raw, vrm, cartoon) of a fixed brief, kept as review-page variants; `record` keeps the verdict and model in `bakeoffs.md`; `last --model <id>` says when a new model should be checked; `clear` removes the takes |
 | `init` | create or point at your workspace |

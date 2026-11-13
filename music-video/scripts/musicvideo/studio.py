@@ -19,6 +19,7 @@ import yaml
 
 from . import __version__
 from .avatars import avatar_dir
+from .characters import engine_of
 from .errors import MVError
 from .filelock import file_lock
 from .spec import is_instrumental
@@ -572,6 +573,10 @@ def video_context(ws: Workspace, video_id: str) -> VideoContext:
     vdir = ws.video_dir(video_id)
     meta_file = vdir / "video.yaml"
     meta = (yaml.safe_load(meta_file.read_text(encoding="utf-8")) or {}) if meta_file.is_file() else {}
+    try:
+        engine_of(meta)  # only the make skill acts on it: a typo would otherwise go unnoticed
+    except MVError as e:
+        raise MVError(f"characters: in {meta_file}: {e}") from e
     song = str(meta.get("song") or video_id)  # a test-bed video can borrow another video's song
     public = ws.work_for(song) / "public"
     if not (public / "timing.json").is_file() and not _instrumental(ws, song):

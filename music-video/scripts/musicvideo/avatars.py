@@ -6,10 +6,12 @@ login (VRoid Hub), so they come from OpenGameArt's CC0 mirror of the same files;
 the user downloaded themselves when it is byte-identical. Scenes import them as `@mv/avatars/<file>`.
 """
 import hashlib
+import http.client
 import json
 import os
 import re
 import shutil
+import time
 import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -22,6 +24,8 @@ Fetch = Callable[[str, Path], None]
 CC0_PAGE = "https://vroid.pixiv.help/hc/en-us/articles/4402614652569"
 MIRROR_PAGE = "https://opengameart.org/content/vroid-studio-cc0-models"
 VERIFIED = ".verified.json"  # size and mtime of files whose sha256 already matched: no rehash on every render
+FAILED = ".download-failed.json"  # when the last download failed: doctor waits RETRY_AFTER before trying again
+RETRY_AFTER = 24 * 3600
 CHUNK = 1 << 20
 
 
@@ -162,7 +166,7 @@ def download(a: Avatar, fetch: Fetch | None = None) -> Path:
         if vpart.stat().st_size != a.size or _sha256(vpart) != a.sha256:
             raise MVError(f"{a.file}: the model inside {a.zip_url} is not the pinned file; nothing was kept")
         return _place(a, vpart, folder)
-    except (OSError, zipfile.BadZipFile, KeyError) as e:
+    except (OSError, http.client.HTTPException, zipfile.BadZipFile, KeyError) as e:  # HTTPException: a dropped connection
         raise MVError(f"{a.file}: could not download {a.zip_url} ({e})") from e
     finally:
         zpart.unlink(missing_ok=True)
@@ -183,8 +187,27 @@ def install(fetch: Fetch | None = None) -> list[str]:
     if any(state(a) == "ok" for a in _avatars()):
         _sources(avatar_dir())
     if failed:
+        _note_failure("; ".join(failed))
         raise MVError("; ".join(failed))
+    (avatar_dir() / FAILED).unlink(missing_ok=True)
     return lines
+
+
+def _note_failure(error: str) -> None:
+    try:
+        (avatar_dir() / FAILED).write_text(json.dumps({"at": time.time(), "error": error}), encoding="utf-8")
+    except OSError:
+        pass  # only spares doctor a wait: without it, doctor tries again
+
+
+def recent_failure() -> float | None:
+    """Seconds since the last failed download, when it was less than RETRY_AFTER ago."""
+    try:
+        at = float(json.loads((avatar_dir() / FAILED).read_text(encoding="utf-8"))["at"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    ago = time.time() - at
+    return ago if 0 <= ago < RETRY_AFTER else None
 
 
 def add(file: Path) -> Avatar:
@@ -197,16 +220,21 @@ def add(file: Path) -> Avatar:
     folder.mkdir(parents=True, exist_ok=True)
     digest = _sha256(file)
     for a in _avatars():
-        if digest == a.sha256:
-            part = folder / f".{a.file}.part"
-            shutil.copyfile(file, part)
+        if digest not in (a.sha256, a.zip_sha256):
+            continue
+        part = folder / f".{a.file}.part"
+        try:
+            if digest == a.sha256:
+                shutil.copyfile(file, part)
+            else:
+                _extract(a, file, folder)
             _place(a, part, folder)
             _sources(folder)
-            return a
-        if digest == a.zip_sha256:
-            _place(a, _extract(a, file, folder), folder)
-            _sources(folder)
-            return a
+        except OSError as e:  # a full disk, a read-only folder: one line, and no half-copied file left behind
+            raise MVError(f"could not add {file.name} to {folder} ({e})") from e
+        finally:
+            part.unlink(missing_ok=True)
+        return a
     names = ", ".join(f"{a.name} ({a.member})" for a in _avatars())
     raise MVError(f"{file.name} is not one of the pinned sample avatars ({names}): its checksum differs. Your own "
                   "CC0 or OFL .vrm files go in the video's folder instead, imported as './<file>.vrm'")
@@ -222,6 +250,12 @@ def doctor_lines(install_them: bool, fetch: Fetch | None = None) -> list[str]:
         missing = [a for a in _avatars() if state(a) != "ok"]
         if not missing:
             return [f"ok   character avatars ({len(_avatars())} CC0 VRoid samples) in {avatar_dir()}"]
+        ago = recent_failure() if install_them else None
+        if ago is not None:
+            when = f"{round(ago / 3600)} h ago" if ago >= 1800 else "less than an hour ago"
+            return [f"note the character avatars did not download {when}; doctor tries again "
+                    f"{RETRY_AFTER // 3600} h after that (only vrm character videos need them): run music-video "
+                    "avatars install to try now"]
         if install_them:
             print(f"downloading the character avatars ({len(missing)} CC0 VRoid samples, about "
                   f"{sum(a.size for a in missing) // 1_000_000} MB, once)…", flush=True)

@@ -59,4 +59,26 @@ describe('replayTo', () => {
     replayTo(fresh, { frame: -1 }, drive, 40, 30, 4);
     expect(r.x()).toBe(fresh.x());
   });
+  it('the pose clock is the song clock, also when the physics starts between two frames', () => {
+    // An <Avatar from={from}> replays from frame start = round(from * fps): its last pose for song frame `frame`
+    // must be drive(frame / fps), the kit's useSongTime, exactly (not from + (frame - start) / fps).
+    for (const fps of [24, 30, 60]) {
+      for (const from of [0, 1.37, 12.51, 61.016]) {
+        const start = Math.round(from * fps);
+        for (const frame of [start, start + 1, start + 7, start + 300]) {
+          const times: number[] = [];
+          replayTo(spring(), { frame: -1 }, (t) => { times.push(t); return drive(t); }, frame - start, fps, 4, 1, start);
+          expect(times[times.length - 1]).toBe(frame / fps);
+          expect(times[0]).toBe(start / fps); // it settles in the pose of its first frame
+        }
+      }
+    }
+  });
+  it('a replay that starts later steps the same physics, only shifted in song time', () => {
+    const late = spring(), seq = spring();
+    const m: ReplayState = { frame: -1 };
+    replayTo(late, { frame: -1 }, (t) => drive(t - 2), 40, 30, 4, 1, 60);
+    for (let f = 0; f <= 40; f++) replayTo(seq, m, (t) => drive(t - 2), f, 30, 4, 1, 60);
+    expect(late.x()).toBe(seq.x());
+  });
 });

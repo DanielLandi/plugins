@@ -17,25 +17,34 @@ export type Replayable<S> = {
 export type ReplayState = { frame: number };
 
 /**
- * Bring `r` to `frame`: from rest it first settles for `settle` seconds under drive(0) (hair falls into place), then
- * steps every frame up to this one, `sub` steps per frame. A later frame continues from where it was (render tabs
+ * The time drive() sees at step s (1..sub) of replay frame f, for a replay whose frame 0 is frame `origin` of the
+ * song: (origin + f - 1 + s / sub) / fps, counted in whole sub-steps so that the last step of a frame is exactly
+ * (origin + f) / fps, the kit's clock (useSongTime = frame / fps) at that frame.
+ */
+export const replayTime = (origin: number, f: number, s: number, sub: number, fps: number): number =>
+  ((origin + f - 1) * sub + s) / (fps * sub);
+
+/**
+ * Bring `r` to `frame` (counted from `origin`, the song frame where its physics starts): from rest it first settles
+ * for `settle` seconds under drive at the origin (hair falls into place), then steps every frame up to this one, `sub`
+ * steps per frame, with drive given song time (replayTime). A later frame continues from where it was (render tabs
  * take every few frames); an earlier one replays from rest.
  */
 export const replayTo = <S,>(r: Replayable<S>, mem: ReplayState, drive: (t: number) => S, frame: number, fps: number,
-  sub = 4, settle = 1): void => {
+  sub = 4, settle = 1, origin = 0): void => {
   if (frame === mem.frame) return;
   const dt = 1 / fps / sub;
   const stepFrame = (f: number) => {
     for (let s = 1; s <= sub; s++) {
-      r.apply(drive((f - 1 + s / sub) / fps));
+      r.apply(drive(replayTime(origin, f, s, sub, fps)));
       r.step(dt);
     }
   };
   let f = mem.frame + 1;
   if (mem.frame < 0 || frame < mem.frame) {
-    r.apply(drive(0));
+    const still = drive(replayTime(origin, 0, sub, sub, fps));
+    r.apply(still);
     r.reset();
-    const still = drive(0);
     for (let i = 0; i < Math.round(settle * fps * sub); i++) {
       r.apply(still);
       r.step(dt);
