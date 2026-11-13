@@ -42,7 +42,8 @@ export type Mouth = MouthKey | [MouthKey, MouthKey, number];
  * `eyeOpen`/`eyesClosed` (closed > 0.5 draws happy arcs), `brow` (-1 cross … 1.5 raised), `swirl` dizzy eyes,
  * `mouth`, `mouthScale`. Legs: `walk` (0..1 how much), `walkPhase` (cycles), `stride` (px), `feet` (both feet in
  * character space), `legSquash`. On top: `hatLift`, `hatSpin`, `sprout` (an angle). `smear` (0..1) morphs the body
- * into a trailing teardrop behind `smearDir`. `scale` sizes the whole character about its feet.
+ * into a teardrop trailing behind the character (the way it faces), or behind `smearDir` (the way it moves on screen,
+ * 1 right, -1 left) when set. `scale` sizes the whole character about its feet; 0 (or less) draws nothing.
  */
 export type Pose = {
   x: number; ground: number; face: 1 | -1;
@@ -119,6 +120,7 @@ const mouthOf = (m: Mouth | undefined): [MouthKey, MouthKey, number] =>
 /** The character in this pose, as shapes in draw order (back arm, legs, body, face, top, front arm). */
 export const buildCharacter = (c: Character, p: Pose): Shape[] => {
   const S = p.scale ?? 1;
+  if (!(S > 0)) return []; // scaled to nothing (dividing by it would put NaN in every path)
   const sx = p.sx ?? 1, sy = p.sy ?? 1, lean = p.lean ?? 0, bend = p.bend ?? 0, face = p.face;
   const lift = p.lift ?? 0;
   const stride = p.stride ?? 70;
@@ -139,6 +141,13 @@ export const buildCharacter = (c: Character, p: Pose): Shape[] => {
       y = bodyCy + dx * Math.sin(spin) + dy * Math.cos(spin);
     }
     return [p.x + x * face * S, p.ground + y * S];
+  };
+  // composition pixels → character space (toScreen undone: unscale, unmirror, unspin), for points the hands reach
+  const fromScreen = ([sx0, sy0]: P): P => {
+    const x = ((sx0 - p.x) * face) / S, y = (sy0 - p.ground) / S;
+    if (!spin) return [x, y];
+    const dy = y - bodyCy;
+    return [x * Math.cos(spin) + dy * Math.sin(spin), bodyCy - x * Math.sin(spin) + dy * Math.cos(spin)];
   };
   // a point fixed to the body (relative to its centre, unsquashed) → character space, with squash, lean and bend
   const bodyLocal = ([bx, by]: P): P => {
@@ -180,9 +189,8 @@ export const buildCharacter = (c: Character, p: Pose): Shape[] => {
     const sh = bodyLocal([side * c.rx * 0.82, -c.ry * 0.05]);
     const body: P = a?.hand ? [sh[0] + a.hand[0], sh[1] + a.hand[1]] : [sh[0] + side * 30, sh[1] + 90];
     const k = a?.reach ?? 1;
-    const hand: P = a?.world
-      ? [lerp(body[0], ((a.world[0] - p.x) * face) / S, k), lerp(body[1], (a.world[1] - p.ground) / S, k)]
-      : body;
+    const target = a?.world ? fromScreen(a.world) : body;
+    const hand: P = [lerp(body[0], target[0], k), lerp(body[1], target[1], k)];
     const dx = hand[0] - sh[0], dy = hand[1] - sh[1];
     const len = Math.hypot(dx, dy) || 1;
     const nx = -dy / len, ny = dx / len;
@@ -214,9 +222,9 @@ export const buildCharacter = (c: Character, p: Pose): Shape[] => {
   };
   const armB = arm(-1, p.armB), armF = arm(1, p.armF);
 
-  // smear: the body morphs into a teardrop trailing behind
+  // smear: the body morphs into a teardrop trailing behind (behind its back, or opposite smearDir on screen)
   const smear = p.smear ?? 0;
-  if (smear > 0.01) body = smearPts(c, bodyRel, (-(p.smearDir ?? 1) * face) as 1 | -1, Math.min(1, smear)).map(B);
+  if (smear > 0.01) body = smearPts(c, bodyRel, (-(p.smearDir ?? face) * face) as 1 | -1, Math.min(1, smear)).map(B);
 
   // face
   const look = (p.look ?? 0) * c.rx * 0.32;
