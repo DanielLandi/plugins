@@ -146,7 +146,8 @@ export type AvatarProps = {
   drive: Drive;
   /**
    * Song seconds where its physics starts: the scene's start (or the bake-off window's). Any frame replays the
-   * springs from here, so a late scene does not replay the whole song. Before it, the character holds drive(from).
+   * springs from here (from its nearest frame), so a late scene does not replay the whole song. Before it, the
+   * character holds its pose at that frame.
    */
   from?: number;
   /** Multiplies the MToon outline width (1 = as modelled; 1.5–2 reads more hand-inked). */
@@ -196,7 +197,8 @@ export const Avatar: React.FC<AvatarProps> = ({ url, drive, from = 0, outline = 
   useLayoutEffect(() => {
     if (!sim) return;
     const start = Math.round(from * fps);
-    replayTo(sim.r, sim.mem, (t: number) => drive(from + t), Math.max(0, frame - start), fps);
+    // Song time from the frame the replay starts on, so the pose keeps the scene's clock (useSongTime) exactly.
+    replayTo(sim.r, sim.mem, drive, Math.max(0, frame - start), fps, 4, 1, start);
     invalidate();
   }, [sim, drive, from, frame, fps, invalidate]);
 
