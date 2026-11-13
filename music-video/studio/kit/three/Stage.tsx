@@ -24,11 +24,15 @@ export const Stage: React.FC<{
       shadows={shadows}
       dpr={1}
       camera={{ fov, near: 0.1, far: 4000, position: [0, 5, 20] }}
-      gl={{ antialias: true, preserveDrawingBuffer: true }}
-      onCreated={({ gl }) => {
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = exposure;
-        gl.outputColorSpace = THREE.SRGBColorSpace;
+      // Renderer settings go in `gl`, which is applied before the scene renders (and again only when they change), so
+      // a scene that sets gl.toneMappingExposure itself keeps it, on the first frame too. (onCreated runs after the
+      // scene's first render and would overwrite it: #9.)
+      gl={{
+        antialias: true,
+        preserveDrawingBuffer: true,
+        toneMapping: THREE.ACESFilmicToneMapping,
+        toneMappingExposure: exposure,
+        outputColorSpace: THREE.SRGBColorSpace,
       }}
       style={{ backgroundColor: new THREE.Color(background).getStyle() }}
     >
