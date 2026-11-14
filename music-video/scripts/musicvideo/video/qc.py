@@ -45,6 +45,7 @@ class Check:
     id: str
     ok: bool
     detail: str
+    skipped: bool = False   # not run (no song to check against): never a failure, always said
 
 
 def _covered(a: float, b: float, holds) -> bool:
@@ -57,7 +58,7 @@ def _spans(log: str, start_key: str, end_key: str, total: float) -> list[tuple[f
     return [(s, ends[i] if i < len(ends) else total) for i, s in enumerate(starts)]
 
 
-def check_format(info: dict, size, fps: float, expected_s: float) -> list[Check]:
+def check_format(info: dict, size, fps: float, expected_s: float | None, silent: bool = False) -> list[Check]:
     video = next((s for s in info["streams"] if s["codec_type"] == "video"), None)
     audio = next((s for s in info["streams"] if s["codec_type"] == "audio"), None)
     if video is None:
@@ -72,15 +73,20 @@ def check_format(info: dict, size, fps: float, expected_s: float) -> list[Check]
         problems.append(f"{rate:.3f} fps, expected {fps:g}")
     if video.get("codec_name") != "h264":
         problems.append(f"video codec {video.get('codec_name')}, expected h264")
-    if audio is None:
+    if audio is None and not silent:
         problems.append("no audio stream")
-    detail = "; ".join(problems) or f"{w}x{h} {rate:g} fps h264 + {audio['codec_name']}"
+    sound = f" + {audio['codec_name']}" if audio is not None else ", no audio (silent check)"
+    detail = "; ".join(problems) or f"{w}x{h} {rate:g} fps h264{sound}"
     if video.get("duration") not in (None, "N/A"):
         duration = float(video["duration"])
     elif den and video.get("nb_frames"):
         duration = int(video["nb_frames"]) * den / num
     else:
         duration = float(info["format"]["duration"])
+    if expected_s is None:
+        return [Check("format", not problems, detail),
+                Check("duration", True, f"skipped: video {duration:.3f} s, and no song length to hold it to "
+                      "(give --excerpt, or a placeholder in video.yaml)", skipped=True)]
     return [Check("format", not problems, detail),
             Check("duration", abs(duration - expected_s) <= 1.0 / fps + 0.03,
                   f"video {duration:.3f} s, expected {expected_s:.3f} s")]
@@ -287,31 +293,67 @@ def frame_sheet(video: Path, total: float, out_png: Path) -> Path:
     return out_png
 
 
-def run_qc(video: Path, song: Path, out_dir: Path, *, size=None, fps: float = 30,
+def _under(path: Path, folder: Path) -> bool:
+    try:
+        return Path(path).resolve().is_relative_to(Path(folder).resolve())
+    except OSError:
+        return False
+
+
+def check_placeholder(video: Path, placeholder: dict, finals: Path | None) -> Check:
+    what = f"a silent placeholder song ({placeholder['seconds']:g} s at {placeholder['bpm']:g} bpm)"
+    if finals is not None and _under(video, finals):
+        return Check("placeholder", False, f"{what} is not a final: keep this render in renders, out of {finals}, "
+                     "until the real song is filed, aligned and analysed")
+    return Check("placeholder", True, f"{what}: not a final; file the song, then align and analyze replace it")
+
+
+def run_qc(video: Path, song: Path | None, out_dir: Path, *, size=None, fps: float = 30,
            excerpt: tuple[float, float] | None = None, holds=(), tail: float = 0.0, cuts=(), words=(),
-           jolts: bool = False) -> dict:
+           jolts: bool = False, length: float | None = None, placeholder: dict | None = None,
+           finals: Path | None = None) -> dict:
     """`tail`: seconds the full video runs on past the song, silent (mux --tail). `cuts` (scene changes and designed
-    hard cuts) and `words` (sung word starts) are song time, like `holds`; `jolts` skips the jitter scan."""
+    hard cuts) and `words` (sung word starts) are song time, like `holds`; `jolts` skips the jitter scan.
+
+    With no song (`song` None: a placeholder video, or qc --silent) every picture check runs and the song's are
+    skipped, never failed; `length` is the song's stand-in length (the placeholder's seconds), and a `placeholder`
+    render inside `finals` fails: it is never a final."""
     if tail and excerpt:
         raise MVError("--tail is for the full song only, not an excerpt")
+    silent = song is None
     info = probe(video)
     total = float(info["format"]["duration"])
-    expected = excerpt[1] - excerpt[0] if excerpt else float(probe(song)["format"]["duration"]) + tail
+    if excerpt:
+        expected = excerpt[1] - excerpt[0]
+    elif not silent:
+        expected = float(probe(song)["format"]["duration"]) + tail
+    else:
+        expected = length + tail if length is not None else None
     holds = _clip_holds(holds, excerpt, total)
-    checks = check_format(info, size, fps, expected)
+    checks = check_format(info, size, fps, expected, silent)
     checks.append(check_colour(info))
     reported: list[tuple[float, float]] = []
     checks += [detect_black(video, total, holds, reported), detect_flash(video, total, holds, fps, reported),
                detect_frozen(video, total, holds)]
     checks += detect_motion(video, info, total, fps, holds, _clip_times(cuts, excerpt, total),
                             _clip_times(words, excerpt, total), reported, jolts)
-    has_audio = any(s["codec_type"] == "audio" for s in info["streams"])
-    checks.append(check_audio(video, song, excerpt, fps, tail) if has_audio else Check("audio", False, "no audio stream"))
+    if silent:
+        checks += [Check("audio", True, "skipped: no song to compare (a placeholder, or --silent); mux adds it once "
+                         "the song is filed", skipped=True),
+                   Check("lyrics", True, "skipped: no words to time or read (lyric-sync, spelling, lyric-early, "
+                         "word-late in checks.md wait for the song)", skipped=True)]
+    else:
+        has_audio = any(s["codec_type"] == "audio" for s in info["streams"])
+        checks.append(check_audio(video, song, excerpt, fps, tail) if has_audio
+                      else Check("audio", False, "no audio stream"))
+    if placeholder is not None:
+        checks.append(check_placeholder(video, placeholder, finals))
     out_dir.mkdir(parents=True, exist_ok=True)
     sheet = frame_sheet(video, total, out_dir / f"{video.stem}-sheet.png")
     pages = paged_sheets(video, total, out_dir)
     report = {"video": str(video), "result": "PASS" if all(c.ok for c in checks) else "FAIL",
               "checks": [asdict(c) for c in checks], "sheet": str(sheet), "pages": [str(x) for x in pages],
+              "silent": silent, "placeholder": placeholder is not None,
               "note": "Look at the sheet before showing anyone: every frame must make visual sense."}
     (out_dir / f"qc-{video.stem}.json").write_text(json.dumps(report, indent=1, ensure_ascii=False), encoding="utf-8")
     return report

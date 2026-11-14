@@ -12,7 +12,11 @@ export type TimingLine = {
 export type TimingSection = {
   i: number; name: string; start: number | null; end: number | null; lines: [number, number] | null;
 };
-export type Timing = { version: 1; duration: number; words: TimingWord[]; lines: TimingLine[]; sections: TimingSection[] };
+export type Timing = {
+  version: 1; duration: number; words: TimingWord[]; lines: TimingLine[]; sections: TimingSection[];
+  /** Written by `music-video placeholder`: no song yet, so no words. */
+  placeholder?: boolean;
+};
 
 export type Section = { id: string; name: string; start: number; end: number; sung: boolean };
 export type Energy = { rms: number[]; low: number[]; mid: number[]; high: number[] };
@@ -23,6 +27,8 @@ export type Analysis = {
   sections: Section[]; energy: Energy; hits: { t: number; strength: number }[];
   /** Drum hits (analyze, from 0.9): measured on the mix minus the vocal stem, or the mix; grid = beats' distance. */
   drums?: { source: 'mix minus vocals' | 'mix'; hits: DrumHit[]; grid: number | null };
+  /** Written by `music-video placeholder`: a steady grid, 8-bar parts and flat energy stand in for the song. */
+  placeholder?: boolean;
 };
 
 export type SongData = { timing: Timing; analysis: Analysis };

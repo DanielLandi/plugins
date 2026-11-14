@@ -247,6 +247,7 @@ The skills run these for you; each is `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/mus
 | `align`, `analyze`, `preview` | word timings, the song map, a karaoke preview |
 | `edit-timing` | drag words onto the vocal waveform and its spectrogram to fix their timing, then save |
 | `new-video`, `typecheck`, `paths`, `clean` | start a video from the template, check its code, print its folders, free its working files |
+| `placeholder` | a silent stand-in song for a video whose song does not exist yet (`--seconds`, `--bpm`), so the picture can come first; the real song replaces it |
 | `loop`, `web` | a seamless audio loop of a song; a live web page of a video (looping, optional sound) |
 | `studio`, `still`, `stills`, `render`, `blur`, `board` | Remotion Studio, stills, renders, motion blur, the transition board |
 | `mux`, `qc` | add the song to a silent render (with any lifts in the video's `song-fixes.yaml`); check a render |
@@ -273,6 +274,30 @@ never listed or served. It is open to anyone on your home network, with no passw
 the internet. It answers only requests addressed to the computer by its address or its `.local` name (so a website
 cannot read it through a browser at home). `library` prints the address, `library serve` runs it in the foreground (any platform), `library
 uninstall` stops it starting at login. After a plugin update, run `library install` again to refresh its copy.
+
+## The picture before the song
+
+A video can start before its song exists (a proof of concept, a test of a look, visuals the song is written to
+later). Give it a silent placeholder song:
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" new-video skate-test --placeholder 10
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" placeholder skate-test --seconds 30 --bpm 96
+```
+
+It writes `placeholder: {seconds: 10, bpm: 120}` into the video's `video.yaml` and fills its public folder as
+`align` and `analyze` would: a silent `song.mp3`, a `timing.json` with no words, and an `analysis.json` with a
+steady beat grid (a downbeat every 4 beats), 8-bar sections named Part 1, Part 2… and a flat energy, each marked
+`"placeholder": true`. `studio`, `still`, `stills`, `render`, `blur`, `board` and `typecheck` then work as usual;
+`placeholder` again changes the length or tempo, and `clean` loses nothing (the files come back from `video.yaml`).
+
+`qc` checks a placeholder video's renders without a song: every picture check runs, the audio and lyric checks
+print `SKIP`, and a `placeholder` line says the render is not a final (it fails if the render sits in the video's
+results folder). For a clip with no song and no placeholder at all, `qc --silent` does the same.
+
+When the song is made, file it under the video's id as usual (`ingest`); the first `align` (or `analyze`, `mux`,
+`qc`) removes the placeholder's files and sets `video.yaml` back to `placeholder: null`. Then `align` and
+`analyze` write the real timings, and scenes timed to the placeholder's grid move to the song's sections.
 
 ## The live web page
 

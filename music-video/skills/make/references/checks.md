@@ -11,7 +11,7 @@ error that no check covered, propose a new row here (with their OK).
 | black | a black stretch that is not a declared hold (3 frames or more) | `qc` (`--hold` for designed ones) |
 | flash | a near-blank, dark or white run of 1–6 frames that is not true black (a scene captured before it finished loading) | `qc` |
 | frozen | a frozen stretch that is not a declared hold | `qc` |
-| audio | missing, the wrong sound, cut short, or out of sync | `qc` (the full cut is AAC: sync at 0 ms and full length; excerpts ±1 frame) |
+| audio | missing, the wrong sound, cut short, or out of sync | `qc` (the full cut is AAC: sync at 0 ms and full length; excerpts ±1 frame); skipped, and said, for a placeholder video or `qc --silent` |
 | frame-sheet | a frame that makes no visual sense: half-loaded, cut off, placeholder text, overlapping | scan the overview sheet for structure, then read every paged sheet (`qc/<stem>-sheet-NN.png`, videos over 20 s), every tile |
 | no-blank-cuts | a transition that empties, whites out or floods the frame | `board <id>` |
 | draft-scale | a transition that renders black or flat at a reduced scale (`pixelate` goes black at `--scale=0.5`) | drafts render at full scale; the `qc` black check (3 frames) |

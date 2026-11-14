@@ -24,6 +24,9 @@ holds: []
 # Designed hard cuts inside a scene (a camera key with ease: 'cut'), in song seconds: qc's hard-cut scan accepts
 # them (scene changes are read from analysis.json).
 cuts: []
+# A silent placeholder song for working on the picture before the song exists ({seconds, bpm}), set by
+# `music-video placeholder`. Filing the real song and running align replaces it (and sets this to null).
+placeholder: null
 checklist:
   - concept approved
   - lyrics approved

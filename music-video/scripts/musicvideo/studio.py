@@ -23,6 +23,7 @@ from .characters import engine_of
 from .errors import MVError
 from .filelock import file_lock
 from .spec import is_instrumental
+from .video import placeholder
 from .workspace import Workspace, cache_dir, folder_key, install_dir
 
 PLUGIN_STUDIO = Path(__file__).resolve().parents[2] / "studio"
@@ -579,6 +580,8 @@ def video_context(ws: Workspace, video_id: str) -> VideoContext:
         raise MVError(f"characters: in {meta_file}: {e}") from e
     song = str(meta.get("song") or video_id)  # a test-bed video can borrow another video's song
     public = ws.work_for(song) / "public"
+    if not meta.get("song"):
+        placeholder.ensure(public, meta)  # a silent stand-in until the song exists (it comes back after clean)
     if not (public / "timing.json").is_file() and not _instrumental(ws, song):
         raise MVError(f"no timing.json in {public}: run music-video align {song}, then music-video analyze {song}")
     if not (public / "analysis.json").is_file():
