@@ -93,7 +93,7 @@ try {
     base: './',
     logLevel: 'warn',
     plugins: [selfHostedFonts, htmlFields],
-    assetsInclude: ['**/*.glb', '**/*.gltf', '**/*.vrm'],
+    assetsInclude: ['**/*.glb', '**/*.gltf', '**/*.vrm', '**/*.hdr', '**/*.exr'],
     resolve: {
       preserveSymlinks: true,
       alias: [

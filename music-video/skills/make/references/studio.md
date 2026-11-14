@@ -34,10 +34,30 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
   key on each sung word you show; `ease: 'cut'` is a hard cut (only when `shot-design.md` allows one; list its
   song time in `video.yaml` `cuts:` so `qc` accepts it). Keep moves continuous: a camera that stops and jumps
   reads as a glitch.
+- **Continuous motion takes `smooth`.** The kit's default in-out ease (`eases.inOut`, camera `ease: 'inOut'`) is a
+  cubic whose acceleration jumps at its midpoint: fine for a pose that lands, but anything driven by acceleration (a
+  lean or bank, a slow camera drift, a carve's envelope) twitches there. Use `eases.smooth` (smootherstep: flat
+  speed and acceleration at both ends, no jump anywhere) in `track`/`ramp`/`poseTrack`, and `ease: 'smooth'` on
+  camera keys.
 - Lyrics can be objects in the world: `<Text3D>` is one extruded word; `<Letters place>` animates letter by letter.
   `advance()` measures text for layout; `findLine`/`findWord` give the words' timings; `entrance()` and
   `smooth()` time the moves. The type is Outfit ExtraBold (OFL); `studio/tools/typeface.py` converts other OFL fonts.
 - `<SkyDome>` is a gradient sky with a sun; `mixColor` blends colours over time.
+- **An HDR sky** (`.hdr` or `.exr`, equirectangular; Poly Haven has CC0 ones): keep it in `<video>/textures/`, list
+  it in `SOURCES.md`, import it like a model (`import sky from './textures/<name>_2k.hdr'`) and put `<HdrSky
+  url={sky} />` on the stage: it is the background and the light standard materials reflect, and it holds the frame
+  until loaded. Props: `background`/`environment` (both on; `background={false}` keeps a `SkyDome` and lights with
+  the HDR only), `backgroundIntensity`, `environmentIntensity`, `blur` (0–1, background only), `rotation` (radians
+  about y: put its sun where the shot wants it). `loadHdr(url)`/`useHdr(url)` give the texture for other uses. 1k–2k
+  lights a scene; 4k only when the background is seen sharp. (Under 64 px wide it gives no light.)
+- **Riding a path** (a road, a rail, a flight line): `makePath(points, { closed? })` is a smooth curve through the
+  points (no curvature jump at them, so a lean that follows it does not twitch), measured in metres along it.
+  `path.at(s)` gives `pos`, `tangent`, `yaw` (an `<Avatar>`'s yaw to face along it), `pitch` and `curvature` (+ turning
+  left); `path.bank(s, speed, { max?, window? })` is the lean that balances the turn at that speed (+ leans left;
+  `max` a soft limit, `window` averages the turn over ± metres, about speed × 0.25 s for a rider's reaction);
+  `ride(path, t, speed, { start, s0 })` is all of it at song time t for a steady speed (for a changing one, key the
+  distance with `track(..., eases.smooth)` and call `at`/`bank`); `pathQuaternion(p, bank)` turns a vehicle or board
+  modelled facing +z along the path, nose up the slope, leaning into the turn.
 - `<Model>` loads a GLB (`import url from '@mv/assets/models/<file>.glb'`); the bundled CC0 models are listed in
   `${CLAUDE_PLUGIN_ROOT}/studio/assets/models/SOURCES.md`. New models must be CC0, listed in the video's `SOURCES.md`.
 - Put the kit's `SanitizeShader` before any bloom pass: one NaN pixel otherwise blanks part of the frame.
@@ -92,8 +112,8 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
   CC0 samples as `import first from '@mv/avatars/vroid-sample-1.vrm'` (…`-2` to `-4`; installed once by
   `music-video avatars install`, which a render asks for when they are missing), or a user's own CC0/OFL file in the
   video's folder (`'./hero.vrm'`, listed in `SOURCES.md`; the samples' row is added to `SOURCES.md` by the first
-  render that uses them). `drive(t)` (song seconds) returns `{ pos, yaw, pose,
-  hips?, expr?, lookAt?, wind? }`; `from={<the scene's start>}` is where its hair and cloth physics start, so pass
+  render that uses them). `drive(t, rig)` (song seconds; `rig` is the model's rest skeleton, for IK) returns `{ pos,
+  yaw, pose, hips?, expr?, lookAt?, wind? }`; `from={<the scene's start>}` is where its hair and cloth physics start, so pass
   the scene's (or the bake-off window's) start, never 0 for a late scene. Any frame then renders the same alone or
   in sequence.
 - Poses are in normalized bone space (T-pose, facing +z, the character's left is +x): `poses.relax`, `waveR/L`,
@@ -104,6 +124,23 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 - Expressions (`expr`): `happy`, `angry`, `sad`, `relaxed`, `blink`, mouth shapes `aa`, `ih`, `ou`, `ee`, `oh`; the
   samples add `Surprised`. `lookAt` is a world point the eyes follow. `wind` pushes hair and cloth (a gust, an
   impact). `outline` thickens the cel outline; `silhouette` paints the whole character one colour (an impact frame).
+- **Moving fast** (riding, running, flying): give the `<Avatar>` `airDrag={0.1}` (push per m/s against its own
+  motion; 0.1 streams the samples' hair at 10 m/s) instead of a hand-set headwind; it is worked out from `drive` on
+  the song clock, so frames stay deterministic. `wind={[x, y, z]}` adds a constant breeze on top of `drive`'s own.
+  Keep both props fixed for the scene; a wind that changes (a gust) goes in `drive`'s `wind`.
+- **Shadows and materials**: `castShadow` and `receiveShadow` (off by default) put the character in a shadow-casting
+  light's shadow pass. `materials={fn}` changes or replaces each material once, before the first frame is released:
+  `(m, mesh) => material | undefined` (MToon materials have `isMToonMaterial`, their outline passes `isOutline`),
+  e.g. MToon to a `MeshStandardMaterial` with the same `map` for a realistic, HDR-lit world. Define `fn` at module
+  level.
+- **Feet and hands on things** (a board, pedals, stairs, kneeling, a hand on a rail): two-bone IK. In `drive(t, rig)`,
+  build the state as usual, then `withIK(rig, state, { leftLeg: { target, pole, end? }, rightArm: … })` returns it
+  with those limbs solved: `target` is the world point for the ankle or wrist, `pole` the world direction the knee
+  (the character's front) or elbow (back and down) points, `end` the foot's or hand's turn in the character's frame
+  (`[0, 0, 0]`: flat and facing forward; left out, the pose's own stays). Set hips, spine and shoulders first: IK
+  solves from them. Bone lengths never change; a target out of reach gets a straight limb towards it.
+  `limbIK(rig, state, limb, goal)` returns just the limb's angles, and `jointAt(rig, state, bone)` where a joint is
+  (place a prop in a hand).
 - Hands are posed by hand: when two characters touch (a high five, a fist bump), render the contact frame and adjust
   until the hands really meet; the samples differ in height. `bakeoff/vrm.tsx` in the plugin's `studio/` is a
   working two-character scene to start from.

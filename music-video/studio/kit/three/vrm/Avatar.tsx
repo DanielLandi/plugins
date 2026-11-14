@@ -8,8 +8,11 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { Vec3 } from '../camera';
 import { releaseWhenDrawn } from '../settle';
+import { dressAvatar, type AvatarMaterialHook } from './dress';
+import { measureRig, type HumanRig } from './ik';
 import type { Pose } from './motion';
 import { replayTo, type Replayable, type ReplayState } from './replay';
+import { withAirDrag } from './wind';
 
 /** Where a character is and what it does at one moment. */
 export type AvatarState = {
@@ -28,7 +31,8 @@ export type AvatarState = {
   /** Extra force on hair and cloth springs (world units, added to gravity): a gust, a shockwave, a dash. */
   wind?: Vec3;
 };
-export type Drive = (t: number) => AvatarState;
+/** The character at song time t. `rig` is the model's rest skeleton (measured when it loads), for limbIK/withIK. */
+export type Drive = (t: number, rig: HumanRig) => AvatarState;
 
 /** The yaw that turns a character standing at `from` to face `to`. */
 export const faceYaw = (from: Vec3, to: Vec3) => Math.atan2(to[0] - from[0], to[2] - from[2]);
@@ -154,13 +158,33 @@ export type AvatarProps = {
   outline?: number;
   /** Draw the whole character in one flat colour (an impact frame), or null for its own materials. */
   silhouette?: string | null;
+  /** Shadows: off by default (as before); switch on with a shadow-casting light (and a floor that receives). */
+  castShadow?: boolean;
+  receiveShadow?: boolean;
+  /**
+   * Change or replace each of the model's materials once, when it loads and before its first frame is released
+   * (e.g. MToon to a lit MeshStandardMaterial for a realistic world; outline passes have `isOutline`). Return a
+   * material, or nothing to keep the one given. Pass a stable function (module level).
+   */
+  materials?: AvatarMaterialHook;
+  /**
+   * A headwind on hair and cloth from the character's own motion: this much push per m/s, against its velocity
+   * (0.1 streams hair at riding speeds). Computed from drive() on the song clock, so frames stay deterministic.
+   */
+  airDrag?: number;
+  /** A constant wind on hair and cloth (world units), added to drive()'s own `wind`. Keep it and airDrag fixed for
+   * the scene: a replay steps every past moment with today's values, so a wind that changes goes in drive's `wind`. */
+  wind?: Vec3;
 };
 
 /**
- * A VRM character on the stage. Its pose, place, face and the wind on its hair come from `drive(t)` (t in song
- * seconds); spring bones replay deterministically from `from`, so any frame renders the same alone or in sequence.
+ * A VRM character on the stage. Its pose, place, face and the wind on its hair come from `drive(t, rig)` (t in song
+ * seconds; rig for limbIK/withIK); spring bones replay deterministically from `from`, so any frame renders the same
+ * alone or in sequence.
  */
-export const Avatar: React.FC<AvatarProps> = ({ url, drive, from = 0, outline = 1, silhouette = null }) => {
+export const Avatar: React.FC<AvatarProps> = ({
+  url, drive, from = 0, outline = 1, silhouette = null, castShadow = false, receiveShadow = false, materials, airDrag = 0, wind,
+}) => {
   const { vrm, handle } = useVrm(url);
   const advance = useThree((s) => s.advance);
   const gl = useThree((s) => s.gl);
@@ -168,39 +192,31 @@ export const Avatar: React.FC<AvatarProps> = ({ url, drive, from = 0, outline = 
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const look = useMemo(() => new THREE.Object3D(), []);
+  // The rest skeleton, measured before the first pose is applied.
+  const rig = useMemo(() => (vrm ? measureRig(vrm) : null), [vrm]);
   const sim = useMemo(() => (vrm ? { r: replayable(vrm, look), mem: { frame: -1 } as ReplayState } : null), [vrm, look]);
+  const [wx, wy, wz] = wind ?? [0, 0, 0];
+  const driven = useMemo(() => {
+    if (!rig) return null;
+    const air = withAirDrag(drive, { airDrag, wind: [wx, wy, wz] });
+    return (t: number) => air(t, rig);
+  }, [drive, rig, airDrag, wx, wy, wz]);
   const [released, setReleased] = useState(false);
 
+  // A layout effect: it runs in the same commit as the model's arrival, before the effect below draws and releases
+  // the frame, so the first released frame already has its shadows and materials.
   useLayoutEffect(() => {
     if (!vrm) return;
-    vrm.scene.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      const mats = (mesh.userData.mvMats ??= mesh.material) as THREE.Material | THREE.Material[];
-      for (const m of Array.isArray(mats) ? mats : [mats]) {
-        const toon = m as THREE.Material & { outlineWidthFactor?: number; userData: { mvOutline?: number } };
-        if (typeof toon.outlineWidthFactor === 'number') {
-          toon.userData.mvOutline ??= toon.outlineWidthFactor;
-          toon.outlineWidthFactor = toon.userData.mvOutline * outline;
-        }
-      }
-      if (silhouette) {
-        const flat = (mesh.userData.mvFlat ??= new THREE.MeshBasicMaterial()) as THREE.MeshBasicMaterial;
-        flat.color.set(silhouette);
-        mesh.material = Array.isArray(mats) ? mats.map(() => flat) : flat;
-      } else {
-        mesh.material = mats;
-      }
-    });
-  }, [vrm, outline, silhouette]);
+    dressAvatar(vrm.scene, { outline, silhouette, castShadow, receiveShadow, materials });
+  }, [vrm, outline, silhouette, castShadow, receiveShadow, materials]);
 
   useLayoutEffect(() => {
-    if (!sim) return;
+    if (!sim || !driven) return;
     const start = Math.round(from * fps);
     // Song time from the frame the replay starts on, so the pose keeps the scene's clock (useSongTime) exactly.
-    replayTo(sim.r, sim.mem, drive, Math.max(0, frame - start), fps, 4, 1, start);
+    replayTo(sim.r, sim.mem, driven, Math.max(0, frame - start), fps, 4, 1, start);
     invalidate();
-  }, [sim, drive, from, frame, fps, invalidate]);
+  }, [sim, driven, from, frame, fps, invalidate]);
 
   useEffect(() => {
     if (!vrm || released) return;

@@ -72,3 +72,17 @@ describe('cameraAt', () => {
     }
   });
 });
+
+describe('cameraAt with the smooth ease', () => {
+  it("'smooth' moves with no jump in acceleration mid-move (for leans and drifting cameras)", () => {
+    const k: CameraKey[] = [
+      { t: 0, pos: [0, 0, 0], look: [0, 0, -1] },
+      { t: 1, pos: [10, 0, 0], look: [10, 0, -1], ease: 'smooth' },
+    ];
+    const x = (t: number) => cameraAt(k, t).pos.x;
+    const h = 1e-4;
+    const acc = (t: number) => (x(t + h) - 2 * x(t) + x(t - h)) / (h * h);
+    expect(x(0.5)).toBeCloseTo(5, 6);
+    expect(Math.abs(acc(0.5 - 3 * h) - acc(0.5 + 3 * h))).toBeLessThan(0.5);
+  });
+});
