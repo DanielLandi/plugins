@@ -127,6 +127,7 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 - **Moving fast** (riding, running, flying): give the `<Avatar>` `airDrag={0.1}` (push per m/s against its own
   motion; 0.1 streams the samples' hair at 10 m/s) instead of a hand-set headwind; it is worked out from `drive` on
   the song clock, so frames stay deterministic. `wind={[x, y, z]}` adds a constant breeze on top of `drive`'s own.
+  Keep both props fixed for the scene; a wind that changes (a gust) goes in `drive`'s `wind`.
 - **Shadows and materials**: `castShadow` and `receiveShadow` (off by default) put the character in a shadow-casting
   light's shadow pass. `materials={fn}` changes or replaces each material once, before the first frame is released:
   `(m, mesh) => material | undefined` (MToon materials have `isMToonMaterial`, their outline passes `isOutline`),

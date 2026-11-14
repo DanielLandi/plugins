@@ -172,7 +172,8 @@ export type AvatarProps = {
    * (0.1 streams hair at riding speeds). Computed from drive() on the song clock, so frames stay deterministic.
    */
   airDrag?: number;
-  /** A constant wind on hair and cloth (world units), added to drive()'s own `wind`. */
+  /** A constant wind on hair and cloth (world units), added to drive()'s own `wind`. Keep it and airDrag fixed for
+   * the scene: a replay steps every past moment with today's values, so a wind that changes goes in drive's `wind`. */
   wind?: Vec3;
 };
 
