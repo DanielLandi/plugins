@@ -3,6 +3,7 @@
 public/ is the Remotion public folder for that one video, so a render bundles only the song and its JSON.
 """
 import shutil
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -11,6 +12,7 @@ import yaml
 from ..workspace import Workspace, filed_path
 from ..errors import MVError
 from ..spec import find_spec, load_spec
+from . import placeholder
 
 
 @dataclass(frozen=True)
@@ -131,6 +133,9 @@ def video_song(ws: Workspace, spec_id: str) -> VideoSong:
     if not source.is_file():
         raise MVError(f"{source} is missing; re-run music-video ingest {spec_id}")
     paths = VideoPaths(ws.work_for(spec_id), ws.results_for(spec_id), ws.video_dir(spec_id))
+    if placeholder.drop(paths.public, ws.video_dir(spec_id)):  # the real song replaces the silent stand-in
+        print(f"{spec_id}: the real song replaces the silent placeholder (video.yaml placeholder: null)",
+              file=sys.stderr)
     paths.public.mkdir(parents=True, exist_ok=True)
     stale = (not paths.song.exists()
              or paths.song.stat().st_size != source.stat().st_size

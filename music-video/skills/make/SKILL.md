@@ -81,6 +81,21 @@ or `analyze` unless the timings change.
 user said, what is next) and update `step:` and the checklist, and write in `waiting:` what the user is asked for
 now, in a few words ("pick a lyric", "notes on draft v2"); empty it once they have answered. The home shows it.
 
+**Picture before the song** (a proof of concept, a look test, visuals the song comes after): give the video a
+silent placeholder song instead of skipping the song's files by hand:
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" new-video <id> --placeholder <seconds>
+uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" placeholder <id> --seconds <s> --bpm <tempo>
+```
+
+It sets `placeholder:` in `video.yaml` and writes a silent song, no words and a steady beat grid with 8-bar parts
+into `<public>`; render, stills, the board and `qc` work on it (qc skips the song's checks and says so). Render
+`--muted` and run `qc` on the silent render (no `mux`). A placeholder render is never delivered or called final:
+steps 3–4 still come before step 8, and filing the real song under the same id, then `align` and `analyze`,
+replaces the placeholder (scenes then move onto the song's sections). A clip with no song and no placeholder at all
+is checked with `qc --silent`.
+
 ## The home: the user's page for every video
 
 `home` serves one local page with every song and video and its stage; each video opens on its ten stages, with what
@@ -430,6 +445,9 @@ Follow `references/storyboard.md`:
 6. On approval: `step: delivery`.
 
 ## 8. Delivery
+
+Never deliver a video whose `video.yaml` still says `placeholder:` (qc fails a placeholder render in `<results>`):
+file the song, `align` and `analyze` first.
 
 Render, add the song, check, and render the thumbnail into `<results>`:
 

@@ -37,9 +37,10 @@ AUDIO = {".mp3", ".m4a", ".aac", ".flac", ".ogg"}  # not .wav: a master copy bes
 IMAGE = {".png", ".jpg", ".jpeg", ".webp"}
 TRACK = {".vtt"}
 # A live page (a project's web/ folder) may load these too.
-WEB = {".html", ".js", ".mjs", ".css", ".json", ".svg", ".woff", ".woff2", ".ttf", ".wasm", ".glb"}
+WEB = {".html", ".js", ".mjs", ".css", ".json", ".svg", ".woff", ".woff2", ".ttf", ".wasm", ".glb", ".hdr", ".exr"}
 ART_NAMES = ("thumbnail", "cover", "poster")
 TYPES = {".vtt": "text/vtt", ".m4v": "video/mp4", ".mjs": "text/javascript", ".glb": "model/gltf-binary",
+         ".hdr": "image/vnd.radiance", ".exr": "image/x-exr",
          ".wasm": "application/wasm", ".webp": "image/webp", ".woff2": "font/woff2", ".flac": "audio/flac"}
 CHUNK = 1 << 20
 

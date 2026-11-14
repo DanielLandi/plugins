@@ -430,3 +430,52 @@ def test_untagged_or_wrongly_tagged_colour_fails_and_says_what_is_wrong(media):
     good = run_qc(mux(video("tagged.mp4", src="testsrc=size=320x240:rate=30:duration=4"), song, tmp / "tagged-out.mp4"),
                   song, tmp / "qc")
     assert good["result"] == "PASS" and "bt709" in detail(good, "colour")
+
+
+# A twitch: a moving shape that snaps sideways for two frames and back (a lean following a curvature jump did this
+# under motion blur, and qc passed it). Frames are drawn in numpy: a textured shape moving 2 px a frame over a still
+# block pattern; with blur, each frame averages 8 sub-frames over a 180° shutter, and the twitch starts a quarter
+# frame late, so its first and last frames are half ghosts, as a blurred render shows it.
+def twitch_clip(path, *, twitch: bool, blur: bool, J: float = 8.0):
+    import numpy as np
+    w, h, frames = 320, 240, 120
+    rng = np.random.default_rng(3)
+    bg = np.kron(rng.integers(40, 120, size=(h // 8, w // 8)), np.ones((8, 8))).astype(np.float32)
+    xs = np.arange(w)[None, :]
+    stripes = 200 + 40 * (np.arange(72)[:, None] // 6 % 2)
+
+    def draw(t):
+        x = 80 + 2.0 * t + (J if twitch and 60.25 <= t < 62.25 else 0.0)
+        cover = np.clip(np.minimum(xs + 1 - x, x + 36 - xs), 0, 1)     # anti-aliased edges
+        img = bg.copy()
+        img[90:162] = img[90:162] * (1 - cover) + stripes * cover
+        return img
+
+    proc = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray",
+                             "-s", f"{w}x{h}", "-r", "30", "-i", "-", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                             "-crf", "18", *BT709, str(path)], stdin=subprocess.PIPE)
+    for n in range(frames):
+        img = np.mean([draw(n + s / 16) for s in range(8)], axis=0) if blur else draw(n)
+        proc.stdin.write(np.clip(img, 0, 255).astype(np.uint8).tobytes())
+    proc.stdin.close()
+    assert proc.wait() == 0
+    return path
+
+
+@pytest.mark.parametrize("blur", [False, True], ids=["sharp", "blurred"])
+def test_smooth_motion_passes_with_and_without_blur(tmp_path, requires_ffmpeg, blur):
+    clip = twitch_clip(tmp_path / "smooth.mp4", twitch=False, blur=blur)
+    assert motion(run_qc(clip, None, tmp_path / "qc", length=4.0)) == set()
+
+
+def test_a_sharp_two_frame_twitch_fails(tmp_path, requires_ffmpeg):
+    clip = twitch_clip(tmp_path / "twitch.mp4", twitch=True, blur=False)
+    assert motion(run_qc(clip, None, tmp_path / "qc", length=4.0))
+
+
+@pytest.mark.xfail(strict=True, reason="known limit (checks.md, twitch): under motion blur a two-frame twitch is a "
+                   "soft ghost the motion scans cannot tell from normal motion without optical flow; look at every "
+                   "frame. If this starts passing, the scans learned it: drop the xfail and the checks.md caveat.")
+def test_a_blurred_two_frame_twitch_fails(tmp_path, requires_ffmpeg):
+    clip = twitch_clip(tmp_path / "twitch.mp4", twitch=True, blur=True)
+    assert motion(run_qc(clip, None, tmp_path / "qc", length=4.0))

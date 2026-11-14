@@ -30,7 +30,7 @@ from .video.qc import run_qc
 from .video.review import build_page, load_versions, mark_review, record_version, review_mark, version_label
 from .video.songfix import lifted_song
 from .video.timing import clock
-from .video import timing_editor
+from .video import placeholder, timing_editor
 from .workspace import (cache_dir, config_path, init_workspace, install_dir, load_private_names, load_workspace,
                         main_counterpart, remember_home, saved_home, warn_if_no_private_names, workspace_home)
 from .worktrees import linked_worktree
@@ -276,33 +276,65 @@ def cmd_loop(args) -> int:
     return 0
 
 
-def _qc_context(ws, spec: str, song) -> tuple[list[float], list[float], bool]:
+def _qc_context(ws, spec: str, public: Path) -> tuple[list[float], list[float], bool]:
     """What qc reads on its own, all song time: the scene changes (analysis.json sections) and the video's designed
     hard cuts (video.yaml `cuts:`), the sung word starts (timing.json), and the jolts answer (video.yaml)."""
     meta_file = ws.video_dir(spec) / "video.yaml"
     meta = yaml.safe_load(meta_file.read_text(encoding="utf-8")) if meta_file.is_file() else None
     meta = meta if isinstance(meta, dict) else {}
     cuts = [float(c) for c in meta.get("cuts") or []]
-    if song.paths.analysis.is_file():
-        cuts += [float(s["start"]) for s in json.loads(song.paths.analysis.read_text(encoding="utf-8"))["sections"]]
-    words = ([float(w["start"]) for w in json.loads(song.paths.timing.read_text(encoding="utf-8")).get("words", [])]
-             if song.paths.timing.is_file() else [])
+    analysis, timing = public / "analysis.json", public / "timing.json"
+    if analysis.is_file():
+        cuts += [float(s["start"]) for s in json.loads(analysis.read_text(encoding="utf-8"))["sections"]]
+    words = ([float(w["start"]) for w in json.loads(timing.read_text(encoding="utf-8")).get("words", [])]
+             if timing.is_file() else [])
     return cuts, words, meta.get("jolts") is True
 
 
 def cmd_qc(args) -> int:
     ws = load_workspace()
-    song = video_song(ws, song_for(ws, args.spec))
-    cuts, words, jolts = _qc_context(ws, args.spec, song)
-    report = run_qc(Path(args.video), lifted_song(song.paths), song.paths.qc,
-                    size=_size(args.size) if args.size else None, fps=args.fps,
-                    excerpt=_range(args.excerpt) if args.excerpt else None,
-                    holds=[_range(h) for h in args.hold or []], tail=args.tail,
-                    cuts=cuts + list(args.cut or []), words=words, jolts=jolts)
+    meta = placeholder.read_meta(ws.video_dir(args.spec))
+    stand_in = None if meta.get("song") else placeholder.declared(meta)
+    if stand_in is not None and placeholder.song_filed(ws, args.spec):
+        stand_in = None  # the real song is here: video_song below replaces the placeholder
+    common = dict(size=_size(args.size) if args.size else None, fps=args.fps,
+                  excerpt=_range(args.excerpt) if args.excerpt else None,
+                  holds=[_range(h) for h in args.hold or []], tail=args.tail)
+    if args.silent or stand_in is not None:
+        # No song: every picture check, none of the song's (a placeholder video, or a clip with no song at all).
+        public = ws.work_for(str(meta.get("song") or args.spec)) / "public"
+        if stand_in is not None:
+            placeholder.ensure(public, meta)
+        cuts, words, jolts = _qc_context(ws, args.spec, public)
+        report = run_qc(Path(args.video), None, ws.work_for(args.spec) / "qc", **common,
+                        cuts=cuts + list(args.cut or []), words=words, jolts=jolts,
+                        length=stand_in["seconds"] if stand_in else None, placeholder=stand_in,
+                        finals=ws.results_for(args.spec))
+    else:
+        try:
+            song = video_song(ws, song_for(ws, args.spec))
+        except MVError as e:
+            raise MVError(f"{e} (a clip with no song: qc --silent, or give the video a placeholder song with "
+                          f"music-video placeholder {args.spec} --seconds <s>)") from e
+        cuts, words, jolts = _qc_context(ws, args.spec, song.paths.public)
+        report = run_qc(Path(args.video), lifted_song(song.paths), song.paths.qc, **common,
+                        cuts=cuts + list(args.cut or []), words=words, jolts=jolts)
     for check in report["checks"]:
-        print(f"{'PASS' if check['ok'] else 'FAIL'}  {check['id']:<9} {check['detail']}")
+        status = "SKIP" if check.get("skipped") else "PASS" if check["ok"] else "FAIL"
+        print(f"{status}  {check['id']:<9} {check['detail']}")
     print(f"sheet: {report['sheet']} (look at it)")
+    if report["placeholder"]:
+        print("placeholder: this render stands on a silent placeholder song; it is not a final")
     return 0 if report["result"] == "PASS" else 1
+
+
+def cmd_placeholder(args) -> int:
+    ws = load_workspace()
+    value = placeholder.make(ws, args.id, args.seconds, args.bpm)
+    print(f"placeholder song for {args.id}: {placeholder.describe(value)}, silent, no words, a steady beat grid "
+          f"→ {ws.work_for(args.id) / 'public'}")
+    print("render, still, studio and qc work on it now; once the real song is filed, align and analyze replace it")
+    return 0
 
 
 def cmd_version(args) -> int:
@@ -431,6 +463,8 @@ def cmd_paths(args) -> int:
     out = {"video": str(ws.video_dir(args.id)), "work": str(p.root),
            "public": str(ws.work_for(song) / "public"), "renders": str(p.renders), "qc": str(p.qc),
            "results": str(p.deliver), "web": str(p.deliver / "web")}
+    if (stand_in := placeholder.declared(meta if isinstance(meta, dict) else {})) is not None:
+        out["placeholder"] = stand_in
     if ws.lane:  # only in a git worktree: a main checkout's output is unchanged
         out["lane"] = ws.lane
     print(json.dumps(out, indent=2))
@@ -608,7 +642,13 @@ def cmd_web(args) -> int:
 
 
 def cmd_new_video(args) -> int:
-    print(studio.new_video(load_workspace(), args.id))
+    ws = load_workspace()
+    if args.placeholder is not None:  # a bad length stops before the folder is made
+        placeholder.check(args.placeholder, args.bpm if args.bpm is not None else placeholder.DEFAULT_BPM)
+    print(studio.new_video(ws, args.id))
+    if args.placeholder is not None:
+        value = placeholder.make(ws, args.id, args.placeholder, args.bpm)
+        print(f"placeholder song: {placeholder.describe(value)}, silent (music-video placeholder changes it)")
     return 0
 
 
@@ -652,7 +692,7 @@ def cmd_library(args) -> int:
     return 0
 
 
-HANDLERS: dict = {"library": cmd_library, "web": cmd_web, "album": cmd_album, "loop": cmd_loop, "clean": cmd_clean, "new-video": cmd_new_video, "typecheck": cmd_typecheck, "studio": _remotion("studio"),
+HANDLERS: dict = {"library": cmd_library, "web": cmd_web, "album": cmd_album, "loop": cmd_loop, "clean": cmd_clean, "new-video": cmd_new_video, "placeholder": cmd_placeholder, "typecheck": cmd_typecheck, "studio": _remotion("studio"),
                   "render": _remotion("render"), "still": _remotion("still"), "stills": _tool("stills.ts", 1),
                   "blur": _tool("blur.ts", 1), "board": _tool("board.ts"), "doctor": cmd_doctor, "align": cmd_align, "analyze": cmd_analyze, "preview": cmd_preview, "edit-timing": cmd_edit_timing, "mux": cmd_mux,
                   "qc": cmd_qc, "version": cmd_version, "review": cmd_review, "sections": cmd_sections, "notes": cmd_notes, "requests": cmd_requests, "home": cmd_home, "paths": cmd_paths, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
@@ -739,6 +779,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--cut", type=float, action="append", help="a designed hard cut inside a scene, in song seconds (scene changes and video.yaml cuts are read on their own); repeatable")
     p.add_argument("--size", help="expected WIDTHxHEIGHT")
     p.add_argument("--fps", type=float, default=30)
+    p.add_argument("--silent", action="store_true", help="a clip with no song: every picture check, the song's skipped (a video with a placeholder song is checked this way on its own)")
     p = sub.add_parser("version", help="keep a checked render (or a still) as the next version of a scene, for review")
     p.add_argument("id")
     p.add_argument("file", help="a render that passed qc, or a still (.png/.jpg)")
@@ -782,6 +823,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--timeout", type=float, help="with --wait: give up after this many seconds")
     p = sub.add_parser("new-video", help="start a video's code folder from the template")
     p.add_argument("id")
+    p.add_argument("--placeholder", type=float, metavar="SECONDS", help="start on a silent placeholder song this long (the picture before the song)")
+    p.add_argument("--bpm", type=float, help="the placeholder's tempo (default 120)")
+    p = sub.add_parser("placeholder", help="a silent placeholder song for a video whose song does not exist yet: render, still and qc work on it; align replaces it")
+    p.add_argument("id")
+    p.add_argument("--seconds", type=float, help="its length (required the first time)")
+    p.add_argument("--bpm", type=float, help="its steady tempo (default 120, or the one it has)")
     p = sub.add_parser("typecheck", help="type-check a video's code against the engine")
     p.add_argument("id")
     for name, text in (("studio", "open Remotion Studio on a video"),

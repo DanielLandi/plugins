@@ -50,7 +50,8 @@ STEP_INDEX = {step: i for i, (_, _, step, _) in enumerate(STAGES) if step}
 FINALS = {".mp4", ".mov", ".webm", ".png", ".jpg", ".jpeg", ".mp3", ".srt", ".vtt", ".lrc", ".md"}
 TYPES = {".vtt": "text/vtt", ".srt": "text/plain; charset=utf-8", ".lrc": "text/plain; charset=utf-8",
          ".md": "text/plain; charset=utf-8", ".mjs": "text/javascript", ".js": "text/javascript",
-         ".wasm": "application/wasm", ".glb": "model/gltf-binary", ".webp": "image/webp", ".woff2": "font/woff2",
+         ".wasm": "application/wasm", ".glb": "model/gltf-binary", ".hdr": "image/vnd.radiance", ".exr": "image/x-exr",
+         ".webp": "image/webp", ".woff2": "font/woff2",
          ".m4a": "audio/mp4"}
 
 

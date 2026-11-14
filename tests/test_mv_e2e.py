@@ -28,6 +28,21 @@ def smoke_video(mv_ws, monkeypatch):
     return mv_ws
 
 
+def test_a_fresh_placeholder_video_renders_a_still(mv_ws, monkeypatch, tmp_path):
+    # The picture before the song: no spec, no song files copied by hand, only `new-video --placeholder`.
+    monkeypatch.delenv("MV_INSTALL_DIR")
+    try:
+        studio.ensure_ready()
+    except MVError:
+        pytest.skip("run music-video doctor first")
+    assert main(["new-video", "picture-first", "--placeholder", "6"]) == 0
+    assert main(["clean", "picture-first"]) == 0   # the placeholder comes back from video.yaml
+    out = tmp_path / "placeholder.png"
+    assert main(["typecheck", "picture-first"]) == 0
+    assert main(["still", "picture-first", "picture-first-full", str(out), "--frame=150"]) == 0
+    assert out.stat().st_size > 10_000
+
+
 def test_board_runs_on_a_workspace_video(smoke_video):
     # The board imports the video's scenes.ts in Node: its packages and @mv/kit must resolve from the engine.
     assert main(["board", "smoke-test"]) == 0
