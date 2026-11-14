@@ -43,6 +43,13 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
   `advance()` measures text for layout; `findLine`/`findWord` give the words' timings; `entrance()` and
   `smooth()` time the moves. The type is Outfit ExtraBold (OFL); `studio/tools/typeface.py` converts other OFL fonts.
 - `<SkyDome>` is a gradient sky with a sun; `mixColor` blends colours over time.
+- **An HDR sky** (`.hdr` or `.exr`, equirectangular; Poly Haven has CC0 ones): keep it in `<video>/textures/`, list
+  it in `SOURCES.md`, import it like a model (`import sky from './textures/<name>_2k.hdr'`) and put `<HdrSky
+  url={sky} />` on the stage: it is the background and the light standard materials reflect, and it holds the frame
+  until loaded. Props: `background`/`environment` (both on; `background={false}` keeps a `SkyDome` and lights with
+  the HDR only), `backgroundIntensity`, `environmentIntensity`, `blur` (0–1, background only), `rotation` (radians
+  about y: put its sun where the shot wants it). `loadHdr(url)`/`useHdr(url)` give the texture for other uses. 1k–2k
+  lights a scene; 4k only when the background is seen sharp. (Under 64 px wide it gives no light.)
 - `<Model>` loads a GLB (`import url from '@mv/assets/models/<file>.glb'`); the bundled CC0 models are listed in
   `${CLAUDE_PLUGIN_ROOT}/studio/assets/models/SOURCES.md`. New models must be CC0, listed in the video's `SOURCES.md`.
 - Put the kit's `SanitizeShader` before any bloom pass: one NaN pixel otherwise blanks part of the frame.

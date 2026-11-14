@@ -9,3 +9,13 @@ declare module '*.vrm' {
   const url: string;
   export default url;
 }
+
+// HDR skies (equirectangular .hdr or .exr), bundled as URLs for <HdrSky> / loadHdr: './textures/<file>.hdr'.
+declare module '*.hdr' {
+  const url: string;
+  export default url;
+}
+declare module '*.exr' {
+  const url: string;
+  export default url;
+}

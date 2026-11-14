@@ -4,6 +4,7 @@ export * from './Stage';
 export * from './camera';
 export * from './text3d';
 export * from './SkyDome';
+export * from './hdr';
 export * from './model';
 export * from './settle';
 export * from './sanitize';
