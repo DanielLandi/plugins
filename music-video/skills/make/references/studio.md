@@ -50,6 +50,14 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
   the HDR only), `backgroundIntensity`, `environmentIntensity`, `blur` (0–1, background only), `rotation` (radians
   about y: put its sun where the shot wants it). `loadHdr(url)`/`useHdr(url)` give the texture for other uses. 1k–2k
   lights a scene; 4k only when the background is seen sharp. (Under 64 px wide it gives no light.)
+- **Riding a path** (a road, a rail, a flight line): `makePath(points, { closed? })` is a smooth curve through the
+  points (no curvature jump at them, so a lean that follows it does not twitch), measured in metres along it.
+  `path.at(s)` gives `pos`, `tangent`, `yaw` (an `<Avatar>`'s yaw to face along it), `pitch` and `curvature` (+ turning
+  left); `path.bank(s, speed, { max?, window? })` is the lean that balances the turn at that speed (+ leans left;
+  `max` a soft limit, `window` averages the turn over ± metres, about speed × 0.25 s for a rider's reaction);
+  `ride(path, t, speed, { start, s0 })` is all of it at song time t for a steady speed (for a changing one, key the
+  distance with `track(..., eases.smooth)` and call `at`/`bank`); `pathQuaternion(p, bank)` turns a vehicle or board
+  modelled facing +z along the path, nose up the slope, leaning into the turn.
 - `<Model>` loads a GLB (`import url from '@mv/assets/models/<file>.glb'`); the bundled CC0 models are listed in
   `${CLAUDE_PLUGIN_ROOT}/studio/assets/models/SOURCES.md`. New models must be CC0, listed in the video's `SOURCES.md`.
 - Put the kit's `SanitizeShader` before any bloom pass: one NaN pixel otherwise blanks part of the frame.
