@@ -65,6 +65,19 @@ def test_safe_file_refuses_hidden_outside_and_unknown(results):
         assert library.safe_file(results, rel) is None, rel
 
 
+@pytest.mark.parametrize("name, kind", [("sky.hdr", "image/vnd.radiance"), ("sky.exr", "image/x-exr"),
+                                         ("model.glb", "model/gltf-binary")])
+def test_a_live_page_carries_its_3d_assets(results, name, kind):
+    # a 3D scene's HDR/EXR sky ships beside its models in web/assets; only inside a web/ folder
+    asset = results / "night-drive" / "web" / "assets" / name
+    asset.parent.mkdir(parents=True, exist_ok=True)
+    asset.write_bytes(b"#?RADIANCE\n")
+    (results / "night-drive" / name).write_bytes(b"#?RADIANCE\n")
+    assert library.safe_file(results, f"night-drive/web/assets/{name}") == asset.resolve()
+    assert library.safe_file(results, f"night-drive/{name}") is None
+    assert library.content_type(asset) == kind
+
+
 @pytest.mark.parametrize("header,expected", [
     (None, None), ("bytes=0-99", (0, 99)), ("bytes=100-", (100, 999)), ("bytes=-10", (990, 999)),
     ("bytes=900-5000", (900, 999)), ("bytes=1000-", False), ("bytes=5-2", False), ("bytes=0-1,5-6", None),

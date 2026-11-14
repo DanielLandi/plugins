@@ -314,3 +314,10 @@ def test_the_home_starts_the_sections_page_of_the_newest_draft(mv_ws, filed_song
         assert json.loads(get(newer + "api/state")[2])["render"] == "draft v2"  # a newer draft: restarted on it
     finally:
         pages.close()
+
+
+@pytest.mark.parametrize("name, kind", [("sky.hdr", "image/vnd.radiance"), ("sky.exr", "image/x-exr")])
+def test_the_home_serves_a_web_page_sky_with_its_type(name, kind):
+    from pathlib import Path
+    from musicvideo.video.home import content_type
+    assert content_type(Path("web/assets") / name) == kind
