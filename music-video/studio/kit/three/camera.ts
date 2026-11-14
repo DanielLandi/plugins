@@ -8,13 +8,15 @@ export type Vec3 = [number, number, number];
 /**
  * One camera key on the song's clock. Between two keys the camera moves with `ease` (the arriving key's):
  * 'inOut' lands and holds (the default), 'out' arrives fast and settles, 'in' leaves slowly and hits,
- * 'linear' is for mechanical moves only, 'cut' jumps at the key's time.
+ * 'linear' is for mechanical moves only, 'cut' jumps at the key's time. 'smooth' (smootherstep) lands and holds like
+ * 'inOut' with no jump in acceleration mid-move: use it for slow drifts and anything that should never twitch.
  */
 export type CameraKey = { t: number; pos: Vec3; look: Vec3; fov?: number; roll?: number; ease?: Ease };
-export type Ease = 'inOut' | 'out' | 'in' | 'linear' | 'cut';
+export type Ease = 'inOut' | 'smooth' | 'out' | 'in' | 'linear' | 'cut';
 
 const EASES: Record<Exclude<Ease, 'cut'>, (x: number) => number> = {
   inOut: (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2),
+  smooth: (x) => x * x * x * (x * (6 * x - 15) + 10),
   out: (x) => 1 - (1 - x) ** 3,
   in: (x) => x * x * x,
   linear: (x) => x,

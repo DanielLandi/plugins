@@ -17,6 +17,10 @@ export const eases = {
   outElastic: (t: number) =>
     t <= 0 ? 0 : t >= 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1,
   sine: (t: number) => -(Math.cos(Math.PI * t) - 1) / 2,
+  /** Smootherstep (a quintic): flat speed and acceleration at both ends and no jump in acceleration anywhere. Use it
+   * for continuous motion driven by acceleration (a lean, a bank, a drifting camera): inOut's acceleration jumps
+   * from +12 to -12 at its midpoint, which a lean shows as a twitch. */
+  smooth: (t: number) => t * t * t * (t * (6 * t - 15) + 10),
 } satisfies Record<string, EaseFn>;
 
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
