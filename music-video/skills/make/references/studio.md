@@ -112,8 +112,8 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
   CC0 samples as `import first from '@mv/avatars/vroid-sample-1.vrm'` (…`-2` to `-4`; installed once by
   `music-video avatars install`, which a render asks for when they are missing), or a user's own CC0/OFL file in the
   video's folder (`'./hero.vrm'`, listed in `SOURCES.md`; the samples' row is added to `SOURCES.md` by the first
-  render that uses them). `drive(t)` (song seconds) returns `{ pos, yaw, pose,
-  hips?, expr?, lookAt?, wind? }`; `from={<the scene's start>}` is where its hair and cloth physics start, so pass
+  render that uses them). `drive(t, rig)` (song seconds; `rig` is the model's rest skeleton, for IK) returns `{ pos,
+  yaw, pose, hips?, expr?, lookAt?, wind? }`; `from={<the scene's start>}` is where its hair and cloth physics start, so pass
   the scene's (or the bake-off window's) start, never 0 for a late scene. Any frame then renders the same alone or
   in sequence.
 - Poses are in normalized bone space (T-pose, facing +z, the character's left is +x): `poses.relax`, `waveR/L`,
@@ -124,6 +124,22 @@ number. The engine (the kit, the 3D kit, the transitions and the CC0 models) is 
 - Expressions (`expr`): `happy`, `angry`, `sad`, `relaxed`, `blink`, mouth shapes `aa`, `ih`, `ou`, `ee`, `oh`; the
   samples add `Surprised`. `lookAt` is a world point the eyes follow. `wind` pushes hair and cloth (a gust, an
   impact). `outline` thickens the cel outline; `silhouette` paints the whole character one colour (an impact frame).
+- **Moving fast** (riding, running, flying): give the `<Avatar>` `airDrag={0.1}` (push per m/s against its own
+  motion; 0.1 streams the samples' hair at 10 m/s) instead of a hand-set headwind; it is worked out from `drive` on
+  the song clock, so frames stay deterministic. `wind={[x, y, z]}` adds a constant breeze on top of `drive`'s own.
+- **Shadows and materials**: `castShadow` and `receiveShadow` (off by default) put the character in a shadow-casting
+  light's shadow pass. `materials={fn}` changes or replaces each material once, before the first frame is released:
+  `(m, mesh) => material | undefined` (MToon materials have `isMToonMaterial`, their outline passes `isOutline`),
+  e.g. MToon to a `MeshStandardMaterial` with the same `map` for a realistic, HDR-lit world. Define `fn` at module
+  level.
+- **Feet and hands on things** (a board, pedals, stairs, kneeling, a hand on a rail): two-bone IK. In `drive(t, rig)`,
+  build the state as usual, then `withIK(rig, state, { leftLeg: { target, pole, end? }, rightArm: … })` returns it
+  with those limbs solved: `target` is the world point for the ankle or wrist, `pole` the world direction the knee
+  (the character's front) or elbow (back and down) points, `end` the foot's or hand's turn in the character's frame
+  (`[0, 0, 0]`: flat and facing forward; left out, the pose's own stays). Set hips, spine and shoulders first: IK
+  solves from them. Bone lengths never change; a target out of reach gets a straight limb towards it.
+  `limbIK(rig, state, limb, goal)` returns just the limb's angles, and `jointAt(rig, state, bone)` where a joint is
+  (place a prop in a hand).
 - Hands are posed by hand: when two characters touch (a high five, a fist bump), render the contact frame and adjust
   until the hands really meet; the samples differ in height. `bakeoff/vrm.tsx` in the plugin's `studio/` is a
   working two-character scene to start from.

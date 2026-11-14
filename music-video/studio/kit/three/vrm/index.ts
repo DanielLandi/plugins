@@ -3,3 +3,6 @@ export * from './motion';
 export * from './poses';
 export * from './replay';
 export * from './Avatar';
+export * from './dress';
+export * from './ik';
+export * from './wind';
