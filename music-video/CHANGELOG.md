@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.13.0
+
+- The picture before the song: `new-video <id> --placeholder <seconds> [--bpm <b>]` (or `placeholder <id>` later)
+  writes a silent stand-in song (a steady beat grid, 8-bar parts, no words), so a video's scenes can be built,
+  rendered and checked before the song exists. Filing the real song and running `align` replaces it; a placeholder
+  render is never delivered.
+- `qc` checks clips with no song: a placeholder video automatically, any clip with `--silent`. Every picture check
+  runs; audio and lyrics print `SKIP`.
+- 3D: `.hdr`/`.exr` skies can be imported; `<HdrSky url>` shows one and lights the scene with it, holding the frame
+  until it is loaded. Live pages carry them.
+- `<Avatar>`: `castShadow`/`receiveShadow`, a `materials` hook (e.g. MToon to a lit standard material) applied from
+  the first frame, and `airDrag`/`wind` so hair and cloth stream against the character's own motion,
+  deterministically.
+- Two-bone IK for legs and arms (`withIK`/`limbIK`, `drive(t, rig)`), and `makePath`/`ride`/`pathQuaternion` to ride
+  a smooth curve at speed, banking into turns.
+- `eases.smooth` and camera `ease: 'smooth'`: an in-out with no jump in acceleration, for leans and drifting cameras.
+- `checks.md`: a `twitch` row. A body that snaps for a frame or two in a fast, motion-blurred shot is not caught by
+  `qc`; step through every frame of fast moves.
+
 ## 0.12.4
 
 - Cartoon: blurred cartoon lines no longer ghost. The line boil and the effects key on the output frame

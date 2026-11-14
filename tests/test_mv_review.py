@@ -70,7 +70,9 @@ def test_a_render_must_have_passed_qc_and_not_changed_since(checked, tmp_path):
     with pytest.raises(MVError, match="no qc report"):
         record_version(ws, spec_id, loose, "relay")
     out = make("table")
-    later = out.stat().st_mtime + 5
+    # newer than its qc report, however long qc took (a slow machine can take longer than any fixed offset)
+    report = ws.work_for(spec_id) / "qc" / f"qc-{out.stem}.json"
+    later = report.stat().st_mtime + 5
     os.utime(out, (later, later))
     with pytest.raises(MVError, match="changed after its qc"):
         record_version(ws, spec_id, out, "table")

@@ -93,5 +93,5 @@ describe('review fixes (#34)', () => {
       const svg = renderToStaticMarkup(createElement('svg', null, createElement(InkShapes, { shapes: at(scale), seed: 3 })));
       expect(svg).not.toMatch(/NaN|Infinity|undefined/);
     }
-  });
+  }, 30000); // five full ink renders: seconds on a busy machine, past vitest's 5 s default
 });
