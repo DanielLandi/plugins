@@ -1,10 +1,10 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, useVideoConfig } from 'remotion';
 import { useSongTime, type BakeoffProps } from '@mv/kit';
 import {
   addPose, breath, Cartoon, cast, clamp, DustPuffs, eases, Emote, Flash, follow, ImpactBurst, INK, inkPath, jitter,
   lerp, mixPose, poses, poseTrack, ramp, seeded, shake, Shadow, smooth, SpeedLines, springStep, swell, TakeLines, track,
-  walk, wobble, zoomAt, type P, type Pose, type PoseLayer,
+  useInkFrame, walk, wobble, zoomAt, type P, type Pose, type PoseLayer,
 } from '@mv/kit/cartoon';
 
 // The cartoon engine's starting point for the bake-off brief (the make skill's references/bakeoff.md), and the
@@ -192,7 +192,7 @@ const Rooftop: React.FC<{ c: number; frame: number }> = ({ c, frame }) => {
 };
 
 export const Bakeoff: React.FC<BakeoffProps> = ({ from, hit: at }) => {
-  const frame = useCurrentFrame();
+  const frame = useInkFrame(); // boil and effects key on the output frame, also under blur
   const { width, height } = useVideoConfig();
   const k = Math.max(width / 1920, height / 1080); // viewBox units → the container's pixels (see View)
   const px = (x: number) => (x - 960) * k + width / 2, py = (y: number) => (y - 540) * k + height / 2;

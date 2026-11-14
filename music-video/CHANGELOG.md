@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.4
+
+- Cartoon: blurred cartoon lines no longer ghost. The line boil and the effects key on the output frame
+  (`useInkFrame()`), so they hold still within one blurred frame instead of changing on every `blur` sub-frame.
+
 ## 0.12.3
 
 - A typo in a video's `characters:` setting (for example `vmr`) stops render, still, studio and typecheck with one
