@@ -29,3 +29,14 @@ error that no check covered, propose a new row here (with their OK).
 | buried | a character sunk into a floor or table | place by the model's lowest point, not its origin; look at the stills at each scene's start |
 | left-behind | one element of the outgoing scene stays alone in frame (an anchor held for a match cut) after its group has left | the board's 35% and 65% panels; it leaves with its group, or the cut changes |
 | word-late | a word appears seconds after it is sung (aligned late after a pause or a held note) | listen at every gap of 1 s or more inside a line (see step 4) |
+| twitch | a body, limb or prop that snaps sideways for 1–3 frames and back while the shot moves (a lean following a curve whose curvature jumps, a key with a kink); under motion blur it shows as a smeared ghost of the body for those frames | **`qc` does not catch it** in a moving shot: step every frame of each fast move or turn of a character (`stills` of the frames around it, without blur, show the jump; with blur, look at a frame grid of every frame, not every fifth). Why: see below |
+
+**Why qc misses a twitch under blur.** qc's motion scans compare small (320 px) copies of neighbouring frames. A
+twitch is a region that leaves and comes back within three frames, which the flicker scan catches only on a still
+picture: in a chase or tracking shot the camera and the character drift a few pixels every frame, so the frames
+either side of the twitch already differ as much as the twitch does, and blur turns the jump into a soft ghost
+whose pixels stay inside the range of its neighbours. A local scan that did see the twitch on a synthetic clip also
+flagged every telephone pole passing the lens and every row of piano keys sliding by in finished clips, and still
+missed a real twitch (a two-frame lean snap in a blurred downhill chase). Telling them apart needs per-pixel motion
+(optical flow), which qc does not have; a plain, unblurred twitch on a steady picture is caught (as a pop or a
+flicker).
