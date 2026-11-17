@@ -153,7 +153,7 @@ export const passage = defineTransition<PassageParams>({
     const { p, W, H, b } = usePassage(progress, params);
     const settle = ease.outCubic(clamp(progress / 0.6));
     const scale = mix(1 - p.depth, 1, settle);
-    const shift = 1 - ease.inOutCubic(clamp(progress / 0.75));
+    const shift = 1 - ease.inCubic(clamp(progress / 0.92));
     const dx = (b.cx - p.bx * W) * shift, dy = (b.cy - p.by * H) * shift;
     const glare = p.glare * (1 - ease.inOutCubic(clamp(progress / 0.9)));
     // the shadow of the passage's lip on the inside of the edge: where the edge sweeps over the rider she is dark on
