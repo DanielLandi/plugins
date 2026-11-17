@@ -327,7 +327,10 @@ each clip's body (its frames between its joins) once, renders each join (the las
 first `seconds` of the next), and splices them by stream copy into the results folder, with YouTube chapters
 (`.chapters.txt`, a chapter under 10 s folds into the next) and the layout (`.reel.json`). Every piece is cached by
 what it is made from: inserting a clip renders only its two joins, and a re-rendered clip only its own pieces.
-`exit` is where the clip's last shot is heading (fractions of the frame): the `passage` join opens there.
+`exit` is where the clip's last shot is heading (fractions of the frame): the `passage` join opens there. When the
+exit moves across the frame (a turn into a doorway), give it as keys `[[t, x, y], …]` with `t` in seconds before the
+clip's end (an optional fourth value is the opening's height as the join starts); the opening follows it and comes
+into view at the first key. A change to `kit/reel.tsx` remakes every join on the next run.
 
 ## The live web page
 

@@ -12,6 +12,7 @@
 - `passage`, the reel's default join (`@mv/kit` `passage`): an opening shaped like a tunnel mouth grows where the
   outgoing clip is heading, at the rate a real exit comes closer, with the next clip already playing in it; a dark
   lip round its edge hides the moment the edge passes the subject. Every join's last frame is fully the next clip.
+  A clip's `exit` can be a track of keys, so the opening follows an exit that moves across the frame.
 
 ## 0.13.0
 
