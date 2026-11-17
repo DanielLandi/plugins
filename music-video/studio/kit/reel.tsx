@@ -27,12 +27,17 @@ export type PassageParams = {
   dim: number;
   /** extra brightness of B when the opening first appears (the glare of an exit), settling to none */
   glare: number;
+  /** where B is heading in its first frames (its vanishing point, fractions of the frame): B starts shifted so this
+   * point sits in the opening (the opening shows the road ahead, not B's sky) and eases back to its own place long
+   * before the opening reaches the rider */
+  bx: number;
+  by: number;
   /** optional: where the opening is as the join runs, [q, x, y] keys (q = join progress 0..1), for an exit that
    * moves across the frame (a turn into a doorway); x, y above are then ignored */
   track?: [number, number, number][];
 };
 
-export const PASSAGE_DEFAULTS: PassageParams = { x: 0.5, y: 0.42, size: 0.07, aspect: 1.15, depth: 0.12, rim: '#07080a', dim: 0.35, glare: 0.06 };
+export const PASSAGE_DEFAULTS: PassageParams = { x: 0.5, y: 0.42, size: 0.07, aspect: 1.15, depth: 0.12, rim: '#07080a', dim: 0.35, glare: 0.06, bx: 0.5, by: 0.45 };
 
 type Box = { cx: number; cy: number; hw: number; hh: number; r: number };
 
@@ -146,7 +151,10 @@ export const passage = defineTransition<PassageParams>({
   Entering: ({ progress: raw, children, params, durationInFrames }) => {
     const progress = joinProgress(raw, durationInFrames);
     const { p, W, H, b } = usePassage(progress, params);
-    const scale = mix(1 - p.depth, 1, ease.outCubic(clamp(progress / 0.6)));
+    const settle = ease.outCubic(clamp(progress / 0.6));
+    const scale = mix(1 - p.depth, 1, settle);
+    const shift = 1 - ease.inOutCubic(clamp(progress / 0.75));
+    const dx = (b.cx - p.bx * W) * shift, dy = (b.cy - p.by * H) * shift;
     const glare = p.glare * (1 - ease.inOutCubic(clamp(progress / 0.9)));
     // the shadow of the passage's lip on the inside of the edge: where the edge sweeps over the rider she is dark on
     // both sides of it; gone by the last frame, so B ends clean
@@ -154,7 +162,7 @@ export const passage = defineTransition<PassageParams>({
     const lipOpacity = 0.75 * seg(b.hh / H, 0.22, 0.36) * (1 - ease.inOutCubic(seg(progress, 0.94, 1)));
     return (
       <AbsoluteFill style={{ clipPath: `path('${openingPath(b)}')` }}>
-        <AbsoluteFill style={{ transform: `scale(${scale})`, transformOrigin: `${f(b.cx)}px ${f(b.cy)}px`, filter: glare > 0.001 ? `brightness(${f(1 + glare)})` : undefined }}>
+        <AbsoluteFill style={{ transform: `translate(${f(dx)}px, ${f(dy)}px) scale(${scale})`, transformOrigin: `${f(b.cx - dx)}px ${f(b.cy - dy)}px`, filter: glare > 0.001 ? `brightness(${f(1 + glare)})` : undefined }}>
           {children}
         </AbsoluteFill>
         {lipOpacity > 0.002 ? (
