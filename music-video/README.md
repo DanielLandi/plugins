@@ -254,6 +254,7 @@ The skills run these for you; each is `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/mus
 | `home`, `requests` | one page with every song and video, its ten stages and buttons for your decisions; `requests` lists what you asked for there, for Claude to carry out (`--wait` waits for the next one) |
 | `sections`, `notes` | every section of the newest draft on one page, each playable alone or in order; open one to watch it large, leave notes on its frames, with drawings, compare it with another version, or ask for a variant; `notes` prints the notes for the next round |
 | `version`, `review` | keep each checked render or still as a numbered version of its scene (`--variant b` for a variant); a local page that plays any two versions in sync (side by side, wipe, flip) |
+| `reel` | one long video from finished clips (`reel.yaml`: a fixed head, the clips, a fixed tail), chained by joins; adding a clip renders only that clip's joins and splices the rest by stream copy (see "Reels") |
 | `library` | everything in your results folder (videos, songs, lessons) as one page any phone, tablet or TV browser on your home network can play from; `library install` keeps it running from login (macOS) |
 
 ## Song generators and albums
@@ -298,6 +299,35 @@ results folder). For a clip with no song and no placeholder at all, `qc --silent
 When the song is made, file it under the video's id as usual (`ingest`); the first `align` (or `analyze`, `mux`,
 `qc`) removes the placeholder's files and sets `video.yaml` back to `placeholder: null`. Then `align` and
 `analyze` write the real timings, and scenes timed to the placeholder's grid move to the song's sections.
+
+## Reels
+
+A reel is one long video made of a video's finished clips (a compilation for YouTube, say), with a transition
+between each pair. Register the join composition once in the video's `index.tsx`:
+
+```tsx
+import { JoinComposition } from '@mv/kit';
+// inside <Compositions>:
+<JoinComposition id="my-video-join" />
+```
+
+and describe the reel in `reel.yaml` beside it:
+
+```yaml
+out: my-reel.mp4
+join: {seconds: 1.5, transition: passage}    # or any id of the transition library
+render: {file: "{clip}.mp4", composition: "{video}-{clip}", samples: 8}
+head: [intro]                                 # always first
+clips: [beach, {id: city, title: "The city", exit: [0.5, 0.4]}, forest]
+tail: [outro]                                 # always last
+```
+
+`reel <id>` finds each clip in the renders folder (or `search` folders), renders a missing one with `blur`, cuts
+each clip's body (its frames between its joins) once, renders each join (the last `seconds` of one clip into the
+first `seconds` of the next), and splices them by stream copy into the results folder, with YouTube chapters
+(`.chapters.txt`, a chapter under 10 s folds into the next) and the layout (`.reel.json`). Every piece is cached by
+what it is made from: inserting a clip renders only its two joins, and a re-rendered clip only its own pieces.
+`exit` is where the clip's last shot is heading (fractions of the frame): the `passage` join opens there.
 
 ## The live web page
 

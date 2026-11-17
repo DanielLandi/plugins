@@ -447,6 +447,20 @@ def cmd_requests(args) -> int:
     return 0
 
 
+def cmd_reel(args) -> int:
+    from .video import reel as reel_mod
+    ws = load_workspace()
+    meta_file = ws.video_dir(args.id) / "video.yaml"
+    meta = (yaml.safe_load(meta_file.read_text(encoding="utf-8")) or {}) if meta_file.is_file() else {}
+    song = str(meta.get("song") or args.id)
+    p = VideoPaths(ws.work_for(args.id), ws.results_for(args.id))
+    r = reel_mod.load(Path(args.file).expanduser().resolve() if args.file else ws.video_dir(args.id) / "reel.yaml", args.id)
+    out = reel_mod.run(r, renders=p.renders, cache=p.root / "reel", public=ws.work_for(song) / "public",
+                       results=p.deliver, dry_run=args.dry_run, render_missing=not args.no_render, prune=args.prune,
+                       extra=list(args.rest))
+    return 0 if out is not None or args.dry_run else 1
+
+
 def cmd_home(args) -> int:
     from .video import home
     ws = load_workspace()
@@ -695,7 +709,7 @@ def cmd_library(args) -> int:
 HANDLERS: dict = {"library": cmd_library, "web": cmd_web, "album": cmd_album, "loop": cmd_loop, "clean": cmd_clean, "new-video": cmd_new_video, "placeholder": cmd_placeholder, "typecheck": cmd_typecheck, "studio": _remotion("studio"),
                   "render": _remotion("render"), "still": _remotion("still"), "stills": _tool("stills.ts", 1),
                   "blur": _tool("blur.ts", 1), "board": _tool("board.ts"), "doctor": cmd_doctor, "align": cmd_align, "analyze": cmd_analyze, "preview": cmd_preview, "edit-timing": cmd_edit_timing, "mux": cmd_mux,
-                  "qc": cmd_qc, "version": cmd_version, "review": cmd_review, "sections": cmd_sections, "notes": cmd_notes, "requests": cmd_requests, "home": cmd_home, "paths": cmd_paths, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
+                  "qc": cmd_qc, "version": cmd_version, "review": cmd_review, "sections": cmd_sections, "notes": cmd_notes, "requests": cmd_requests, "home": cmd_home, "paths": cmd_paths, "reel": cmd_reel, "ingest": cmd_ingest, "init": cmd_init, "new": cmd_new, "validate": cmd_validate, "round": cmd_round,
                   "downloaded": cmd_downloaded, "status": cmd_status, "avatars": cmd_avatars, "bakeoff": cmd_bakeoff}
 
 
@@ -856,6 +870,13 @@ def build_parser() -> argparse.ArgumentParser:
                    help="status (the address), serve (run it now), install (run it from every login), uninstall")
     p.add_argument("--port", type=int, default=library.PORT)
     p.add_argument("--host", default="0.0.0.0", help="serve: 0.0.0.0 (the home network) or 127.0.0.1 (this computer only)")
+    p = sub.add_parser("reel", help="chain a video's finished clips with joins into one file (reel.yaml): renders only what is new, splices the rest")
+    p.add_argument("id")
+    p.add_argument("--file", help="another reel file (default: reel.yaml in the video's folder)")
+    p.add_argument("--dry-run", action="store_true", help="list the clips, joins and bodies to make, and make nothing")
+    p.add_argument("--no-render", action="store_true", help="stop at a missing clip instead of rendering it")
+    p.add_argument("--prune", action="store_true", help="delete cached pieces the reel no longer uses")
+    p.add_argument("rest", nargs="*", help="extra flags for the join renders (after --)")
     p = sub.add_parser("paths", help="a video's folders (code, work, public, renders, qc, results, web) as JSON")
     p.add_argument("id")
     p = sub.add_parser("clean", help="delete a video's work folder (renders, timings, checks); finals stay")

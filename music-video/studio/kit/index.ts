@@ -15,3 +15,4 @@ export * from './SongAudio';
 export * from './loop';
 export * from './web';
 export * from './words';
+export * from './reel';
