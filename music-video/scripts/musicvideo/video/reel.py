@@ -34,7 +34,17 @@ import yaml
 from ..errors import MVError
 from . import media
 
-JOIN_VERSION = 1  # bump when kit/reel.tsx draws a join differently: every join is rendered again
+JOIN_VERSION = 1  # bump when a join is put together differently here: every join is rendered again
+
+
+def _join_source() -> str:
+    """What draws a join (kit/reel.tsx and the transition library's registry): a change there remakes every join."""
+    studio = Path(__file__).resolve().parents[3] / "studio"
+    h = hashlib.sha1()
+    for f in (studio / "kit" / "reel.tsx", studio / "transitions" / "src" / "registry.ts"):
+        if f.is_file():
+            h.update(f.read_bytes())
+    return h.hexdigest()[:12]
 ENCODE_VERSION = 1
 
 
@@ -183,7 +193,7 @@ def plan(reel: Reel, cache: Path) -> list[Piece]:
         if i < n - 1:
             b, spec, d = reel.clips[i + 1], specs[i], lens[i]
             key = _key("join", c.stamp, b.stamp, d, spec.get("transition"), spec.get("params"), reel.fps,
-                       JOIN_VERSION, ENCODE_VERSION)
+                       JOIN_VERSION, ENCODE_VERSION, _join_source())
             pieces.append(Piece("join", f"{c.id}>{b.id}", key, d, cache / f"join-{c.id}--{b.id}-{key}.mp4",
                                 a=c, b=b, start=c.frames - d, spec=spec))
     return pieces
