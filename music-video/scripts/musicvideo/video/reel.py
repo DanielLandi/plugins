@@ -50,7 +50,7 @@ class Clip:
     id: str
     title: str
     file: Path | None = None
-    exit: tuple[float, float] | None = None
+    exit: list | None = None  # [x, y], or keys [[t, x, y] or [t, x, y, height], …] in seconds before the clip's end
     frames: int = 0
     stamp: str = ""  # what the clip file is: path, size, modification time
 
@@ -89,11 +89,17 @@ def _clip(item, where: str) -> Clip:
     if not isinstance(item, dict) or not isinstance(item.get("id"), str):
         raise MVError(f"reel.yaml {where}: each clip is an id or {{id: …}}")
     exit_ = item.get("exit")
-    if exit_ is not None and (not isinstance(exit_, list) or len(exit_) != 2):
-        raise MVError(f"reel.yaml {where} {item['id']}: exit is [x, y] as fractions of the frame")
+    point = isinstance(exit_, list) and len(exit_) == 2 and all(isinstance(v, (int, float)) for v in exit_)
+    keys = isinstance(exit_, list) and len(exit_) > 0 and all(
+        isinstance(k, list) and len(k) in (3, 4) and all(isinstance(v, (int, float)) for v in k) and k[0] <= 0
+        for k in exit_)
+    if exit_ is not None and not (point or keys):
+        raise MVError(f"reel.yaml {where} {item['id']}: exit is [x, y] as fractions of the frame, or keys "
+                      "[[t, x, y], …] (t in seconds before the clip's end, ≤ 0; an optional 4th value is the "
+                      "opening's height)")
     return Clip(id=item["id"], title=str(item.get("title") or item["id"]),
                 file=Path(item["file"]).expanduser() if item.get("file") else None,
-                exit=(float(exit_[0]), float(exit_[1])) if exit_ else None)
+                exit=[float(v) for v in exit_] if point else [[float(v) for v in k] for k in exit_] if keys else None)
 
 
 def load(path: Path, video_id: str) -> Reel:
@@ -144,10 +150,18 @@ def stamp(path: Path) -> str:
 def join_spec(reel: Reel, a: Clip, b: Clip) -> dict:
     """The join between a and b: the reel's join, A's exit point (where the opening grows from), the pair's own."""
     spec = {**reel.join, "params": dict(reel.join.get("params") or {})}
-    if a.exit is not None:
-        spec["params"].update({"x": a.exit[0], "y": a.exit[1]})
     own = reel.joins.get(f"{a.id}>{b.id}") or {}
     spec.update({k: v for k, v in own.items() if k != "params"})
+    if a.exit is not None and isinstance(a.exit[0], list):
+        # keys in seconds before A's end → join progress; the first key's height sizes the opening
+        secs = float(spec["seconds"])
+        keys = sorted(a.exit)
+        spec["params"]["track"] = [[round(min(1.0, max(0.0, 1 + k[0] / secs)), 4), k[1], k[2]] for k in keys]
+        inside = [k for k in keys if k[0] >= -secs and len(k) == 4]
+        if inside:
+            spec["params"]["size"] = inside[0][3]
+    elif a.exit is not None:
+        spec["params"].update({"x": a.exit[0], "y": a.exit[1]})
     spec["params"].update(own.get("params") or {})
     return spec
 

@@ -27,7 +27,7 @@ def known(reel, frames):
 def test_head_clips_and_tail_keep_their_order(tmp_path):
     r = R.load(write(tmp_path, "head: [intro]\nclips: [a, {id: b, title: Bee, exit: [0.4, 0.5]}]\ntail: [outro]\n"), "v")
     assert [c.id for c in r.clips] == ["intro", "a", "b", "outro"]
-    assert r.clips[2].title == "Bee" and r.clips[2].exit == (0.4, 0.5)
+    assert r.clips[2].title == "Bee" and r.clips[2].exit == [0.4, 0.5]
     assert r.out == "v-reel.mp4" and r.join["transition"] == "passage" and r.join["seconds"] == 1.5
 
 
@@ -133,3 +133,13 @@ def test_a_missing_clip_is_listed_on_a_dry_run(tmp_path, capsys):
                 cache=tmp_path / "cache", public=tmp_path, results=tmp_path, dry_run=True)
     assert out is None
     assert "missing clip a" in capsys.readouterr().out
+
+
+def test_an_exit_track_becomes_join_keys_and_its_height_sizes_the_opening(tmp_path):
+    r = known(R.load(write(tmp_path, (
+        "clips: [{id: a, exit: [[-1.5, 0.7, 0.4, 0.05], [-0.75, 0.6, 0.42, 0.1], [0, 0.5, 0.45]]}, b]\n")), "v"), {})
+    join = next(p for p in R.plan(r, tmp_path) if p.kind == "join")
+    assert join.spec["params"]["track"] == [[0.0, 0.7, 0.4], [0.5, 0.6, 0.42], [1.0, 0.5, 0.45]]
+    assert join.spec["params"]["size"] == 0.05
+    with pytest.raises(MVError, match="exit is"):
+        R.load(write(tmp_path, "clips: [{id: a, exit: [[1, 0.5, 0.5]]}, b]\n"), "v")

@@ -27,6 +27,9 @@ export type PassageParams = {
   dim: number;
   /** extra brightness of B when the opening first appears (the glare of an exit), settling to none */
   glare: number;
+  /** optional: where the opening is as the join runs, [q, x, y] keys (q = join progress 0..1), for an exit that
+   * moves across the frame (a turn into a doorway); x, y above are then ignored */
+  track?: [number, number, number][];
 };
 
 export const PASSAGE_DEFAULTS: PassageParams = { x: 0.5, y: 0.42, size: 0.07, aspect: 1.15, depth: 0.12, rim: '#07080a', dim: 0.35, glare: 0.2 };
@@ -82,12 +85,33 @@ const openingPath = (b: Box) => {
  * join starts on the next frame, so nothing pops at the splice). */
 export const joinProgress = (progress: number, frames: number) => clamp(progress * frames / Math.max(1, frames - 1));
 
+/** The opening's centre at progress q: (x, y), or the track's keys eased between (C1, so it never jerks). */
+export const trackAt = (p: PassageParams, q: number): [number, number] => {
+  const k = p.track;
+  if (!k || k.length === 0) return [p.x, p.y];
+  if (q <= k[0][0]) return [k[0][1], k[0][2]];
+  for (let i = 1; i < k.length; i++) {
+    if (q <= k[i][0]) {
+      const u = (q - k[i - 1][0]) / Math.max(1e-6, k[i][0] - k[i - 1][0]);
+      const e = u * u * (3 - 2 * u);
+      return [mix(k[i - 1][1], k[i][1], e), mix(k[i - 1][2], k[i][2], e)];
+    }
+  }
+  const last = k[k.length - 1];
+  return [last[1], last[2]];
+};
+
 const usePassage = (progress: number, params: PassageParams) => {
   const { width: W, height: H } = useVideoConfig();
-  const p = { ...PASSAGE_DEFAULTS, ...params };
-  const full = coverScale(W, H, p);
+  const base = { ...PASSAGE_DEFAULTS, ...params };
+  const [ex, ey] = trackAt(base, 1);
+  const [x, y] = trackAt(base, progress);
+  const p = { ...base, x, y };
+  const full = coverScale(W, H, { ...base, x: ex, y: ey });
   // it grows out of a point (the exit comes into view) rather than appearing at its first size
-  const s = approachScale(progress, full) * ease.outCubic(seg(progress, 0, 0.2));
+  // with a track, the opening comes into view at its first key (the exit may be round a corner before that)
+  const q = seg(progress, base.track?.[0]?.[0] ?? 0, 1);
+  const s = approachScale(q, full) * ease.outCubic(seg(q, 0, 0.2));
   return { p, W, H, b: box(p.x * W, p.y * H, H, p, s), s, full };
 };
 
