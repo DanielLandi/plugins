@@ -86,7 +86,7 @@ def test_chapters_start_at_each_join_and_fold_short_ones(tmp_path):
               {"o": 200, "a": 900, "b": 600, "z": 300})
     marks = R.chapters(r, R.plan(r, tmp_path))
     # the opening (5.2 s before the next join) folds into A; the rest start where the join into them starts
-    assert [t for _, t in marks] == ["A", "B", "End"]
+    assert [t for _, t in marks] == ["Opening · A", "B", "End"]
     assert [s for s, _ in marks] == pytest.approx([0.0, (155 + 45 + 810) / 30, (1010 + 45 + 510) / 30])
     assert R.timestamp(34.0) == "0:34" and R.timestamp(3725) == "1:02:05"
 
@@ -120,7 +120,7 @@ def test_run_cuts_bodies_reuses_what_exists_and_splices_frame_exact(tmp_path, re
     layout = json.loads((results / "r.reel.json").read_text(encoding="utf-8"))
     assert [p["frames"] for p in layout["pieces"]] == [75, 45, 60, 45, 55]
     # every clip is under 10 s: YouTube would ignore such chapters, so they fold into one
-    assert (results / "r.chapters.txt").read_text(encoding="utf-8") == "0:00 c\n"
+    assert (results / "r.chapters.txt").read_text(encoding="utf-8") == "0:00 a · b · c\n"
     capsys.readouterr()
     # a second run makes nothing and splices again
     R.run(R.load(path, "v"), renders=renders, cache=cache, public=tmp_path / "public", results=results)

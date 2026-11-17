@@ -201,7 +201,7 @@ def plan(reel: Reel, cache: Path) -> list[Piece]:
 
 def chapters(reel: Reel, pieces: list[Piece], min_s: float = 10.0) -> list[tuple[float, str]]:
     """YouTube chapters: each clip starts where the join into it starts (the first at 0). A chapter shorter than
-    min_s is folded into the next one (YouTube ignores chapters under 10 s)."""
+    min_s is folded into the next one, both titles kept (YouTube ignores chapters under 10 s)."""
     starts, t = {}, 0
     for p in pieces:
         if p.kind == "join":
@@ -210,17 +210,18 @@ def chapters(reel: Reel, pieces: list[Piece], min_s: float = 10.0) -> list[tuple
     marks = [(0.0 if i == 0 else starts[c.id] / reel.fps, c.title) for i, c in enumerate(reel.clips)]
     total = t / reel.fps
     out: list[tuple[float, str]] = []
-    carried = None  # the start of a too-short chapter, handed to the next one
+    carried: tuple[float, list[str]] | None = None  # a too-short chapter, handed on to the next one
     for i, (s, title) in enumerate(marks):
-        start = s if carried is None else carried
+        start, titles = (s, [title]) if carried is None else (carried[0], [*carried[1], title])
         end = marks[i + 1][0] if i + 1 < len(marks) else total
         if end - start < min_s and i + 1 < len(marks):
-            carried = start
+            carried = (start, titles)
             continue
         carried = None
-        out.append((start, title))
+        out.append((start, " · ".join(titles)))
     if len(out) > 1 and total - out[-1][0] < min_s:
-        out.pop()  # a too-short last chapter belongs to the one before it
+        last = out.pop()  # a too-short last chapter belongs to the one before it
+        out[-1] = (out[-1][0], f"{out[-1][1]} · {last[1]}")
     return [(0.0, out[0][1]), *out[1:]] if out else out
 
 
