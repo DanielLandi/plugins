@@ -150,8 +150,8 @@ export const passage = defineTransition<PassageParams>({
     const glare = p.glare * (1 - ease.inOutCubic(clamp(progress / 0.9)));
     // the shadow of the passage's lip on the inside of the edge: where the edge sweeps over the rider she is dark on
     // both sides of it; gone by the last frame, so B ends clean
-    const lip = Math.min(H * 0.16, b.hh * 0.4);
-    const lipOpacity = 0.75 * seg(b.hh / H, 0.12, 0.3) * (1 - ease.inOutCubic(seg(progress, 0.94, 1)));
+    const lip = Math.min(H * 0.12, b.hh * 0.3);
+    const lipOpacity = 0.75 * seg(b.hh / H, 0.22, 0.36) * (1 - ease.inOutCubic(seg(progress, 0.94, 1)));
     return (
       <AbsoluteFill style={{ clipPath: `path('${openingPath(b)}')` }}>
         <AbsoluteFill style={{ transform: `scale(${scale})`, transformOrigin: `${f(b.cx)}px ${f(b.cy)}px`, filter: glare > 0.001 ? `brightness(${f(1 + glare)})` : undefined }}>
