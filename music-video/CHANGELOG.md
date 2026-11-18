@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.14.0
+
+- Reels: `reel <id>` chains a video's finished clips into one file from `reel.yaml` (a fixed `head`, the `clips` in
+  any order, a fixed `tail`). Every join is a short render of the `<id>-join` composition (`<JoinComposition>` in
+  the video's index.tsx) over the last and first seconds of its two clips, through any transition of the library;
+  clip bodies are cut once; everything is cached by what it is made from, and the final file is a stream copy of the
+  pieces. Inserting a clip makes only its body and its two joins (and renders the clip with `blur` when its file is
+  missing). Writes YouTube chapters (`.chapters.txt`) and the layout (`.reel.json`) beside it. `--dry-run`, `--file`,
+  `--no-render`, `--prune`.
+- `passage`, the reel's default join (`@mv/kit` `passage`): an opening shaped like a tunnel mouth grows where the
+  outgoing clip is heading, at the rate a real exit comes closer, with the next clip already playing in it; a dark
+  lip round its edge hides the moment the edge passes the subject. Every join's last frame is fully the next clip.
+  A clip's `exit` can be a track of keys, so the opening follows an exit that moves across the frame.
+
 ## 0.13.0
 
 - The picture before the song: `new-video <id> --placeholder <seconds> [--bpm <b>]` (or `placeholder <id>` later)
