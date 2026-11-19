@@ -389,20 +389,63 @@ def cmd_notes(args) -> int:
         order = sections.read_scenes(ws.video_dir(args.id))
     except MVError:
         order = None
+    # where a note from before 0.14.1 (a file name, no path) may find its render: the kept versions, and the folders
+    # of the renders later notes name
+    look_in = [sections.review_dir(ws, args.id) / "media"]
+    look_in += sorted({Path(f).parent for x in store.all() if (f := sections.on_of(x)["file"]) and Path(f).is_absolute()})
+    groups = sections.renders(store, None, look_in)
+    if args.render:
+        want = args.render
+        hits = [g for g in groups if want in (g["render"], g["name"], g["file"], g["path"])
+                or (g["key"] and len(want) >= 6 and g["key"].startswith(want))
+                or Path(want).name == g["name"]]
+        if not hits:
+            names = ", ".join(f"{g['render']} ({g['name']})" for g in groups) or "none yet"
+            raise MVError(f"no notes on a render called {want!r} for {args.id} (renders with notes: {names})")
+        chosen = hits
+    elif args.all:
+        chosen = groups
+    else:
+        # the newest render: the one with the latest note (in notes.json; archived folders only when it is empty)
+        chosen = [g for g in groups if any(not x.get("folder") for x in g["notes"])][:1] or groups[:1]
     if args.taken is not None:
-        taken = store.take(args.taken)
-        print(f"{len(taken)} note(s) marked as taken into Round {args.taken} of NOTES.md" if taken
-              else "no new notes to mark")
+        taken = store.take(args.taken, {g["group"] for g in chosen})
+        on = "" if args.all or not chosen else f" (the notes on {chosen[0]['render']})"
+        print(f"{len(taken)} note(s) marked as taken into Round {args.taken} of NOTES.md{on}" if taken
+              else f"no new notes to mark{on}")
         return 0
-    notes = store.all() if args.all else store.new()
+
+    def shown(g):
+        return [x for x in g["notes"] if args.all or x.get("round") is None and not x.get("folder")]
+
     if args.json:
-        print(json.dumps({"folder": str(store.folder), "notes": notes}, indent=1, ensure_ascii=False))
+        out = [{k: g[k] for k in ("render", "name", "file", "key", "status", "path")} | {"notes": shown(g)}
+               for g in chosen]
+        print(json.dumps({"folder": str(store.folder), "renders": out,
+                          "notes": [x for g in out for x in g["notes"]]}, indent=1, ensure_ascii=False))
         return 0
-    if not notes:
-        print(f"no new notes for {args.id} (the sections page saves them to {store.folder})")
+    others = sum(len(store.new(g["group"])) for g in groups if g not in chosen)
+    also = (f"\n(also {others} new note(s) on other renders of {args.id}: `notes {args.id} --all`, or "
+            "`--render <name>`)") if others else ""
+    if not any(shown(g) for g in chosen):
+        on = f" on {chosen[0]['render']} ({chosen[0]['name']})" if chosen and not args.all else ""
+        print(f"no new notes for {args.id}{on} (the sections page saves them to {store.folder}){also}")
         return 0
-    print(f"{len(notes)} {'' if args.all else 'new '}note(s) for {args.id}, in song order:")
-    print(sections.describe(notes, store.folder, order))
+    status = {"on disk": "the file is still there", "changed": "the file has been rendered again since",
+              "gone": "the file is gone", "showing": "the file is still there"}
+    for k, g in enumerate(chosen):
+        notes = shown(g)
+        if not notes:
+            continue
+        if args.all:
+            where = g["path"] or g["file"] or g["name"]
+            print(("\n" if k else "") + f"== {g['render']} ({g['name']}): {len(notes)} note(s); "
+                  f"{status.get(g['status'], g['status'])}: {where}")
+        else:
+            print(f"{len(notes)} new note(s) for {args.id} on {g['render']} ({g['name']}), in song order:")
+        print(sections.describe(sorted(notes, key=lambda x: (x.get("song", 0), x.get("n", 0))), store.folder, order))
+    if also:
+        print(also.lstrip("\n"))
     return 0
 
 
@@ -818,9 +861,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--open", action="store_true", help="open the page in the browser")
     p = sub.add_parser("notes", help="the notes left on the sections page, for the next round of NOTES.md")
     p.add_argument("id")
-    p.add_argument("--all", action="store_true", help="also the notes already taken into a round")
+    p.add_argument("--all", action="store_true", help="every note on every render, taken ones and archived folders "
+                   "too, grouped by render")
+    p.add_argument("--render", metavar="NAME", help="the notes on this render (its label, file name or path; default: "
+                   "the newest render with notes)")
     p.add_argument("--json", action="store_true")
-    p.add_argument("--taken", type=int, metavar="ROUND", help="mark every new note as taken into this round")
+    p.add_argument("--taken", type=int, metavar="ROUND", help="mark the new notes printed (the newest render's, or "
+                   "--render's, or with --all every render's) as taken into this round")
     p = sub.add_parser("home", help="one page with every song and video and its stage; its buttons queue requests for Claude")
     p.add_argument("--port", type=int, default=None, help="default 8646; a free port in a git worktree")
     p.add_argument("--open", action="store_true", help="open the page in the browser")
