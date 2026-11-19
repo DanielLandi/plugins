@@ -391,8 +391,11 @@ Follow `references/storyboard.md`:
    uv run "${CLAUDE_PLUGIN_ROOT}/scripts/music-video.py" notes <id>
    ```
 
-   It prints each new note with its section, song time, frame and draft, and the paths of its frame image and of the
-   frame with the user's drawing. Look at every drawn frame (and the frame of any note whose words point at
+   It prints each new note on the newest render (the one with the latest note) with its section, song time, frame
+   and draft, and the paths of its frame image and of the frame with the user's drawing; when other renders still
+   have new notes it says so (`notes <id> --render <name>` prints those, `--all` every note grouped by render).
+   Notes belong to the render they were left on: never move `notes/` files aside to clear the page, restarting it
+   on the new render is enough. Look at every drawn frame (and the frame of any note whose words point at
    something on screen) before answering; the drawing shows where, the words say what. Treat them exactly like
    notes typed in the chat. Write them into `NOTES.md` under "Round <n>" with their song times and image paths,
    together with any notes from the chat, then mark them taken (`notes <id> --taken <n>`); taken notes stay on the

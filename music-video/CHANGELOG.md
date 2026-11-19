@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.14.1
+
+- Sections page: a note's picture is always the frame of the render it records. Its picture was served under an
+  address that a later note could reuse (`frames/n1.jpg` once notes were moved aside and numbering restarted), and
+  the browser kept such pictures for an hour, so a note left on a new render could show the earlier render's frame
+  (the image on disk was right). Note pictures are now checked on every load and their addresses change with the
+  picture; the filmstrip's and posters' addresses carry the render's key.
+- Notes belong to a render. Each note records the render the page showed (its label, its file and a fingerprint of
+  its content, which survives a move but not a new render to the same file). The page shows, editable, only the
+  notes on the render it is showing; notes on earlier renders are read-only under **Earlier videos**, saying whether
+  their file is still there, was rendered again, or is gone. Nothing is moved or deleted for being old; a
+  notes.json moved by hand into a folder under `notes/` is read as archived.
+- `notes <id>` prints the new notes of the newest render (the one with the latest note) and says how many wait on
+  other renders; `--render <label|file>` picks one, `--all` prints every note grouped by render (archived folders
+  too), and `--taken` marks the notes it would print.
+- Note numbers never repeat within a video (archived folders, deleted notes and leftover frame images included), so
+  a frame image is never overwritten. A page left open while the server moved on to another render cannot save a
+  note on it: it asks to be reloaded.
+
 ## 0.14.0
 
 - Reels: `reel <id>` chains a video's finished clips into one file from `reel.yaml` (a fixed `head`, the `clips` in

@@ -7,6 +7,12 @@ the frame on screen (song time, frame number, which render), and can carry a dra
 
 Notes live with the video's code, in <video>/notes/ (notes.json and the frame images), until Claude takes them into
 a round of NOTES.md (`music-video notes <id>`, then `--taken <round>`).
+
+A note belongs to the render it was left on (`on`: its label, its file and a fingerprint of the file's content). The
+page shows, editable, only the notes on the render it is showing; notes on earlier renders are read-only, grouped by
+render, and stay where they are (nothing is moved or deleted for being old). A notes.json moved by hand into a folder
+under notes/ (notes/round-8/) is read as archived. Note numbers never repeat within a video, archived folders
+included, so a frame image's name (frames/n<N>.jpg) and its address on the page always mean one picture.
 """
 import base64
 import hashlib
@@ -36,6 +42,8 @@ POSTER_WIDTH = 960
 MAX_BODY = 40 * 1024 * 1024
 ENTRY_RE = re.compile(r"\{\s*id:\s*['\"]([a-z0-9-]+)['\"]\s*,\s*from:\s*([^,}\s]+)")
 NOTE_ID_RE = re.compile(r"^n[0-9]+$")
+NOTE_IMAGE_RE = re.compile(r"^((?:[A-Za-z0-9_][A-Za-z0-9._-]*/)?frames/n[0-9]+(?:-marked)?\.jpg)$")
+KEY_BYTES = 1 << 20  # a render's fingerprint reads this much from each end of the file
 VERSION_FILE_RE = re.compile(r"^[a-z0-9-]+-v[0-9]+\.(mp4|mov|webm|png|jpg|jpeg|webp)$")
 
 
@@ -137,6 +145,22 @@ def pick_source(ws: Workspace, video_id: str, video: Path | None = None, start: 
     return {"file": review_dir(ws, video_id) / v["file"], "label": f"draft v{v['n']}", "start": float(v.get("start") or 0)}
 
 
+def render_key(file: Path) -> str | None:
+    """A fingerprint of a render's content: its size and its first and last MiB (where an MP4 keeps its index), so a
+    render keeps its key when moved or touched and gets a new one when rendered again. None when the file is gone."""
+    try:
+        size = file.stat().st_size
+        h = hashlib.sha1(str(size).encode())
+        with file.open("rb") as f:
+            h.update(f.read(KEY_BYTES))
+            if size > 2 * KEY_BYTES:
+                f.seek(size - KEY_BYTES)
+            h.update(f.read(KEY_BYTES))
+    except OSError:
+        return None
+    return h.hexdigest()[:12]
+
+
 def video_facts(file: Path) -> dict:
     from .media import probe
     info = probe(file)
@@ -154,7 +178,8 @@ def build_assets(folder: Path, file: Path, sections: list[dict], start: float) -
     key = hashlib.sha1(f"{file}|{stat.st_size}|{stat.st_mtime_ns}|{[s['from'] for s in sections]}".encode()).hexdigest()[:10]
     out = folder / key
     done = out / "ready.json"
-    if done.is_file():
+    if done.is_file() and all(str(x).startswith("a/") for x in
+                              json.loads(done.read_text(encoding="utf-8")).get("posters") or [""]):
         return json.loads(done.read_text(encoding="utf-8"))
     if out.exists():
         shutil.rmtree(out)
@@ -170,9 +195,10 @@ def build_assets(folder: Path, file: Path, sections: list[dict], start: float) -
         run([ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-ss", f"{mid:.3f}", "-i", str(file), "-frames:v", "1",
              "-vf", f"scale={POSTER_WIDTH}:-2", "-q:v", "4", str(out / "posters" / f"{i + 1:02d}.jpg")],
             f"poster for {s['id']}")
-    assets = {"key": key, "thumbs": [{"t": round(k * THUMB_STEP, 3), "src": f"thumbs/{name}"}
+    # the addresses carry the key: a filmstrip of another render never answers for this one from the browser's cache
+    assets = {"key": key, "thumbs": [{"t": round(k * THUMB_STEP, 3), "src": f"a/{key}/thumbs/{name}"}
                                      for k, name in enumerate(thumbs)],
-              "posters": [f"posters/{i + 1:02d}.jpg" for i in range(len(sections))]}
+              "posters": [f"a/{key}/posters/{i + 1:02d}.jpg" for i in range(len(sections))]}
     done.write_text(json.dumps(assets), encoding="utf-8")
     for old in folder.iterdir():   # one render's assets at a time
         if old.is_dir() and old.name != key:
@@ -196,23 +222,81 @@ def notes_dir(ws: Workspace, video_id: str) -> Path:
     return ws.video_dir(video_id) / "notes"
 
 
+def on_of(note: dict) -> dict:
+    """The render a note belongs to: {render, file, key}. A note from before 0.14.1 has no `on`: its own render (the
+    file name only, no key) stands in."""
+    on = note.get("on")
+    if isinstance(on, dict):
+        return {"render": on.get("render") or note.get("render"), "file": on.get("file") or note.get("render_file"),
+                "key": on.get("key")}
+    return {"render": note.get("render"), "file": note.get("render_file"), "key": None}
+
+
+def group_of(note: dict) -> str:
+    on = on_of(note)
+    return f"key:{on['key']}" if on["key"] else f"file:{Path(str(on['file'] or on['render'] or '?')).name}"
+
+
+def ref_of(source: dict) -> dict:
+    """The `on` of a note left while the page shows source ({file, label[, key]})."""
+    file = Path(source["file"])
+    key = source.get("key") if "key" in source else render_key(file)
+    return {"render": source["label"], "file": str(file), "key": key}
+
+
 class Notes:
-    """<video>/notes/notes.json and its frame images. A note taken into a round of NOTES.md is kept, read-only."""
+    """<video>/notes/notes.json and its frame images. A note taken into a round of NOTES.md is kept, read-only;
+    notes.json files moved by hand into a folder under notes/ are read, never written (`archived()`)."""
 
     def __init__(self, folder: Path):
         self.folder = folder
         self.file = folder / "notes.json"
         self.lock = threading.Lock()
 
-    def all(self) -> list[dict]:
+    def _data(self) -> dict:
         if not self.file.is_file():
-            return []
-        return json.loads(self.file.read_text(encoding="utf-8")).get("notes", [])
+            return {}
+        return json.loads(self.file.read_text(encoding="utf-8"))
 
-    def _write(self, notes: list[dict]) -> None:
+    def all(self) -> list[dict]:
+        return self._data().get("notes", [])
+
+    def archived(self) -> list[dict]:
+        """Notes in notes/<folder>/notes.json (moved there by hand), read-only: their ids and image paths carry the
+        folder (round-8/n3, round-8/frames/n3.jpg)."""
+        out = []
+        for file in sorted(self.folder.glob("*/notes.json")):
+            sub = file.parent.name
+            try:
+                notes = json.loads(file.read_text(encoding="utf-8")).get("notes", [])
+            except (OSError, ValueError):
+                continue
+            for x in notes:
+                x = {**x, "id": f"{sub}/{x.get('id')}", "folder": sub}
+                for k in ("image", "marked"):
+                    if x.get(k):
+                        x[k] = f"{sub}/{x[k]}"
+                out.append(x)
+        return out
+
+    def _next(self, notes: list[dict]) -> int:
+        """The next note number: past every number used in this video, in notes.json, in archived folders, in any
+        frame image left under notes/, and past the stored counter (so a deleted note's number is not reused)."""
+        seen = [int(x.get("n") or 0) for x in notes] + [int(self._data().get("next") or 1) - 1]
+        for file in self.folder.glob("*/notes.json"):
+            try:
+                seen += [int(x.get("n") or 0) for x in json.loads(file.read_text(encoding="utf-8")).get("notes", [])]
+            except (OSError, ValueError, TypeError):
+                pass
+        seen += [int(m[1]) for f in self.folder.rglob("n*.jpg") if (m := re.match(r"^n([0-9]+)", f.name))]
+        return 1 + max(seen, default=0)
+
+    def _write(self, notes: list[dict], next_n: int | None = None) -> None:
         self.folder.mkdir(parents=True, exist_ok=True)
+        stored = int(self._data().get("next") or 1)
+        next_n = max(next_n or 1, stored, 1 + max((int(x.get("n") or 0) for x in notes), default=0))
         tmp = self.file.with_suffix(".tmp")
-        tmp.write_text(json.dumps({"notes": notes}, indent=1, ensure_ascii=False), encoding="utf-8")
+        tmp.write_text(json.dumps({"notes": notes, "next": next_n}, indent=1, ensure_ascii=False), encoding="utf-8")
         tmp.replace(self.file)
 
     def _image(self, name: str, data_url: str | None) -> str | None:
@@ -233,7 +317,9 @@ class Notes:
             f"frame image for note {nid}")
         return f"frames/{nid}.jpg"
 
-    def add(self, body: dict, source: dict, fps: float, sections: list[dict], grab=None) -> dict:
+    def add(self, body: dict, source: dict, fps: float, sections: list[dict], grab=None, on: dict | None = None) -> dict:
+        """A note on the frame `body["frame"]` of source (the render on the page, or a version shown in Compare);
+        `on` is the render the page shows, which the note belongs to (default: source itself)."""
         text = str(body.get("text") or "").strip()
         drawing = body.get("drawing") or []
         if not text and not drawing:
@@ -243,17 +329,18 @@ class Notes:
             raise MVError("frame must be 0 or more")
         song = round(source["start"] + frame / fps, 3)
         section = next((s["id"] for s in sections if s["from"] <= song < s["to"]), sections[-1]["id"])
+        on = on or ref_of(source)
         with self.lock:
             notes = self.all()
-            n = 1 + max((x["n"] for x in notes), default=0)
+            n = self._next(notes)
             nid = f"n{n}"
             note = {"id": nid, "n": n, "at": datetime.now().isoformat(timespec="seconds"), "section": section,
                     "song": song, "frame": frame, "fps": fps, "render": source["label"],
                     "render_file": source["file"].name, "text": text, "drawing": drawing,
                     "image": self._grabbed(nid, frame, grab) if grab else None,
-                    "marked": self._image(f"{nid}-marked.jpg", body.get("marked")), "round": None}
+                    "marked": self._image(f"{nid}-marked.jpg", body.get("marked")), "round": None, "on": on}
             notes.append(note)
-            self._write(notes)
+            self._write(notes, n + 1)
         return note
 
     def _find(self, notes: list[dict], nid: str) -> dict:
@@ -285,19 +372,62 @@ class Notes:
                 (self.folder / "frames" / name).unlink(missing_ok=True)
             self._write([x for x in notes if x["id"] != nid])
 
-    def new(self) -> list[dict]:
-        return sorted((x for x in self.all() if x["round"] is None), key=lambda x: (x["song"], x["n"]))
+    def new(self, group: str | None = None) -> list[dict]:
+        """The notes not yet taken into a round: of one render (a group_of key), or of every render."""
+        return sorted((x for x in self.all() if x["round"] is None and (group is None or group_of(x) == group)),
+                      key=lambda x: (x["song"], x["n"]))
 
-    def take(self, round_n: int) -> list[dict]:
-        """Mark every new note as taken into Round round_n of NOTES.md."""
+    def take(self, round_n: int, groups: set[str] | None = None) -> list[dict]:
+        """Mark the new notes (of these renders, or of every one) as taken into Round round_n of NOTES.md."""
         with self.lock:
             notes = self.all()
-            taken = [x for x in notes if x["round"] is None]
+            taken = [x for x in notes if x["round"] is None and (groups is None or group_of(x) in groups)]
             for x in taken:
                 x["round"] = round_n
             if taken:
                 self._write(notes)
         return sorted(taken, key=lambda x: (x["song"], x["n"]))
+
+
+def renders(store: Notes, current: dict | None = None, look_in: list[Path] | None = None,
+            archived: bool = True) -> list[dict]:
+    """The notes grouped by the render they belong to, newest first (by its latest note): [{group, render, file,
+    key, status, path, notes}]. status: "showing" (the render on the page, `current`), "on disk" (its file is still
+    there: the same content, or for a note from before 0.14.1 a file of that name in one of look_in), "changed"
+    (the file was rendered again since) or "gone"."""
+    groups: dict[str, dict] = {}
+    for x in store.all() + (store.archived() if archived else []):
+        g = group_of(x)
+        on = on_of(x)
+        grp = groups.setdefault(g, {"group": g, "render": on["render"], "file": on["file"], "key": on["key"],
+                                    "notes": []})
+        grp["notes"].append(x)
+    cur = ref_of(current) if current else None
+    keys: dict[str, str | None] = {}
+    for grp in groups.values():
+        grp["notes"].sort(key=lambda x: (x.get("round") is not None, x.get("song", 0), x.get("n", 0)))
+        grp["last"] = max(str(x.get("at") or "") for x in grp["notes"])
+        file = Path(str(grp["file"] or ""))
+        path = None
+        if grp["key"]:
+            if cur and grp["key"] == cur["key"]:
+                status, path = "showing", cur["file"]
+            elif file.is_absolute() and file.is_file():
+                if str(file) not in keys:
+                    keys[str(file)] = render_key(file)
+                status = "on disk" if keys[str(file)] == grp["key"] else "changed"
+                path = str(file)
+            else:
+                status = "gone"
+        else:
+            if cur and file.name == Path(cur["file"]).name:
+                status, path = "showing", cur["file"]
+            else:
+                hit = next((d / file.name for d in (look_in or []) if file.name and (d / file.name).is_file()), None)
+                status, path = ("on disk", str(hit)) if hit else ("gone", None)
+        grp["status"], grp["path"] = status, path
+        grp["name"] = file.name
+    return sorted(groups.values(), key=lambda g: g["last"], reverse=True)
 
 
 def describe(notes: list[dict], folder: Path, sections: list[dict] | None = None) -> str:
@@ -323,6 +453,7 @@ class Sections:
                  log=print):
         self.ws, self.video_id = ws, video_id
         self.source = pick_source(ws, video_id, video, start)
+        self.source["key"] = render_key(self.source["file"])
         self.facts = video_facts(self.source["file"])
         self.sections = section_ranges(read_scenes(ws.video_dir(video_id)), self.source["start"],
                                        self.facts["duration"])
@@ -369,11 +500,48 @@ class Sections:
         from ..requests import video_queue
         return [r for r in video_queue(self.ws, self.video_id).all() if r["kind"] == "variant"]
 
+    def _shown(self, note: dict) -> dict:
+        """A note as the page shows it: `src` is its picture's address, which changes whenever the picture does."""
+        img = note.get("marked") or note.get("image")
+        src = None
+        if img and NOTE_IMAGE_RE.match(img):
+            file = self.notes.folder / img
+            v = file.stat().st_mtime_ns if file.is_file() else 0
+            src = f"/notes/{img}?v={v}"
+        return {**note, "src": src}
+
+    def _mine(self, note: dict, offered: set[str] | None = None) -> bool:
+        """On the render this page shows (a note from before 0.14.1: by its file name, or a version Compare offers)."""
+        on = on_of(note)
+        if on["key"]:
+            return on["key"] == self.source["key"]
+        name = Path(str(on["file"] or "")).name
+        if offered is None:
+            offered = {v["key"] for v in self.versions()}
+        return name == Path(self.source["file"]).name or name in offered
+
+    def my_notes(self) -> list[dict]:
+        """The notes this page shows and edits: those left on its render (and on versions compared with it)."""
+        offered = {v["key"] for v in self.versions()}
+        return [self._shown(x) for x in self.notes.all() if self._mine(x, offered)]
+
+    def earlier(self) -> list[dict]:
+        """Notes on other renders of this video (and any moved into a folder under notes/), read-only, by render."""
+        out = []
+        look_in = [Path(self.source["file"]).parent, review_dir(self.ws, self.video_id) / "media"]
+        offered = {v["key"] for v in self.versions()}
+        for g in renders(self.notes, self.source, look_in):
+            notes = [x for x in g["notes"] if x.get("folder") or not self._mine(x, offered)]
+            if notes:
+                out.append({"render": g["render"], "name": g["name"], "status": g["status"], "path": g["path"],
+                            "notes": [self._shown(x) for x in notes]})
+        return out
+
     def state(self) -> dict:
-        return {"id": self.video_id, "title": self.title, "render": self.source["label"],
+        return {"id": self.video_id, "title": self.title, "render": self.source["label"], "key": self.source["key"],
                 "start": self.source["start"], **self.facts, "sections": self.sections, "lines": self.lines,
-                "thumbs": self.assets["thumbs"], "posters": self.assets["posters"], "notes": self.notes.all(),
-                "versions": self.versions(), "requests": self.requests()}
+                "thumbs": self.assets["thumbs"], "posters": self.assets["posters"], "notes": self.my_notes(),
+                "earlier": self.earlier(), "versions": self.versions(), "requests": self.requests()}
 
     def page(self) -> str:
         return TEMPLATE.read_text(encoding="utf-8").replace("{{TITLE}}", self.title.replace("<", "&lt;"))
@@ -405,24 +573,31 @@ class Sections:
 
     def act(self, body: dict) -> dict:
         action = body.get("action")
+        if body.get("page") and body["page"] != self.source["key"]:
+            raise MVError(f"this page was opened on another render; the page now shows {self.source['label']} "
+                          "(reload it)")
+        if action in ("edit", "delete") and not any(x["id"] == body.get("id") and self._mine(x)
+                                                    for x in self.notes.all()):
+            raise MVError(f"note {body.get('id')!r} is not on {self.source['label']}: it can be read here, not changed")
+        on = ref_of(self.source)
         if action == "add" and body.get("version"):
             v = self.version(str(body["version"]))
             source = {"file": review_dir(self.ws, self.video_id) / "media" / v["key"], "label": v["label"],
                       "start": v["start"]}
             if v["kind"] != "video":
                 body = {**body, "frame": 0}
-            return {"note": self.notes.add(body, source, v["fps"], self.sections,
-                                           grab=lambda n: self.version_frame(v, n)), "notes": self.notes.all()}
+            note = self.notes.add(body, source, v["fps"], self.sections, grab=lambda n: self.version_frame(v, n), on=on)
+            return {"note": self._shown(note), "notes": self.my_notes()}
         if action == "add":
-            return {"note": self.notes.add(body, self.source, self.facts["fps"], self.sections, grab=self.frame),
-                    "notes": self.notes.all()}
+            note = self.notes.add(body, self.source, self.facts["fps"], self.sections, grab=self.frame, on=on)
+            return {"note": self._shown(note), "notes": self.my_notes()}
         if action == "edit":
             self.notes.edit(body.get("id"), body.get("text", ""))
         elif action == "delete":
             self.notes.delete(body.get("id"))
         else:
             raise MVError(f"unknown action {action!r}")
-        return {"notes": self.notes.all()}
+        return {"notes": self.my_notes()}
 
 
 def _range_of(header: str | None, size: int) -> tuple[int, int] | None:
@@ -436,8 +611,9 @@ def _range_of(header: str | None, size: int) -> tuple[int, int] | None:
     return (a, min(b, size - 1)) if a < size else None
 
 
-def send_file(handler: BaseHTTPRequestHandler, file: Path, kind: str) -> None:
-    """A file, in byte ranges when asked (players seek with them)."""
+def send_file(handler: BaseHTTPRequestHandler, file: Path, kind: str, cache: str = "no-store") -> None:
+    """A file, in byte ranges when asked (players seek with them). Only addresses that can never mean another file
+    (the filmstrip's, which carry the render's key) are cached."""
     if not file.is_file():
         return handler.send_error(404)
     size = file.stat().st_size
@@ -449,7 +625,7 @@ def send_file(handler: BaseHTTPRequestHandler, file: Path, kind: str) -> None:
     handler.send_header("Content-Length", str(b - a + 1))
     if span:
         handler.send_header("Content-Range", f"bytes {a}-{b}/{size}")
-    handler.send_header("Cache-Control", "no-store" if kind != "image/jpeg" else "max-age=3600")
+    handler.send_header("Cache-Control", cache)
     handler.end_headers()
     try:
         with file.open("rb") as f:
@@ -479,18 +655,25 @@ def make_handler(app: Sections):
                     return self.send_bytes(app.page().encode("utf-8"), "text/html; charset=utf-8")
                 if route == "/api/state":
                     return self.send_json(app.state())
+                if route == "/api/render":         # the page checks it when it comes back into view
+                    return self.send_json({"render": app.source["label"], "key": app.source["key"]})
                 if route == "/video":
+                    if dict(p.split("=", 1) for p in query.split("&") if "=" in p).get("r", app.source["key"]) \
+                            != app.source["key"]:
+                        return self.send_error(409, "this page was opened on another render (reload it)")
                     return self.send_file(app.source["file"], "video/mp4" if app.source["file"].suffix != ".webm"
                                           else "video/webm")
                 if route == "/frame":
-                    n = int(dict(p.split("=", 1) for p in query.split("&") if "=" in p).get("n", "-1"))
-                    return self.send_file(app.frame(n), "image/png")
-                m = re.match(r"^/(thumbs|posters)/([0-9]+\.jpg)$", route)
-                if m:
-                    return self.send_file(app.build / app.assets["key"] / m[1] / m[2], "image/jpeg")
-                m = re.match(r"^/notes/frames/(n[0-9]+(-marked)?\.jpg)$", route)
-                if m:
-                    return self.send_file(app.notes.folder / "frames" / m[1], "image/jpeg")
+                    q = dict(p.split("=", 1) for p in query.split("&") if "=" in p)
+                    if q.get("r", app.source["key"]) != app.source["key"]:
+                        raise MVError("this page was opened on another render (reload it)")
+                    return self.send_file(app.frame(int(q.get("n", "-1"))), "image/png")
+                m = re.match(r"^/a/([0-9a-f]+)/(thumbs|posters)/([0-9]+\.jpg)$", route)
+                if m and m[1] == app.assets["key"]:
+                    return self.send_file(app.build / m[1] / m[2] / m[3], "image/jpeg", "max-age=3600, immutable")
+                m = NOTE_IMAGE_RE.match(route.removeprefix("/notes/")) if route.startswith("/notes/") else None
+                if m and ".." not in m[1]:
+                    return self.send_file(app.notes.folder / m[1], "image/jpeg", "no-cache")
                 m = re.match(r"^/versions/([^/]+)$", route)
                 if m and VERSION_FILE_RE.match(m[1]):
                     v = app.version(m[1])
@@ -525,8 +708,8 @@ def make_handler(app: Sections):
         def send_json(self, data, status: int = 200) -> None:
             self.send_bytes(json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json", status)
 
-        def send_file(self, file: Path, kind: str) -> None:
-            send_file(self, file, kind)
+        def send_file(self, file: Path, kind: str, cache: str = "no-store") -> None:
+            send_file(self, file, kind, cache)
 
         def send_bytes(self, body: bytes, kind: str, status: int = 200) -> None:
             self.send_response(status)

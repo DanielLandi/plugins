@@ -141,6 +141,11 @@ video's scenes:
   on the problem; the drawing is saved with the note.
 - The notes stay in your video's folder (`notes/`). When you are done, Claude reads them (`notes <id>`) as if you had
   typed them in the chat, looking at every frame you drew on, and writes them into the next round.
+- **Notes belong to the render you left them on.** Restart the page on a new render and it shows only that render's
+  notes; the ones on earlier renders stay, read-only, under **Earlier videos** (folded away in the notes panel and
+  in **Notes**), with their own frames and whether that render's file is still there. Nothing is moved or deleted
+  for being old, so there is no need to clear notes away by hand. `notes <id>` gives Claude the newest render's new
+  notes; `notes <id> --render <name>` another render's, and `notes <id> --all` every note, grouped by render.
 
 ![A section opened: the frame being drawn on (a box), the drawing tools, the section's filmstrip and lyrics, and the notes panel with a saved note and its circled frame](../docs/images/music-video-sections-detail.jpg)
 
@@ -252,7 +257,7 @@ The skills run these for you; each is `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/mus
 | `studio`, `still`, `stills`, `render`, `blur`, `board` | Remotion Studio, stills, renders, motion blur, the transition board |
 | `mux`, `qc` | add the song to a silent render (with any lifts in the video's `song-fixes.yaml`); check a render |
 | `home`, `requests` | one page with every song and video, its ten stages and buttons for your decisions; `requests` lists what you asked for there, for Claude to carry out (`--wait` waits for the next one) |
-| `sections`, `notes` | every section of the newest draft on one page, each playable alone or in order; open one to watch it large, leave notes on its frames, with drawings, compare it with another version, or ask for a variant; `notes` prints the notes for the next round |
+| `sections`, `notes` | every section of the newest draft on one page, each playable alone or in order; open one to watch it large, leave notes on its frames, with drawings, compare it with another version, or ask for a variant; `notes` prints the newest render's notes for the next round (`--all`: every render's) |
 | `version`, `review` | keep each checked render or still as a numbered version of its scene (`--variant b` for a variant); a local page that plays any two versions in sync (side by side, wipe, flip) |
 | `reel` | one long video from finished clips (`reel.yaml`: a fixed head, the clips, a fixed tail), chained by joins; adding a clip renders only that clip's joins and splices the rest by stream copy (see "Reels") |
 | `library` | everything in your results folder (videos, songs, lessons) as one page any phone, tablet or TV browser on your home network can play from; `library install` keeps it running from login (macOS) |

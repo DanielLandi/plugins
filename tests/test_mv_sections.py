@@ -525,3 +525,207 @@ def test_compare_plays_two_versions_and_takes_a_note_on_b(sections_server, mv_ws
     assert [r["data"] for r in rq.video_queue(mv_ws, app.video_id).all()] == [{"section": "sky",
                                                                                "note": "the sky at dawn instead"}]
     assert errors == []
+
+
+# --- notes belong to a render ------------------------------------------------------------------------------------
+
+def colour_video(path, colour, seconds=2.0):
+    """A VP9 video of one flat colour (two renders of the same video that are easy to tell apart)."""
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                    f"color=c={colour}:s=160x90:r={FPS}:d={seconds}", "-c:v", "libvpx-vp9", "-crf", "20", "-b:v", "0",
+                    "-pix_fmt", "yuv420p", str(path)], check=True)
+    return path
+
+
+def start_server(mv_ws, spec_id, video, port=0):
+    app = Sections(mv_ws, spec_id, video, log=lambda *_: None)
+    server = make_server(app, port=port)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return app, server, f"http://127.0.0.1:{server.server_address[1]}"
+
+
+def stop_server(server):
+    server.shutdown()
+    server.server_close()
+
+
+SHOWN_RGB = """(sel) => { const img = document.querySelector(sel); const c = document.createElement('canvas');
+  c.width = c.height = 8; const g = c.getContext('2d'); g.drawImage(img, 0, 0, 8, 8);
+  const d = g.getImageData(0, 0, 8, 8).data; const m = [0, 0, 0];
+  for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) m[k] += d[i + k] / 64; return m; }"""
+
+
+def test_a_note_on_the_next_render_shows_that_render_s_frame(mv_ws, filed_song, tmp_path, browser_ok):
+    # The page ran on one render and its notes were moved aside by hand; then it ran on the next render, on the same
+    # port. The new note's frame image on disk was right, but the notes panel showed the earlier render's picture.
+    from playwright.sync_api import sync_playwright
+    spec_id, _ = filed_song(seconds=2.0)
+    write_scenes(mv_ws.video_dir(spec_id))
+    red, blue = colour_video(tmp_path / "reel.webm", "red"), colour_video(tmp_path / "reel-r8.webm", "blue")
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1400, "height": 900})
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        app, server, url = start_server(mv_ws, spec_id, red)
+        port = server.server_address[1]
+        assert post(url + "/api/notes", {"action": "add", "frame": 9, "text": "on the red one"})[0] == 200
+        page.goto(url + "/#2")
+        page.evaluate("sections.ready")
+        page.wait_for_function("document.querySelector('#list .item img')?.complete")
+        assert page.evaluate(SHOWN_RGB, "#list .item img")[0] > 180                     # red
+        stop_server(server)
+        # moved aside by hand, frames and all, as was done between the two renders
+        folder = app.notes.folder
+        (folder / "round-8").mkdir()
+        for name in ("notes.json", "frames"):
+            (folder / name).rename(folder / "round-8" / name)
+        app, server, url = start_server(mv_ws, spec_id, blue, port=port)
+        status, data = post(url + "/api/notes", {"action": "add", "frame": 9, "text": "on the blue one"})
+        assert status == 200
+        assert grey((folder / data["note"]["image"]).read_bytes()) < 60                    # right on disk
+        page.goto(url + "/#2")
+        page.reload()
+        page.evaluate("sections.ready")
+        page.wait_for_function("document.querySelector('#list > .item img')?.complete")
+        assert page.locator("#list > .item").count() == 1                                # only this render's note
+        r, _, b = page.evaluate(SHOWN_RGB, "#list > .item img")
+        assert b > 150 and r < 80                                                        # blue, not the red one
+        # the red render's note is still there, read-only, folded under Earlier videos with its own picture
+        assert "Earlier videos · 1" in page.text_content("#list details.earlier summary")
+        page.click("#list details.earlier summary")
+        page.wait_for_function("document.querySelector('#list .earlier .item img')?.complete")
+        assert page.evaluate(SHOWN_RGB, "#list .earlier .item img")[0] > 180
+        assert page.locator("#list .earlier [data-a=edit]").count() == 0
+        stop_server(server)
+        browser.close()
+    assert errors == []
+
+
+def test_note_numbers_never_repeat_even_after_notes_are_moved_aside(tmp_path):
+    store = Notes(tmp_path / "notes")
+    src = {"file": tmp_path / "reel.mp4", "label": "reel", "start": 0.0}
+    for k in range(3):
+        store.add({"frame": k, "text": f"note {k}"}, src, FPS, SECS)
+    (store.folder / "frames").mkdir()
+    (store.folder / "frames" / "n3.jpg").write_bytes(b"frame")
+    store.delete("n3")
+    assert store.add({"frame": 1, "text": "after a delete"}, src, FPS, SECS)["id"] == "n4"   # n3 is not reused
+    # moved aside by hand, frames and all: the next note still carries on from n5, so frames/n5.jpg is new
+    (store.folder / "round-8").mkdir()
+    store.file.rename(store.folder / "round-8" / "notes.json")
+    assert store.all() == []
+    assert store.add({"frame": 1, "text": "on the next render"}, src, FPS, SECS)["id"] == "n5"
+    # a frame image left behind counts too
+    (store.folder / "frames" / "n9-marked.jpg").write_bytes(b"x")
+    assert store.add({"frame": 1, "text": "x"}, src, FPS, SECS)["id"] == "n10"
+    # the moved notes are read as archived: ids and pictures under their folder, never edited
+    arch = store.archived()
+    assert [x["id"] for x in arch] == ["round-8/n1", "round-8/n2", "round-8/n4"]
+    assert arch[0]["folder"] == "round-8"
+    with pytest.raises(MVError, match="no note"):
+        store.edit("round-8/n1", "changed")
+
+
+def test_a_render_key_follows_the_content_not_the_name_or_the_clock(tmp_path):
+    a = tmp_path / "reel.mp4"
+    a.write_bytes(b"A" * 3_000_000)
+    key = sections.render_key(a)
+    import os
+    os.utime(a, (1, 1))
+    moved = a.rename(tmp_path / "moved.mp4")
+    assert sections.render_key(moved) == key                        # touched and moved: the same render
+    moved.write_bytes(b"A" * 3_000_000 + b"B")
+    assert sections.render_key(moved) != key                        # rendered again: another one
+    assert sections.render_key(tmp_path / "gone.mp4") is None
+
+
+def test_the_page_shows_only_its_render_s_notes_and_the_others_read_only(mv_ws, filed_song, tmp_path):
+    spec_id, _ = filed_song(seconds=2.0)
+    write_scenes(mv_ws.video_dir(spec_id))
+    first = colour_video(tmp_path / "reel.webm", "red")
+    app, server, url = start_server(mv_ws, spec_id, first)
+    post(url + "/api/notes", {"action": "add", "frame": 9, "text": "too red"})
+    old_key = app.source["key"]
+    stop_server(server)
+    # a note from before notes belonged to a render (no `on`), on a render of another name, still on disk
+    legacy = colour_video(tmp_path / "reel-r6.webm", "green")
+    data = json.loads(app.notes.file.read_text(encoding="utf-8"))
+    data["notes"].append({"id": "n7", "n": 7, "at": "2026-11-01T10:00:00", "section": "sky", "song": 1.5, "frame": 15,
+                          "fps": FPS, "render": "reel-r6", "render_file": legacy.name, "text": "older", "drawing": [],
+                          "image": None, "marked": None, "round": 3})
+    app.notes.file.write_text(json.dumps(data), encoding="utf-8")
+    second = colour_video(tmp_path / "reel-r8.webm", "blue")
+    app, server, url = start_server(mv_ws, spec_id, second)
+    try:
+        state = json.loads(get(url + "/api/state")[2])
+        assert state["notes"] == [] and state["key"] == app.source["key"] != old_key
+        assert [(g["render"], g["status"], [x["text"] for x in g["notes"]]) for g in state["earlier"]] == [
+            ("reel", "on disk", ["too red"]), ("reel-r6", "on disk", ["older"])]
+        # a note on the earlier render is read here, not changed
+        assert post(url + "/api/notes", {"action": "edit", "id": "n1", "text": "x"})[0] == 400
+        assert post(url + "/api/notes", {"action": "delete", "id": "n1"})[0] == 400
+        # a page still open on the earlier render cannot leave a note on this one
+        status, data = post(url + "/api/notes", {"action": "add", "frame": 3, "text": "x", "page": old_key})
+        assert status == 400 and "another render" in data["error"]
+        for stale in (f"/frame?n=3&r={old_key}", f"/video?r={old_key}"):
+            with pytest.raises(urllib.error.HTTPError):
+                get(url + stale)
+        assert json.loads(get(url + "/api/render")[2]) == {"render": "reel-r8", "key": app.source["key"]}
+        status, data = post(url + "/api/notes", {"action": "add", "frame": 3, "text": "blue now",
+                                                 "page": app.source["key"]})
+        assert status == 200 and [x["text"] for x in data["notes"]] == ["blue now"]
+        note = data["note"]
+        assert note["id"] == "n8" and note["on"] == {"render": "reel-r8", "file": str(second.resolve()),
+                                                     "key": app.source["key"]}
+        # the picture's address changes with the picture, and the browser checks it every time
+        assert note["src"].startswith(f"/notes/{note['image']}?v=")
+        _, headers, _ = get(url + note["src"])
+        assert headers["Cache-Control"] == "no-cache"
+        # the filmstrip's addresses carry the render's key; another key is not served
+        state = json.loads(get(url + "/api/state")[2])
+        assert state["posters"][0].startswith(f"a/{app.assets['key']}/")
+        with pytest.raises(urllib.error.HTTPError):
+            get(url + "/a/0123456789/posters/01.jpg")
+    finally:
+        stop_server(server)
+    # rendered again under the same name: the notes on what was there are kept, as on a changed file
+    colour_video(first, "yellow")
+    groups = {g["render"]: g["status"] for g in sections.renders(app.notes, app.source)}
+    assert groups == {"reel-r8": "showing", "reel": "changed", "reel-r6": "gone"}
+
+
+def test_cli_notes_default_to_the_newest_render_and_group_the_rest(mv_ws, filed_song, tmp_path, capsys):
+    spec_id, _ = filed_song(seconds=2.0)
+    write_scenes(mv_ws.video_dir(spec_id))
+    first, second = colour_video(tmp_path / "reel.webm", "red"), colour_video(tmp_path / "reel-r8.webm", "blue")
+    store = sections.Notes(sections.notes_dir(mv_ws, spec_id))
+    store.add({"frame": 9, "text": "on the red"}, {"file": first, "label": "reel", "start": 0.0}, FPS, SECS)
+    # the red render's notes moved aside by hand, then one more left on it in place
+    (store.folder / "round-8").mkdir()
+    store.file.rename(store.folder / "round-8" / "notes.json")
+    store.add({"frame": 4, "text": "red again"}, {"file": first, "label": "reel", "start": 0.0}, FPS, SECS)
+    store.add({"frame": 12, "text": "on the blue"}, {"file": second, "label": "reel-r8", "start": 0.0}, FPS, SECS)
+    data = json.loads(store.file.read_text(encoding="utf-8"))
+    data["notes"][-1]["at"] = "2099-01-01T00:00:00"                 # surely the newest
+    store.file.write_text(json.dumps(data), encoding="utf-8")
+    capsys.readouterr()
+    assert main(["notes", spec_id]) == 0
+    out = capsys.readouterr().out
+    assert "1 new note(s) for night-drive on reel-r8 (reel-r8.webm)" in out and '"on the blue"' in out
+    assert "red" not in out.split("(also")[0] and "also 1 new note(s) on other renders" in out
+    assert main(["notes", spec_id, "--render", "reel.webm"]) == 0
+    out = capsys.readouterr().out
+    assert '"red again"' in out and '"on the red"' not in out           # the archived folder is not new
+    assert main(["notes", spec_id, "--all"]) == 0
+    out = capsys.readouterr().out
+    assert out.index("== reel-r8") < out.index("== reel (reel.webm)")
+    assert '"on the red"' in out and "round-8/n1" in out and str(store.folder / "round-8" / "frames") not in out
+    assert main(["notes", spec_id, "--render", "nope"]) == 2
+    assert "renders with notes: reel-r8 (reel-r8.webm), reel (reel.webm)" in capsys.readouterr().err
+    assert main(["notes", spec_id, "--taken", "9"]) == 0
+    assert "1 note(s) marked as taken into Round 9 of NOTES.md (the notes on reel-r8)" in capsys.readouterr().out
+    assert [x["text"] for x in store.new()] == ["red again"]          # the other render's note waits
+    assert main(["notes", spec_id, "--json", "--render", "reel"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert [g["render"] for g in data["renders"]] == ["reel"] and [x["text"] for x in data["notes"]] == ["red again"]
